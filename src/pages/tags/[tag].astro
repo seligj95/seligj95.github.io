@@ -1,0 +1,81 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog");
+  const allTags = [...new Set(posts.flatMap((post) => post.data.tags))];
+  return allTags.map((tag) => ({
+    params: { tag },
+    props: {
+      tag,
+      posts: posts
+        .filter((post) => post.data.tags.includes(tag))
+        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
+    },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout title={`#${tag} — Jordan Selig`} description={`Posts tagged "${tag}".`}>
+  <section class="tag-page">
+    <h1>#{tag}</h1>
+    <p class="count">{posts.length} post{posts.length === 1 ? "" : "s"}</p>
+    <ul>
+      {posts.map((post: any) => (
+        <li>
+          <a href={`${import.meta.env.BASE_URL}blog/${post.id}/`}>
+            <span class="title">{post.data.title}</span>
+            <time datetime={post.data.pubDate.toISOString()}>
+              {post.data.pubDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </time>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>
+
+<style>
+  .tag-page {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+  }
+  .count {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+  }
+  ul {
+    list-style: none;
+  }
+  li {
+    border-bottom: 1px solid var(--border);
+  }
+  li a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    text-decoration: none;
+    color: var(--text);
+  }
+  li a:hover .title {
+    color: var(--accent);
+  }
+  time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+</style>

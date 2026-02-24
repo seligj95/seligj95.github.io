@@ -1,0 +1,37 @@
+{
+  "registry_version": "1.0",
+  "entries": [
+    {
+      "persistent_name": "Cobb",
+      "universe": "Inception",
+      "role": "Lead",
+      "created_at": "2026-02-24T19:30:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Ariadne",
+      "universe": "Inception",
+      "role": "Frontend Dev",
+      "created_at": "2026-02-24T19:30:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Yusuf",
+      "universe": "Inception",
+      "role": "Integration Dev",
+      "created_at": "2026-02-24T19:30:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    {
+      "persistent_name": "Arthur",
+      "universe": "Inception",
+      "role": "Tester",
+      "created_at": "2026-02-24T19:30:00Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  ]
+}

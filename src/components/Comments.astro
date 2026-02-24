@@ -1,0 +1,83 @@
+---
+interface Props {
+  repo: string;
+  repoId?: string;
+  category?: string;
+  categoryId?: string;
+}
+
+const {
+  repo = "jordanselig/personal-blog",
+  repoId = "",
+  category = "Blog Comments",
+  categoryId = "",
+} = Astro.props;
+---
+
+<!-- Giscus comments widget — configure IDs at https://giscus.app -->
+<section class="comments">
+  <h2>Comments</h2>
+  <script
+    src="https://giscus.app/client.js"
+    data-repo={repo}
+    data-repo-id={repoId}
+    data-category={category}
+    data-category-id={categoryId}
+    data-mapping="pathname"
+    data-strict="0"
+    data-reactions-enabled="1"
+    data-emit-metadata="0"
+    data-input-position="top"
+    data-theme={`${(Astro.url.pathname, "preferred_color_scheme")}`}
+    data-lang="en"
+    crossorigin="anonymous"
+    async
+  ></script>
+</section>
+
+<!-- Sync Giscus theme with the site's dark/light mode toggle -->
+<script>
+  function getGiscusTheme(): string {
+    const theme = document.documentElement.getAttribute("data-theme");
+    return theme === "dark" ? "dark" : "light";
+  }
+
+  function setGiscusTheme(theme: string) {
+    const iframe = document.querySelector<HTMLIFrameElement>(
+      "iframe.giscus-frame"
+    );
+    if (!iframe?.contentWindow) return;
+    iframe.contentWindow.postMessage(
+      { giscus: { setConfig: { theme } } },
+      "https://giscus.app"
+    );
+  }
+
+  // Watch for data-theme attribute changes on <html>
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (
+        mutation.type === "attributes" &&
+        mutation.attributeName === "data-theme"
+      ) {
+        setGiscusTheme(getGiscusTheme());
+      }
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+</script>
+
+<style>
+  .comments {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+  h2 {
+    margin-bottom: 1rem;
+  }
+</style>

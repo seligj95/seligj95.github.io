@@ -1,0 +1,56 @@
+---
+interface Props {
+  title: string;
+  url: string;
+}
+
+const { title, url } = Astro.props;
+const encodedUrl = encodeURIComponent(url);
+const encodedTitle = encodeURIComponent(title);
+---
+
+<div class="share-buttons">
+  <span>Share:</span>
+  <a
+    href={`https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Share on Twitter"
+  >
+    Twitter
+  </a>
+  <a
+    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Share on LinkedIn"
+  >
+    LinkedIn
+  </a>
+  <a
+    href={`mailto:?subject=${encodedTitle}&body=${encodedUrl}`}
+    aria-label="Share via email"
+  >
+    Email
+  </a>
+</div>
+
+<style>
+  .share-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.875rem;
+    margin-top: 1.5rem;
+  }
+  .share-buttons span {
+    color: var(--text-muted);
+  }
+  .share-buttons a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .share-buttons a:hover {
+    text-decoration: underline;
+  }
+</style>

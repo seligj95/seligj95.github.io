@@ -1,0 +1,57 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+const posts = await getCollection("blog");
+const allTags = [...new Set(posts.flatMap((post) => post.data.tags))].sort();
+---
+
+<BaseLayout title="Tags — Jordan Selig" description="Browse posts by tag.">
+  <section class="tags-page">
+    <h1>Tags</h1>
+    <div class="tag-list">
+      {allTags.map((tag) => (
+        <a href={`${import.meta.env.BASE_URL}tags/${tag}/`} class="tag">
+          #{tag}
+          <span class="count">
+            ({posts.filter((p) => p.data.tags.includes(tag)).length})
+          </span>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .tags-page {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .tag {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: border-color 0.15s;
+  }
+  .tag:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .count {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+</style>

@@ -1,0 +1,105 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="About — Jordan Selig" description="About Jordan Selig.">
+  <section class="about">
+    <h1>About Me</h1>
+    <div class="bio">
+      <p>
+        Hi — I'm Jordan. This is my personal blog where I write about software
+        engineering, technology, and whatever else catches my attention.
+      </p>
+      <p>
+        I enjoy building things, learning in public, and sharing what I discover along the way.
+      </p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Interests</h2>
+        <ul>
+          <li>Software Engineering</li>
+          <li>Web Development</li>
+          <li>Open Source</li>
+          <li>Developer Tools</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Find Me</h2>
+        <ul class="socials">
+          <li><a href="https://github.com/jordanselig" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+          <li><a href="https://linkedin.com/in/" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+          <li><a href="https://x.com/" target="_blank" rel="noopener noreferrer">X / Twitter</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .about {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+  .bio {
+    margin-bottom: 2.5rem;
+  }
+  .bio p {
+    line-height: 1.75;
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+    color: var(--text-muted);
+  }
+  .bio p:first-child {
+    color: var(--text);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .card {
+    padding: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  .card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .card li {
+    font-size: 0.95rem;
+  }
+  .socials a {
+    text-decoration: none;
+    color: var(--text);
+    transition: color 0.15s ease;
+  }
+  .socials a:hover {
+    color: var(--accent);
+  }
+  @media (max-width: 640px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
