@@ -44,6 +44,45 @@
   --surface: #f3e8ff;
 }
 
+[data-theme="vivid"] {
+  --bg: #0a0a1a;
+  --text: #ffffff;
+  --text-muted: #c0c0e0;
+  --border: rgba(255, 255, 255, 0.15);
+  --accent: #ff3c78;
+  --accent-hover: #ffdd57;
+  --accent-subtle: rgba(255, 60, 120, 0.15);
+  --surface: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="vivid"] body {
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #0a1a2e 50%, #0a2e1a 75%, #1a0a2e 100%);
+  background-attachment: fixed;
+}
+
+[data-theme="vivid"] a {
+  background-image: linear-gradient(90deg, #ff3c78, #ffdd57, #3cff78, #3c78ff, #ff3cff);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: background-position 0.3s ease;
+}
+
+[data-theme="vivid"] a:hover {
+  background-position: right center;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="vivid"] h1,
+[data-theme="vivid"] h2,
+[data-theme="vivid"] h3 {
+  background-image: linear-gradient(90deg, #ff3c78, #ffdd57, #3cff78, #3c78ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 *,
 *::before,
 *::after {
