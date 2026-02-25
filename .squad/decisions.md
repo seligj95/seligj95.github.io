@@ -26,3 +26,13 @@
 **By:** Cobb (Lead)
 **What:** `.github/workflows/deploy.yml` — triggers on push to main, Node 22, `npm ci && npm run build`, deploys `dist/` via `upload-pages-artifact` + `deploy-pages`.
 **Why:** Official Astro deployment pattern for GitHub Pages. Zero external dependencies.
+
+### 2026-02-24: UI polish patterns & design tokens
+**By:** Ariadne (Frontend Dev)
+**What:** Established core visual patterns: `--accent-subtle` CSS custom property for translucent accent usage (hover glows, tag pill backgrounds). 640px mobile breakpoint used consistently. SVGs over emoji at 18px. Tag pills with accent background. Reading time at ~225 words/min. Sticky header with `backdrop-filter: blur(8px)` and mobile hamburger menu.
+**Why:** These patterns keep the design cohesive. The `--accent-subtle` token is load-bearing — used in card hovers, tag pills, and extensible to callout backgrounds. All agents touching templates or styles should reference these conventions.
+
+### 2026-02-24: Vitest as test framework with build-output testing
+**By:** Arthur (Tester)
+**What:** Chose Vitest + happy-dom as the test framework. Tests run against actual `astro build` output (not component rendering). Global setup executes build once, all test files inspect `dist/`. CI workflow (`deploy.yml`) gates deployment on tests passing. Run `npm test` to execute all tests.
+**Why:** Vitest shares the Vite toolchain with Astro — zero config friction. For a static site, testing built HTML catches routing, meta tags, RSS generation, and accessibility in real output. happy-dom provides fast DOM parsing without a full browser. New pages automatically get accessibility and SEO coverage.
