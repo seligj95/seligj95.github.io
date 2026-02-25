@@ -74,6 +74,31 @@
   -webkit-text-fill-color: transparent;
 }
 
+/* Reset rainbow text for elements that have their own backgrounds */
+[data-theme="vivid"] .tag,
+[data-theme="vivid"] .blog-list a {
+  background-image: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+}
+
+[data-theme="vivid"] .blog-list a {
+  color: var(--text);
+}
+
+[data-theme="vivid"] .blog-list a:hover .title {
+  color: var(--accent);
+}
+
+[data-theme="vivid"] .tag {
+  color: var(--accent);
+}
+
+[data-theme="vivid"] .tag:hover {
+  color: #fff;
+}
+
 [data-theme="vivid"] h1,
 [data-theme="vivid"] h2,
 [data-theme="vivid"] h3 {
