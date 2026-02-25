@@ -135,8 +135,8 @@
   box-shadow: 0 0 12px rgba(255, 60, 120, 0.5);
 }
 
-/* Glowing borders and dividers */
-[data-theme="vivid"] header {
+/* Glowing borders and dividers — site nav header only */
+[data-theme="vivid"] header:not(.post-header) {
   border-bottom: 1px solid rgba(255, 60, 120, 0.3);
   background: rgba(10, 10, 26, 0.9);
   box-shadow: 0 1px 12px rgba(255, 60, 120, 0.15);
@@ -144,10 +144,6 @@
 
 [data-theme="vivid"] footer {
   border-top: 1px solid rgba(255, 60, 120, 0.3);
-}
-
-[data-theme="vivid"] .post-header {
-  border-bottom: 1px solid rgba(255, 60, 120, 0.3);
 }
 
 /* Blockquotes get a gradient border */
