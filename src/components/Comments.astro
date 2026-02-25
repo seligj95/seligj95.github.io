@@ -18,6 +18,7 @@ const {
 <section class="comments">
   <h2>Comments</h2>
   <script
+    is:inline
     src="https://giscus.app/client.js"
     data-repo={repo}
     data-repo-id={repoId}
@@ -28,7 +29,7 @@ const {
     data-reactions-enabled="1"
     data-emit-metadata="0"
     data-input-position="top"
-    data-theme={`${(Astro.url.pathname, "preferred_color_scheme")}`}
+    data-theme="preferred_color_scheme"
     data-lang="en"
     crossorigin="anonymous"
     async
