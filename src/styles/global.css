@@ -46,13 +46,13 @@
 
 [data-theme="vivid"] {
   --bg: #0a0a1a;
-  --text: #ffffff;
-  --text-muted: #c0c0e0;
-  --border: rgba(255, 255, 255, 0.15);
+  --text: #e8dff5;
+  --text-muted: #b8a0d8;
+  --border: rgba(255, 60, 120, 0.25);
   --accent: #ff3c78;
   --accent-hover: #ffdd57;
-  --accent-subtle: rgba(255, 60, 120, 0.15);
-  --surface: rgba(255, 255, 255, 0.05);
+  --accent-subtle: rgba(255, 60, 120, 0.2);
+  --surface: rgba(255, 60, 120, 0.08);
 }
 
 [data-theme="vivid"] body {
@@ -60,6 +60,7 @@
   background-attachment: fixed;
 }
 
+/* Rainbow gradient links */
 [data-theme="vivid"] a {
   background-image: linear-gradient(90deg, #ff3c78, #ffdd57, #3cff78, #3c78ff, #ff3cff);
   background-size: 200% auto;
@@ -74,32 +75,7 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* Reset rainbow text for elements that have their own backgrounds */
-[data-theme="vivid"] .tag,
-[data-theme="vivid"] .blog-list a {
-  background-image: none;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-  -webkit-text-fill-color: currentColor;
-}
-
-[data-theme="vivid"] .blog-list a {
-  color: var(--text);
-}
-
-[data-theme="vivid"] .blog-list a:hover .title {
-  color: var(--accent);
-}
-
-[data-theme="vivid"] .tag {
-  color: var(--accent);
-}
-
-[data-theme="vivid"] .tag:hover {
-  color: #fff;
-  -webkit-text-fill-color: #fff;
-}
-
+/* Rainbow headings with glow */
 [data-theme="vivid"] h1,
 [data-theme="vivid"] h2,
 [data-theme="vivid"] h3 {
@@ -107,6 +83,97 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 8px rgba(255, 60, 120, 0.4));
+}
+
+/* Blog list — rainbow title, colorful descriptions */
+[data-theme="vivid"] .blog-list a {
+  background-image: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  color: var(--text);
+  border-left: 2px solid transparent;
+  transition: border-color 0.3s ease, background 0.15s ease;
+}
+
+[data-theme="vivid"] .blog-list a:hover {
+  border-left-color: var(--accent);
+  background: rgba(255, 60, 120, 0.06);
+}
+
+[data-theme="vivid"] .blog-list .title {
+  background-image: linear-gradient(90deg, #ff3c78, #ffdd57, #3cff78, #3c78ff);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="vivid"] .blog-list a:hover .title {
+  background-position: right center;
+}
+
+/* Tags — neon pill style */
+[data-theme="vivid"] .tag {
+  background-image: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
+  color: #ff3cff;
+  border: 1px solid rgba(255, 60, 255, 0.4);
+  background: rgba(255, 60, 255, 0.1);
+  text-shadow: 0 0 6px rgba(255, 60, 255, 0.5);
+}
+
+[data-theme="vivid"] .tag:hover {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: linear-gradient(135deg, #ff3c78, #ff3cff);
+  border-color: transparent;
+  text-shadow: none;
+  box-shadow: 0 0 12px rgba(255, 60, 120, 0.5);
+}
+
+/* Glowing borders and dividers */
+[data-theme="vivid"] header {
+  border-bottom: 1px solid rgba(255, 60, 120, 0.3);
+  background: rgba(10, 10, 26, 0.9);
+  box-shadow: 0 1px 12px rgba(255, 60, 120, 0.15);
+}
+
+[data-theme="vivid"] footer {
+  border-top: 1px solid rgba(255, 60, 120, 0.3);
+}
+
+[data-theme="vivid"] .post-header {
+  border-bottom: 1px solid rgba(255, 60, 120, 0.3);
+}
+
+/* Blockquotes get a gradient border */
+[data-theme="vivid"] .prose blockquote {
+  border-left: 3px solid #ff3cff;
+  color: #c8b0e8;
+}
+
+/* Code blocks get a subtle glow */
+[data-theme="vivid"] .prose code {
+  background: rgba(255, 60, 255, 0.12);
+  color: #ffdd57;
+}
+
+/* Selection highlight */
+[data-theme="vivid"] ::selection {
+  background: #ff3cff;
+  color: #fff;
+}
+
+/* Social icons in footer */
+[data-theme="vivid"] .socials a {
+  background-image: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: currentColor;
 }
 
 *,
