@@ -21,6 +21,29 @@
   --surface: #1f2937;
 }
 
+[data-theme="retro"] {
+  --bg: #1a1205;
+  --text: #e8c76a;
+  --text-muted: #a89050;
+  --border: #3d2e0a;
+  --accent: #ff6600;
+  --accent-hover: #ff9933;
+  --accent-subtle: rgba(255, 102, 0, 0.12);
+  --surface: #2a1f08;
+  font-family: "Courier New", "Lucida Console", monospace;
+}
+
+[data-theme="rainbow"] {
+  --bg: #fdf6ff;
+  --text: #2d1b4e;
+  --text-muted: #7c5ba6;
+  --border: #e0c8f0;
+  --accent: #e040fb;
+  --accent-hover: #aa00ff;
+  --accent-subtle: rgba(224, 64, 251, 0.08);
+  --surface: #f3e8ff;
+}
+
 *,
 *::before,
 *::after {
