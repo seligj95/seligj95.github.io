@@ -97,6 +97,7 @@
 
 [data-theme="vivid"] .tag:hover {
   color: #fff;
+  -webkit-text-fill-color: #fff;
 }
 
 [data-theme="vivid"] h1,
