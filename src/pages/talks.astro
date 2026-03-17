@@ -1,0 +1,195 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const talks = [
+  {
+    title: "Streamline your AI app development with Azure App Service",
+    event: "Microsoft Build 2025",
+    date: "2025-05-20",
+    youtubeId: "M4ikx61ENcY",
+    description:
+      "Learn how Azure App Service simplifies building and deploying AI-powered applications with built-in support for containers, managed identity, and Azure OpenAI integration.",
+  },
+  {
+    title: "What's new with Azure App Service",
+    event: "Microsoft Ignite 2025",
+    date: "2025-11-19",
+    youtubeId: "vnJP6xWHhO0",
+    description:
+      "A walkthrough of the latest features and improvements coming to Azure App Service, including new runtime support, networking capabilities, and developer experience updates.",
+  },
+];
+
+const sorted = talks.sort(
+  (a, b) => new Date(b.date).valueOf() - new Date(a.date).valueOf()
+);
+---
+
+<BaseLayout
+  title="Talks — Jordan Selig"
+  description="Conference talks and presentations by Jordan Selig."
+>
+  <section class="talks">
+    <h1>Talks</h1>
+    <p class="subtitle">Conference sessions and presentations I've given.</p>
+
+    <div class="talk-list">
+      {sorted.map((talk) => (
+        <div class="talk-card">
+          <a
+            href={`https://www.youtube.com/watch?v=${talk.youtubeId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="video-link"
+            aria-label={`Watch ${talk.title}`}
+          >
+            <img
+              src={`https://img.youtube.com/vi/${talk.youtubeId}/maxresdefault.jpg`}
+              alt={talk.title}
+              loading="lazy"
+            />
+            <div class="play-overlay">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="white">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </a>
+          <div class="talk-info">
+            <span class="event-badge">{talk.event}</span>
+            <h2>
+              <a
+                href={`https://www.youtube.com/watch?v=${talk.youtubeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {talk.title}
+              </a>
+            </h2>
+            <p class="description">{talk.description}</p>
+            <time datetime={talk.date}>
+              {new Date(talk.date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </time>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .talks {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+    font-size: 1.05rem;
+  }
+
+  .talk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .talk-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .talk-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .video-link {
+    display: block;
+    position: relative;
+    text-decoration: none;
+  }
+
+  .video-link img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .video-link:hover .play-overlay {
+    opacity: 1;
+  }
+
+  .talk-info {
+    padding: 1.25rem;
+  }
+
+  .event-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .talk-info h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+
+  .talk-info h2 a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .talk-info h2 a:hover {
+    color: var(--accent);
+  }
+
+  .description {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+
+  time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+</style>
