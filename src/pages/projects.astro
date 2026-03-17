@@ -35,7 +35,7 @@ const projects = [
       {projects.map((project) => (
         <div class="project-card">
           {project.image && (
-            <a href={project.url} target="_blank" rel="noopener noreferrer" class="card-image-link">
+            <a href={project.url} target="_blank" rel="noopener noreferrer" class="card-image-link" aria-label={project.name}>
               <img src={project.image} alt={`Screenshot of ${project.name}`} loading="lazy" />
             </a>
           )}
