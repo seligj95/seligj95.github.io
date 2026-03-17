@@ -1,0 +1,178 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const projects = [
+  {
+    name: "Retake",
+    description:
+      "A lightweight macOS screen recorder with live redo, redaction, trim, and pause — built with ScreenCaptureKit. Messed up a demo? Hit Redo, scrub back, and keep going. No post-production editing required.",
+    tags: ["Swift", "macOS", "screen-recorder"],
+    github: "https://github.com/seligj95/retake",
+    url: "https://www.tinytooltown.com/tools/retake/",
+    image: "https://www.tinytooltown.com/thumbnails/retake.png",
+  },
+  {
+    name: "Stash",
+    description:
+      "A lightweight macOS clipboard history manager inspired by Windows' Win+V. Automatically saves text, images, and files you copy, with a global hotkey, built-in emoji picker, and pinned favorites.",
+    tags: ["Swift", "macOS", "SwiftUI", "clipboard"],
+    github: "https://github.com/seligj95/stash",
+    url: "https://www.tinytooltown.com/tools/stash/",
+    image: "https://www.tinytooltown.com/thumbnails/stash.png",
+  },
+];
+---
+
+<BaseLayout
+  title="Projects — Jordan Selig"
+  description="Tools and projects built by Jordan Selig."
+>
+  <section class="projects">
+    <h1>Projects</h1>
+    <p class="subtitle">Tools and side projects I've built. Mostly small, open-source utilities.</p>
+
+    <div class="grid">
+      {projects.map((project) => (
+        <div class="project-card">
+          {project.image && (
+            <a href={project.url} target="_blank" rel="noopener noreferrer" class="card-image-link">
+              <img src={project.image} alt={`Screenshot of ${project.name}`} loading="lazy" />
+            </a>
+          )}
+          <div class="card-body">
+            <h2>{project.name}</h2>
+            <p class="description">{project.description}</p>
+            <div class="tags">
+              {project.tags.map((tag) => (
+                <span class="tag">{tag}</span>
+              ))}
+            </div>
+            <div class="links">
+              {project.github && (
+                <a href={project.github} target="_blank" rel="noopener noreferrer" class="link">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                  GitHub
+                </a>
+              )}
+              {project.url && (
+                <a href={project.url} target="_blank" rel="noopener noreferrer" class="link">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Tiny Tool Town
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .projects {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+    font-size: 1.05rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .project-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .project-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .card-image-link {
+    display: block;
+    text-decoration: none;
+  }
+
+  .project-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-body {
+    padding: 1.25rem;
+  }
+
+  .card-body h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .description {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .links {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .link:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+
+  .link svg {
+    flex-shrink: 0;
+  }
+</style>
