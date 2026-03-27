@@ -1,0 +1,53 @@
+<!-- GeoCities bottom status bar — place after <Footer> in layout -->
+<div class="gc-bottom-bar-wrap" aria-hidden="true">
+  <div class="gc-bottom-bar">
+    <span class="gc-blink">★ Sign my Guestbook! ★</span>
+    <span class="gc-midi">♪ Background MIDI: canyon.mid ♪</span>
+    <span class="gc-visitor">You are visitor #<span class="gc-counter">008,374</span></span>
+  </div>
+</div>
+
+<style>
+  .gc-bottom-bar-wrap {
+    display: none;
+  }
+
+  :global([data-theme="geocities"]) .gc-bottom-bar-wrap {
+    display: block;
+  }
+
+  .gc-bottom-bar {
+    background: #000066;
+    border-top: 3px ridge #c0c0c0;
+    padding: 6px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
+    font-size: 0.8rem;
+    color: #00ffff;
+  }
+
+  .gc-blink {
+    animation: geocities-blink 1s step-end infinite;
+    color: #ffff00;
+    font-weight: bold;
+  }
+
+  .gc-counter {
+    font-family: "Courier New", monospace;
+    background: #000;
+    color: #00ff00;
+    padding: 0 4px;
+    border: 1px inset #888;
+  }
+
+  .gc-midi {
+    color: #ff88ff;
+    font-style: italic;
+  }
+
+  .gc-visitor {
+    color: #ffff00;
+  }
+</style>

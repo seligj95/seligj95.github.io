@@ -1,0 +1,168 @@
+<!--
+  GeoCities Effects — only active when data-theme="geocities"
+  Adds: marquee banner, floating GIFs, cursor sparkle trail, fake visitor counter,
+  guestbook link, and MIDI joke text.
+-->
+
+<div id="geocities-effects" class="geocities-effects" aria-hidden="true">
+  <!-- Marquee banner -->
+  <div class="gc-marquee-bar">
+    <span class="gc-marquee-text">
+      🚧 UNDER CONSTRUCTION 🚧 &nbsp;&bull;&nbsp; Welcome to my GeoCities page!! 🌟 &nbsp;&bull;&nbsp;
+      Best viewed in Netscape Navigator at 800x600 &nbsp;&bull;&nbsp; 💾 FREE MIDI DOWNLOADS 💾 &nbsp;&bull;&nbsp;
+      Sign my Guestbook!! 📖 &nbsp;&bull;&nbsp; You are visitor #
+      <span class="gc-counter">008,374</span> &nbsp;&bull;&nbsp;
+      ♪ Now playing: canyon.mid ♪ &nbsp;&bull;&nbsp; 🔥 HOT LINKS 🔥 &nbsp;&bull;&nbsp;
+    </span>
+  </div>
+</div>
+
+<style>
+  .geocities-effects {
+    display: none;
+  }
+
+  :global([data-theme="geocities"]) .geocities-effects {
+    display: block;
+  }
+
+  /* Marquee bar — sits above content flow, not fixed over the nav */
+  .gc-marquee-bar {
+    position: relative;
+    z-index: 101;
+    background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0088ff, #ff00ff, #ff0000);
+    padding: 4px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    border-bottom: 2px solid #000;
+  }
+
+  .gc-marquee-text {
+    display: inline-block;
+    animation: geocities-marquee 20s linear infinite;
+    color: #000;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
+    font-weight: bold;
+    font-size: 0.85rem;
+    text-shadow: 1px 1px 0 #fff;
+  }
+
+  .gc-counter {
+    font-family: "Courier New", monospace;
+    background: #000;
+    color: #00ff00;
+    padding: 0 4px;
+    border: 1px inset #888;
+  }
+</style>
+
+<script>
+  const RETRO_DECORATIONS = ["🚧", "🌐", "🔥", "⭐", "💾", "📧", "🏗️", "💿", "🎵", "👷", "🌈", "💥"];
+
+  let sparkleTimer: number | null = null;
+  let decoElements: HTMLElement[] = [];
+  let floatInterval: number | null = null;
+  const sparkles: HTMLElement[] = [];
+
+  function isGeocities(): boolean {
+    return document.documentElement.getAttribute("data-theme") === "geocities";
+  }
+
+  function createSparkle(x: number, y: number) {
+    const sparkle = document.createElement("span");
+    sparkle.textContent = ["✦", "✧", "★", "⋆", "✶", "❋", "✺"][Math.floor(Math.random() * 7)];
+    sparkle.style.cssText = `
+      position: fixed;
+      left: ${x}px;
+      top: ${y}px;
+      pointer-events: none;
+      z-index: 99999;
+      font-size: ${10 + Math.random() * 14}px;
+      color: ${["#ff0000", "#ffff00", "#00ff00", "#00ffff", "#ff00ff", "#ff8800"][Math.floor(Math.random() * 6)]};
+      animation: geocities-sparkle-fade 0.8s ease-out forwards;
+      text-shadow: 0 0 6px currentColor;
+    `;
+    document.body.appendChild(sparkle);
+    sparkles.push(sparkle);
+    setTimeout(() => {
+      sparkle.remove();
+      const idx = sparkles.indexOf(sparkle);
+      if (idx > -1) sparkles.splice(idx, 1);
+    }, 800);
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (!isGeocities()) return;
+    createSparkle(e.clientX + (Math.random() - 0.5) * 20, e.clientY + (Math.random() - 0.5) * 20);
+  }
+
+  function spawnFloatingDecos() {
+    removeFloatingDecos();
+    const count = 5 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement("span");
+      el.textContent = RETRO_DECORATIONS[Math.floor(Math.random() * RETRO_DECORATIONS.length)];
+      const size = 28 + Math.random() * 32;
+      el.style.cssText = `
+        position: fixed;
+        font-size: ${size}px;
+        left: ${Math.random() * 85}vw;
+        top: ${10 + Math.random() * 75}vh;
+        z-index: 9998;
+        pointer-events: none;
+        opacity: 0.7;
+        filter: drop-shadow(0 0 6px #ff00ff);
+        animation: geocities-spin ${3 + Math.random() * 5}s linear infinite;
+      `;
+      document.body.appendChild(el);
+      decoElements.push(el);
+    }
+
+    // Gently float them around
+    floatInterval = window.setInterval(() => {
+      for (const el of decoElements) {
+        const currentTop = parseFloat(el.style.top);
+        const drift = Math.sin(Date.now() / 1000 + decoElements.indexOf(el)) * 0.3;
+        el.style.top = `${currentTop + drift}vh`;
+      }
+    }, 50);
+  }
+
+  function removeFloatingDecos() {
+    for (const el of decoElements) el.remove();
+    decoElements = [];
+    if (floatInterval) {
+      clearInterval(floatInterval);
+      floatInterval = null;
+    }
+  }
+
+  function activate() {
+    document.addEventListener("mousemove", onMouseMove);
+    spawnFloatingDecos();
+  }
+
+  function deactivate() {
+    document.removeEventListener("mousemove", onMouseMove);
+    removeFloatingDecos();
+    for (const s of sparkles) s.remove();
+    sparkles.length = 0;
+  }
+
+  // Watch for theme changes
+  const observer = new MutationObserver(() => {
+    if (isGeocities()) {
+      activate();
+    } else {
+      deactivate();
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+
+  // Initial check
+  if (isGeocities()) activate();
+</script>

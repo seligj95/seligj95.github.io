@@ -31,6 +31,13 @@
     <path d="M5 17a7 7 0 0 1 14 0" />
     <path d="M8 17a4 4 0 0 1 8 0" />
   </svg>
+  <!-- CRT Monitor (geocities) -->
+  <svg class="icon-geocities" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+    <line x1="6" y1="7" x2="8" y2="7" />
+  </svg>
 </button>
 
 <style>
@@ -49,7 +56,7 @@
   button:hover {
     border-color: var(--accent);
   }
-  .icon-light, .icon-dark, .icon-retro, .icon-rainbow, .icon-vivid {
+  .icon-light, .icon-dark, .icon-retro, .icon-rainbow, .icon-vivid, .icon-geocities {
     display: none;
     transition: opacity 0.25s ease, transform 0.35s ease;
   }
@@ -68,10 +75,13 @@
   :global([data-theme="vivid"]) .icon-vivid {
     display: block;
   }
+  :global([data-theme="geocities"]) .icon-geocities {
+    display: block;
+  }
 </style>
 
 <script>
-  const themes = ["light", "dark", "retro", "rainbow", "vivid"];
+  const themes = ["light", "dark", "retro", "rainbow", "vivid", "geocities"];
   const toggle = document.getElementById("theme-toggle")!;
   toggle.addEventListener("click", () => {
     const current = document.documentElement.getAttribute("data-theme") || "light";

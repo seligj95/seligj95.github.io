@@ -140,7 +140,7 @@ One day. Years of backlog. One PM and six AI agents.
 
 ## The Gotcha: Squad Deleted Itself (Twice)
 
-I want to be honest about the rough edges too. We hit a real problem that cost us time and will likely hit other Squad users.
+I want to be honest about the rough edges too. We hit a real problem that cost us time and will likely hit other Squad users. Squad is still a young project, and this is exactly the kind of real-world edge case that only shows up when more people push it into different workflows.
 
 Since we were working in the `Azure/azure-cli` repo — which we don't own — we couldn't commit the `.squad/` directory. It had to be gitignored. That means all of Squad's state (dashboards, agent history, decisions, logs) existed only as untracked files in the working directory.
 
@@ -153,7 +153,7 @@ We added a `WORKTREE_WARNING.md` file to `.squad/` and a hard rule in `decisions
 3. **Support an external state directory** — store `.squad/` outside the repo for contributor scenarios
 4. **Auto-backup before risky git ops** — snapshot state before any branch switch
 
-In my opinion, this is a gap in Squad's current design for the "contributor in someone else's repo" use case. If you're using Squad in a repo you don't own, be very careful with git operations. Use worktrees for everything.
+In my opinion, this is a gap in Squad's current design for the "contributor in someone else's repo" use case. But I also think this is ultimately a good thing: the more people use Squad in real scenarios, the better it gets. Brady and the team are actively looking for feedback, building new features, and fixing bugs, and this was exactly the kind of issue worth surfacing. If you're using Squad in a repo you don't own, be very careful with git operations for now. Use worktrees for everything.
 
 ---
 
