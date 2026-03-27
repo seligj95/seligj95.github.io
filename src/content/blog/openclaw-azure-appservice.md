@@ -5,7 +5,7 @@ pubDate: 2026-03-13
 tags: ["azure", "app-service", "ai", "agents", "open-source"]
 ---
 
-![OpenClaw on Azure App Service](/images/blog/openclaw-hero.png)
+![OpenClaw on Azure App Service](/images/blog/2026/03/openclaw-azure-appservice/openclaw-hero.png)
 
 *Your personal AI assistant, running 24/7 in the cloud — no laptop or Mac Mini required.*
 
