@@ -1,4 +1,4 @@
- ---
+---
 title: "How I Automated Half My PM Job with an AI Agent Team"
 description: "I built a 6-agent AI team that scans competitors, generates feature ideas, writes product proposals, and files everything as GitHub Issues — so every morning I have fresh work to explore."
 pubDate: 2026-04-06
@@ -37,7 +37,7 @@ I needed to close that gap. Automatically.
 
 ## The Solution: A 6-Agent PM Team
 
-> 📸 **TODO:** Screenshot of the squad team roster or `squad status` output showing the 6 agents
+![Squad team roster showing all 6 agents](/images/blog/2026/04/squad-ideation-engine/team-roster.png)
 
 I built a Squad with six specialist agents, each responsible for a different type of output:
 
@@ -80,7 +80,7 @@ The flow: **Cron fires → Scan issue created → Auto-added to board → Ralph 
 
 ## The Project Board
 
-> 📸 **TODO:** Screenshot of the GitHub Projects board showing the Kanban columns (Inbox → Reviewing → Accepted → In Progress → Done → Rejected) with idea cards
+![GitHub Projects board with Kanban workflow](/images/blog/2026/04/squad-ideation-engine/project-board.png)
 
 Ideas flow through a Kanban-style board:
 
@@ -90,7 +90,7 @@ Each idea is filed using one of five issue templates: Blog Idea, Product Idea, S
 
 ## Interactive Mode
 
-> 📸 **TODO:** Screenshot of a Copilot CLI session showing an interactive agent conversation (e.g., `@scout` or `Team, do a full scan`)
+![Copilot CLI session with Squad agents](/images/blog/2026/04/squad-ideation-engine/agent-conversation.png)
 
 The system isn't just autonomous. I can also talk to agents directly:
 
@@ -112,13 +112,13 @@ This is the part that makes it feel less like automation and more like having a 
 
 ## The First Scan: What We Found
 
-> 📸 **TODO:** Screenshot of the scan results in the terminal — the launch table showing all 5 agents running in parallel
+![Scan results showing parallel agent execution](/images/blog/2026/04/squad-ideation-engine/scan-results.png)
 
 The first comprehensive scan ran on April 6, 2026. The big takeaway: **every major competitor now has a dedicated "host AI agents here" story.** Purpose-built agent platforms, zero-code MCP gateways, managed agent runtimes — the landscape is moving fast. App Service has great MCP samples, but no unified "agent hosting" narrative yet. That's both a gap and an opportunity for blog content and product proposals.
 
 ### 11 Ideas Filed
 
-> 📸 **TODO:** Screenshot of the GitHub Issues list showing the 11 filed ideas with labels (blog-idea, product-idea, sample-idea, etc.)
+![GitHub Issues list with categorized ideas](/images/blog/2026/04/squad-ideation-engine/github-issues.png)
 
 The first scan surfaced 11 ideas across all categories:
 
@@ -140,7 +140,7 @@ After the first session, the team captured patterns in its shared memory:
 
 These learnings persist across sessions. The team gets smarter over time.
 
-> 📸 **TODO:** Screenshot of the repo file tree in VS Code or GitHub showing the `.squad/` directory structure
+![Squad directory structure](/images/blog/2026/04/squad-ideation-engine/squad-directory.png)
 
 ## Why This Matters for PMs
 
