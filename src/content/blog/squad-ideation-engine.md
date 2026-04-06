@@ -1,4 +1,4 @@
----
+ ---
 title: "How I Automated Half My PM Job with an AI Agent Team"
 description: "I built a 6-agent AI team that scans competitors, generates feature ideas, writes product proposals, and files everything as GitHub Issues — so every morning I have fresh work to explore."
 pubDate: 2026-04-06
