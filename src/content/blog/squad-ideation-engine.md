@@ -1,6 +1,6 @@
 ---
-title: "How I Built an AI Team That Generates My Blog Ideas — Using Squad on GitHub"
-description: "A PM's guide to building a multi-agent ideation engine with Squad. Six AI agents scan competitors, evaluate trends, and file ideas as GitHub Issues — autonomously."
+title: "How I Automated Half My PM Job with an AI Agent Team"
+description: "I built a 6-agent AI team that scans competitors, generates feature ideas, writes product proposals, and files everything as GitHub Issues — so every morning I have fresh work to explore."
 pubDate: 2026-04-06
 tags: ["squad", "ai", "agents", "app-service", "mcp", "productivity"]
 draft: false
@@ -8,7 +8,7 @@ draft: false
 
 I'm a PM on Azure App Service. I spend a lot of time thinking about what to write, what to build, and what competitors are shipping. The problem is, that thinking is scattered — a Hacker News link I saw at 11pm, a Cloudflare blog post someone shared in Slack, a half-formed idea in a notebook I'll never open again.
 
-I wanted a system. Not "inspiration" — a system. Something that scans the landscape, evaluates what matters, scores ideas, and files them as GitHub Issues I can triage on a project board. Something that runs while I sleep.
+I wanted a system. Not "inspiration" — a system. Something that scans the landscape, evaluates what matters, writes product proposals, designs sample architectures, scores competitive threats, and files everything as GitHub Issues I can triage on a project board every morning. Something that runs while I sleep.
 
 So I built one. Using [Squad](https://github.com/bradygaster/squad).
 
@@ -18,7 +18,7 @@ Squad is a framework by [Brady Gaster](https://github.com/bradygaster) that lets
 
 I'd already used Squad once before, when I [tackled 78 Azure CLI issues in a day](/blog/squad-azure-cli-backlog/). That experience proved two things: multi-agent systems beat single-shot LLM calls for complex work, and Squad's agent-per-role pattern maps perfectly to how product teams actually operate.
 
-This time, I wanted something more ambitious. Not a one-off session — a persistent ideation engine that runs autonomously and keeps my backlog full of high-quality ideas.
+This time, I wanted something more ambitious. Not a one-off session — a persistent system that scans my competitive landscape, generates feature proposals, designs sample repos, and keeps my backlog full of actionable work. Every morning, fresh ideas waiting for me.
 
 ## The Problem: PM Ideation Is Ad Hoc
 
@@ -28,13 +28,13 @@ Here's what my "ideation process" looked like before:
 2. Think "I should write about that"
 3. Forget about it
 4. See a competitor ship a feature I should have written about weeks ago
-5. Panic-write a reactive blog post
+5. Panic-write a reactive blog post or scramble to respond to a competitor launch
 
-This is how most PMs operate. We're information-saturated but idea-poor, because the gap between *seeing* something and *turning it into action* is where everything dies.
+This is how most PMs operate. We're information-saturated but action-poor, because the gap between *seeing* something and *turning it into a blog post, a product proposal, or a competitive response* is where everything dies.
 
 I needed to close that gap. Automatically.
 
-## The Solution: A 6-Agent Ideation Team
+## The Solution: A 6-Agent PM Team
 
 > 📸 **TODO:** Screenshot of the squad team roster or `squad status` output showing the 6 agents
 
@@ -165,9 +165,9 @@ These learnings persist across sessions. The team gets smarter over time.
 
 I'm not writing this to show off a cool AI project. I'm writing it because **the PM ideation problem is real and nobody talks about it.**
 
-We talk about "customer discovery" and "data-driven prioritization." We don't talk about the fact that most PMs' competitive intelligence process is "scrolling Twitter" and their blog ideation process is "whatever I thought of in the shower."
+We talk about "customer discovery" and "data-driven prioritization." We don't talk about the fact that most PMs' competitive intelligence is "scrolling Twitter," their feature ideation is "what did I see at a conference last month," and their blog process is "whatever I thought of in the shower."
 
-This system doesn't replace my judgment. It replaces the *scanning* — the tedious, inconsistent, always-incomplete process of keeping up with the landscape. The agents surface the raw material. I still decide what's worth pursuing.
+This system doesn't replace my judgment. It replaces the *scanning and synthesis* — the tedious, inconsistent, always-incomplete process of keeping up with competitors, tracking trends, and turning observations into actionable work items. The agents surface scored, categorized, ready-to-act-on material. I just decide what's worth pursuing each morning.
 
 And it's not just for writing. The Strategist proposals are things I can bring to engineering standups. The Builder architectures are things I can hand to dev advocates. The Analyst findings are things I can share with my PM peers. It's a full ideation pipeline, not just a blog idea generator.
 
