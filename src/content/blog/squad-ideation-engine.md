@@ -4,6 +4,7 @@ description: "I built a 6-agent AI team that scans competitors, generates featur
 pubDate: 2026-04-06
 tags: ["squad", "ai", "agents", "app-service", "mcp", "productivity"]
 draft: false
+heroImage: "/images/blog/2026/04/squad-ideation-engine/hero.png"
 ---
 
 I'm a PM on Azure App Service. I spend a lot of time thinking about what to write, what to build, and what competitors are shipping. The problem is, that thinking is scattered — a Hacker News link I saw at 11pm, a competitor blog post someone shared in Teams, a half-formed idea in a notebook I'll never open again.
