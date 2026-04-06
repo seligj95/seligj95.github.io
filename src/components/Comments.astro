@@ -40,7 +40,7 @@ const {
 <script>
   function getGiscusTheme(): string {
     const theme = document.documentElement.getAttribute("data-theme");
-    return theme === "dark" || theme === "retro" || theme === "vivid" ? "dark" : "light";
+    return theme === "dark" ? "dark" : "light";
   }
 
   function setGiscusTheme(theme: string) {

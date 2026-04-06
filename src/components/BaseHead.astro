@@ -61,7 +61,7 @@ const { title, description, image } = Astro.props;
 
 <!-- Theme initialization (prevent flash) -->
 <script is:inline>
-  const valid = ["light", "dark", "retro", "rainbow", "vivid", "geocities"];
+  const valid = ["light", "dark", "rainbow", "geocities"];
   const saved = localStorage.getItem("theme");
   const theme = valid.includes(saved) ? saved : "light";
   document.documentElement.setAttribute("data-theme", theme);
