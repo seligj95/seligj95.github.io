@@ -112,8 +112,6 @@ This is the part that makes it feel less like automation and more like having a 
 
 ## The First Scan: What We Found
 
-![GitHub Issues list with categorized ideas](/images/blog/2026/04/squad-ideation-engine/github-issues.png)
-
 The first scan surfaced 11 ideas across all categories:
 
 **Blog Ideas (7):** Ranging from multi-agent framework tutorials to MCP Server hosting guides and enterprise AI gateway patterns.
