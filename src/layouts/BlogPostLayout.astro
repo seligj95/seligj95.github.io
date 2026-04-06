@@ -242,9 +242,65 @@ const readingTime = Math.max(1, Math.round(words / 225));
     color: var(--text-muted);
     text-align: center;
   }
+  /* Lightbox overlay */
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+  .lightbox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+  }
+  .lightbox-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+  .prose :global(img) {
+    cursor: zoom-in;
+  }
   @media (max-width: 640px) {
     h1 {
       font-size: 1.75rem;
     }
   }
 </style>
+
+<div class="lightbox-overlay" id="lightbox">
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const overlay = document.getElementById('lightbox') as HTMLDivElement;
+    const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+
+    document.querySelectorAll('.prose img').forEach((img) => {
+      img.addEventListener('click', () => {
+        const src = (img as HTMLImageElement).src;
+        const alt = (img as HTMLImageElement).alt;
+        lightboxImg.src = src;
+        lightboxImg.alt = alt;
+        overlay.classList.add('active');
+      });
+    });
+
+    overlay.addEventListener('click', () => {
+      overlay.classList.remove('active');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') overlay.classList.remove('active');
+    });
+  });
+</script>
