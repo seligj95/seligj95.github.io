@@ -150,6 +150,6 @@ I'll be upfront — I just built this, so there isn't a mountain of output to sh
 
 If you're a PM who writes, builds samples, or tracks competitors — consider building something like this. You don't need six agents. Start with two: a scanner and an evaluator. The compound effect of consistent, automated ideation is real.
 
-I'll share results and learnings as things develop — the goal is to keep making App Service better along the way. If you have thoughts, feature ideas, content topics, interesting articles, or just want to riff on AI agents and PM workflows — [reach out](https://github.com/seligj95). I'm all ears.
+I'll share results and learnings as things develop — the goal is to keep making App Service better along the way and continue sharing helpful and useful content with you all. If you have thoughts, feature ideas, content topics, interesting articles, or just want to riff on AI agents and PM workflows — reach out. I'm all ears.
 
 The future of PM work isn't just *using* AI tools. It's building AI systems that make *your specific workflow* better.
