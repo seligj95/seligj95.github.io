@@ -36,6 +36,8 @@ I needed to close that gap. Automatically.
 
 ## The Solution: A 6-Agent Ideation Team
 
+> 📸 **TODO:** Screenshot of the squad team roster or `squad status` output showing the 6 agents
+
 I built a Squad with six specialist agents, each responsible for a different type of output:
 
 | Agent | Role | What They Actually Do |
@@ -86,6 +88,8 @@ The flow: **Cron fires → Scan issue created → Auto-added to board → Ralph 
 
 ## The Project Board
 
+> 📸 **TODO:** Screenshot of the GitHub Projects board showing the Kanban columns (Inbox → Reviewing → Accepted → In Progress → Done → Rejected) with idea cards
+
 Ideas flow through a Kanban-style board:
 
 **Inbox** → **Reviewing** → **Accepted** → **In Progress** → **Done** → **Rejected**
@@ -93,6 +97,8 @@ Ideas flow through a Kanban-style board:
 Each idea is filed using one of five issue templates: Blog Idea, Product Idea, Sample Idea, Competitive Intel, or Tool Discovery. Rejected ideas get closed with a `rejected` label — this tells future scans "we already considered this and said no."
 
 ## Interactive Mode
+
+> 📸 **TODO:** Screenshot of a Copilot CLI session showing an interactive agent conversation (e.g., `@scout` or `Team, do a full scan`)
 
 The system isn't just autonomous. I can also talk to agents directly:
 
@@ -114,6 +120,8 @@ This is the part that makes it feel less like automation and more like having a 
 
 ## The First Scan: What We Found
 
+> 📸 **TODO:** Screenshot of the scan results in the terminal — the launch table showing all 5 agents running in parallel
+
 The first comprehensive scan ran on April 6, 2026. The headline: **every major competitor now has a dedicated "host AI agents here" story.**
 
 ### The Competitive Landscape Is Shifting Fast
@@ -127,6 +135,8 @@ The first comprehensive scan ran on April 6, 2026. The headline: **every major c
 The takeaway: App Service has great MCP samples, but no unified "agent hosting" narrative. Every competitor does. That's a gap — and an opportunity for blog content and product proposals.
 
 ### 11 Ideas Filed
+
+> 📸 **TODO:** Screenshot of the GitHub Issues list showing the 11 filed ideas with labels (blog-idea, product-idea, sample-idea, etc.)
 
 The scan produced 11 GitHub Issues across all categories:
 
@@ -148,6 +158,8 @@ After the first session, the team captured patterns in its shared memory:
 - **AI, agents, and MCP are Tier 1 priority.** Traditional features (certs, auth, networking) are low priority unless highly impactful.
 
 These learnings persist across sessions. The team gets smarter over time.
+
+> 📸 **TODO:** Screenshot of the repo file tree in VS Code or GitHub showing the `.squad/` directory structure
 
 ## Why This Matters for PMs
 
