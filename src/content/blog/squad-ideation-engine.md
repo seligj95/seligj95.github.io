@@ -136,7 +136,7 @@ These learnings persist across sessions. The team gets smarter over time.
 
 ## Why This Matters for PMs
 
-I'm not writing this to show off a cool AI project. I'm writing it because **the PM ideation problem is real and obly getting worse as the industry grows and the number of AI-powered features and competitors increases.** It's almost impossible to keep up without some form of systematic scanning and synthesis.
+I'm not writing this to show off a cool AI project. I'm writing it because **the PM ideation problem is real and only getting worse as the industry grows and the number of AI-powered features and competitors increases.** It's almost impossible to keep up without some form of systematic scanning and synthesis.
 
 We talk about "customer discovery" and "data-driven prioritization." We don't talk about the fact that most PMs' competitive intelligence is "scrolling Twitter," their feature ideation is "what did I see at a conference last month," and their blog process is "whatever I thought of in the shower."
 
@@ -146,8 +146,10 @@ And it's not just for writing. The Strategist proposals are things I can bring t
 
 ## What's Next
 
-Right now, I have 7 open ideas on the board from the first scan. The system will keep scanning every 24 hours. Over time, the patterns in `wisdom.md` will get richer, the dedup will get smarter, and the scoring will calibrate to what actually performs well on the blog.
+I'll be upfront — I just built this, so there isn't a mountain of output to show yet. I've got ideas on the board from the first scan, the system runs every 24 hours, and I'm genuinely looking forward to using it day-to-day and refining it as I go. Over time, the patterns in `wisdom.md` will get richer, the dedup will get smarter, and the scoring will calibrate to what actually performs well.
 
 If you're a PM who writes, builds samples, or tracks competitors — consider building something like this. You don't need six agents. Start with two: a scanner and an evaluator. The compound effect of consistent, automated ideation is real.
+
+I'll share results and learnings as things develop — the goal is to keep making App Service better along the way. If you have thoughts, feature ideas, content topics, interesting articles, or just want to riff on AI agents and PM workflows — [reach out](https://github.com/seligj95). I'm all ears.
 
 The future of PM work isn't just *using* AI tools. It's building AI systems that make *your specific workflow* better.
