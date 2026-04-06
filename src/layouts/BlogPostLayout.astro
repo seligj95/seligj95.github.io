@@ -74,6 +74,10 @@ const readingTime = Math.max(1, Math.round(words / 225));
     <ShareButtons title={title} url={shareUrl} />
     <Comments />
   </article>
+
+  <div class="lightbox-overlay" id="lightbox">
+    <img id="lightbox-img" src="" alt="" />
+  </div>
 </BaseLayout>
 
 <style>
@@ -276,31 +280,25 @@ const readingTime = Math.max(1, Math.round(words / 225));
   }
 </style>
 
-<div class="lightbox-overlay" id="lightbox">
-  <img id="lightbox-img" src="" alt="" />
-</div>
-
 <script>
-  document.addEventListener('astro:page-load', () => {
-    const overlay = document.getElementById('lightbox') as HTMLDivElement;
-    const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+  const overlay = document.getElementById('lightbox') as HTMLDivElement;
+  const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
 
-    document.querySelectorAll('.prose img').forEach((img) => {
-      img.addEventListener('click', () => {
-        const src = (img as HTMLImageElement).src;
-        const alt = (img as HTMLImageElement).alt;
-        lightboxImg.src = src;
-        lightboxImg.alt = alt;
-        overlay.classList.add('active');
-      });
+  document.querySelectorAll('.prose img').forEach((img) => {
+    img.addEventListener('click', () => {
+      const src = (img as HTMLImageElement).src;
+      const alt = (img as HTMLImageElement).alt;
+      lightboxImg.src = src;
+      lightboxImg.alt = alt;
+      overlay.classList.add('active');
     });
+  });
 
-    overlay.addEventListener('click', () => {
-      overlay.classList.remove('active');
-    });
+  overlay.addEventListener('click', () => {
+    overlay.classList.remove('active');
+  });
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') overlay.classList.remove('active');
-    });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') overlay.classList.remove('active');
   });
 </script>
