@@ -106,6 +106,8 @@ const postsData = posts.map((post) => ({
       if (hasSelection) {
         const tagNames = [...selectedTags].map((t) => `#${t}`).join(", ");
         filterSummary.textContent = `Filtering by: ${tagNames}`;
+      } else {
+        filterSummary.textContent = "";
       }
 
       let visibleCount = 0;
@@ -197,7 +199,6 @@ const postsData = posts.map((post) => ({
     justify-content: space-between;
     margin-top: 1.25rem;
     padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border);
     gap: 1rem;
   }
   .filter-summary {
@@ -222,12 +223,10 @@ const postsData = posts.map((post) => ({
   .post-list {
     list-style: none;
     margin-top: 0.5rem;
+    border-top: 1px solid var(--border);
   }
   .post-list li {
     border-bottom: 1px solid var(--border);
-  }
-  .post-list li:first-child:not([hidden]) {
-    border-top: 1px solid var(--border);
   }
   .post-list li a {
     display: flex;
