@@ -6,9 +6,9 @@ tags: ["squad", "ai", "agents", "app-service", "mcp", "productivity"]
 draft: false
 ---
 
-I'm a PM on Azure App Service. I spend a lot of time thinking about what to write, what to build, and what competitors are shipping. The problem is, that thinking is scattered — a Hacker News link I saw at 11pm, a Cloudflare blog post someone shared in Slack, a half-formed idea in a notebook I'll never open again.
+I'm a PM on Azure App Service. I spend a lot of time thinking about what to write, what to build, and what competitors are shipping. The problem is, that thinking is scattered — a Hacker News link I saw at 11pm, a Cloudflare blog post someone shared in an email or Teams, a half-formed idea in a notebook I'll never open again.
 
-I wanted a system. Not "inspiration" — a system. Something that scans the landscape, evaluates what matters, writes product proposals, designs sample architectures, scores competitive threats, and files everything as GitHub Issues I can triage on a project board every morning. Something that runs while I sleep.
+I wanted a system, not just "inspiration". Something that scans the landscape, evaluates what matters, writes product proposals, designs sample architectures, scores competitive threats, and files everything as GitHub Issues I can triage on a project board every morning. Something that runs while I sleep.
 
 So I built one. Using [Squad](https://github.com/bradygaster/squad).
 
@@ -20,9 +20,9 @@ I'd already used Squad once before, when I [tackled 78 Azure CLI issues in a day
 
 This time, I wanted something more ambitious. Not a one-off session — a persistent system that scans my competitive landscape, generates feature proposals, designs sample repos, and keeps my backlog full of actionable work. Every morning, fresh ideas waiting for me.
 
-## The Problem: PM Ideation Is Ad Hoc
+## The Problem: PM Ideation Can Be Ad Hoc
 
-Here's what my "ideation process" looked like before:
+Here's an example of what my "ideation process" looked like before:
 
 1. See something interesting on Hacker News
 2. Think "I should write about that"
@@ -30,7 +30,7 @@ Here's what my "ideation process" looked like before:
 4. See a competitor ship a feature I should have written about weeks ago
 5. Panic-write a reactive blog post or scramble to respond to a competitor launch
 
-This is how most PMs operate. We're information-saturated but action-poor, because the gap between *seeing* something and *turning it into a blog post, a product proposal, or a competitive response* is where everything dies.
+This is how most PMs operate. We're information-saturated but action-poor, because the gap between *seeing* something and *turning it into a blog post, a product proposal, or a competitive response* is where everything dies. And things are moving fast, too fast these days. So if you don't have some sort of competitive advantage, you will quickly fall behind and recovering will not be easy.
 
 I needed to close that gap. Automatically.
 
@@ -43,7 +43,7 @@ I built a Squad with six specialist agents, each responsible for a different typ
 | Agent | Role | What They Actually Do |
 |-------|------|----------------------|
 | **Scout** | Web Scanner | Scans competitor blogs, Hacker News, GitHub Trending, Reddit, Dev.to, and industry publications for raw findings |
-| **Analyst** | Competitive Intel | Evaluates what AWS, GCP, Vercel, Cloudflare, Fly.io, and others are shipping. Answers: Is this a threat? An opportunity? Are we ahead? |
+| **Analyst** | Competitive Intel | Evaluates what our competitors are shipping. Answers: Is this a threat? An opportunity? Are we ahead? |
 | **Blogger** | Blog Ideation | Turns discoveries into blog post concepts with titles, hooks, outlines, audience, and effort estimates. Knows my writing style. |
 | **Strategist** | Product Strategy | Writes mini-proposals for App Service engineering — problem statement, proposed solution, customer impact, quick-win vs. big-bet classification |
 | **Builder** | Sample Architect | Designs sample repos and demos with full architecture: repo structure, deployment approach (azd, Bicep), key technologies |
@@ -58,10 +58,7 @@ Each agent has a charter (stored in `.squad/agents/{name}/charter.md`) that defi
 The engine monitors three tiers of sources, defined in `sources/` files:
 
 **Competitors (Tier 1 — watched closely):**
-- AWS (Compute blog, What's New, App Runner, Lambda, Amplify)
-- GCP (Cloud Blog, Cloud Run, App Engine)
-- Vercel (Blog + Changelog)
-- Cloudflare (Blog — Workers, Pages, AI Gateway, Agents)
+- Other cloud and app hosting platforms
 
 **Competitors (Tier 2 & 3):**
 - Netlify, Fly.io, Railway, Render, DigitalOcean, Deno Deploy
@@ -155,7 +152,6 @@ After the first session, the team captured patterns in its shared memory:
 - **"Run X on App Service" is the strongest blog template.** My [OpenClaw post](/blog/openclaw-azure-appservice/) proved this works.
 - **Competitor features are both product ideas AND blog ideas.** Evaluate both angles.
 - **Always file ideas as GitHub Issues** — even rejections. This makes dedup reliable: `gh issue list --state all` catches everything.
-- **AI, agents, and MCP are Tier 1 priority.** Traditional features (certs, auth, networking) are low priority unless highly impactful.
 
 These learnings persist across sessions. The team gets smarter over time.
 
@@ -169,7 +165,7 @@ We talk about "customer discovery" and "data-driven prioritization." We don't ta
 
 This system doesn't replace my judgment. It replaces the *scanning and synthesis* — the tedious, inconsistent, always-incomplete process of keeping up with competitors, tracking trends, and turning observations into actionable work items. The agents surface scored, categorized, ready-to-act-on material. I just decide what's worth pursuing each morning.
 
-And it's not just for writing. The Strategist proposals are things I can bring to engineering standups. The Builder architectures are things I can hand to dev advocates. The Analyst findings are things I can share with my PM peers. It's a full ideation pipeline, not just a blog idea generator.
+And it's not just for writing. The Strategist proposals are things I can bring to engineering teams and fellow PMs. The Builder architectures are things I can hand to dev advocates. The Analyst findings are things I can share with my PM peers. It's a full ideation pipeline, not just a blog idea generator.
 
 ## What's Next
 
