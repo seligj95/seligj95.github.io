@@ -11,3 +11,8 @@ node_modules/
 # env
 .env
 .env.*
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+.squad-workstream
