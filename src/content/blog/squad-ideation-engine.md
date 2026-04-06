@@ -70,7 +70,7 @@ Each source has specific search terms and "what to look for" guidance. Scout doe
 
 The engine runs autonomously via two mechanisms:
 
-**Scan Trigger** — A cron job fires every 6 hours and creates a `[Scan]` issue with instructions for the team. It also supports manual triggers with an optional focus area — "scan for MCP servers" or "scan for serverless trends."
+**Scan Trigger** — A cron job fires every 24 hours and creates a `[Scan]` issue with instructions for the team. It also supports manual triggers with an optional focus area — "scan for MCP servers" or "scan for serverless trends."
 
 **Ralph** — Squad's built-in work monitor picks up scan issues, dispatches agents, and routes work based on the team's routing table.
 
@@ -112,23 +112,17 @@ This is the part that makes it feel less like automation and more like having a 
 
 ## The First Scan: What We Found
 
-![Scan results showing parallel agent execution](/images/blog/2026/04/squad-ideation-engine/scan-results.png)
-
-The first comprehensive scan ran on April 6, 2026. The big takeaway: **every major competitor now has a dedicated "host AI agents here" story.** Purpose-built agent platforms, zero-code MCP gateways, managed agent runtimes — the landscape is moving fast. App Service has great MCP samples, but no unified "agent hosting" narrative yet. That's both a gap and an opportunity for blog content and product proposals.
-
-### 11 Ideas Filed
-
 ![GitHub Issues list with categorized ideas](/images/blog/2026/04/squad-ideation-engine/github-issues.png)
 
 The first scan surfaced 11 ideas across all categories:
 
 **Blog Ideas (7):** Ranging from multi-agent framework tutorials to MCP Server hosting guides and enterprise AI gateway patterns.
 
-**Product Proposals (2):** Including our biggest platform gap — a durable agent runtime — plus an observability play.
+**Product Proposals (2):** Including a durable agent runtime plus an observability play.
 
 **In-Flight (2):** Ideas that matched work already underway, which helps validate direction.
 
-Each scored on a 20-point scale (Relevance + Impact + Timeliness + Innovation + inverted Effort). The top scorer at 19/20: "You Can Host an MCP Server on Azure App Service — Here's How."
+Each scored on a 20-point scale (Relevance + Impact + Timeliness + Innovation + inverted Effort).
 
 ## What the System Learned
 
@@ -144,7 +138,7 @@ These learnings persist across sessions. The team gets smarter over time.
 
 ## Why This Matters for PMs
 
-I'm not writing this to show off a cool AI project. I'm writing it because **the PM ideation problem is real and nobody talks about it.**
+I'm not writing this to show off a cool AI project. I'm writing it because **the PM ideation problem is real and obly getting worse as the industry grows and the number of AI-powered features and competitors increases.** It's almost impossible to keep up without some form of systematic scanning and synthesis.
 
 We talk about "customer discovery" and "data-driven prioritization." We don't talk about the fact that most PMs' competitive intelligence is "scrolling Twitter," their feature ideation is "what did I see at a conference last month," and their blog process is "whatever I thought of in the shower."
 
@@ -154,8 +148,8 @@ And it's not just for writing. The Strategist proposals are things I can bring t
 
 ## What's Next
 
-Right now, I have 7 open ideas on the board from the first scan. The system will keep scanning every 6 hours. Over time, the patterns in `wisdom.md` will get richer, the dedup will get smarter, and the scoring will calibrate to what actually performs well on the blog.
+Right now, I have 7 open ideas on the board from the first scan. The system will keep scanning every 24 hours. Over time, the patterns in `wisdom.md` will get richer, the dedup will get smarter, and the scoring will calibrate to what actually performs well on the blog.
 
 If you're a PM who writes, builds samples, or tracks competitors — consider building something like this. You don't need six agents. Start with two: a scanner and an evaluator. The compound effect of consistent, automated ideation is real.
 
-The future of PM work isn't just *using* AI tools. It's building AI systems that make *your specific workflow* better. That's what Squad lets you do.
+The future of PM work isn't just *using* AI tools. It's building AI systems that make *your specific workflow* better.
