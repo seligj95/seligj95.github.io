@@ -30,3 +30,18 @@
 - **robots.txt:** Already had sitemap reference — no change needed.
 - **README:** Added step-by-step setup guide for GoatCounter, Giscus, and GitHub Pages. Documented RSS and SEO config.
 - **Build verified:** 7 pages, zero errors after all changes.
+
+### 2026-04-08: External URL support for cross-posted content
+- **Schema pattern:** Added `externalUrl: z.string().url().optional()` to the blog collection schema in `src/content.config.ts`. Placed after `draft` field. Uses Zod's `.url()` validator to enforce valid URLs at build time.
+- **RSS conditional link:** Updated `src/pages/rss.xml.ts` to use `post.data.externalUrl ?? /personal-blog/blog/${post.id}/` — nullish coalescing so external posts link directly to the original platform while internal posts keep the default path.
+- **First external post:** Created `src/content/blog/mcp-apps-azure-appservice.md` linking to Tech Community. Frontmatter includes the `externalUrl` field; body is a short teaser summary.
+- **Build verified:** 22 pages, 154 tests passing, zero errors.
+
+### 2026-04-08: Session Completed — External Blog Post Support
+**Team:** Yusuf, Ariadne, Arthur (all background agents)
+**Status:** SUCCESS — Full feature end-to-end. Build passed, 154/154 tests green.
+**What Scribe recorded:**
+- Orchestration logs written to `.squad/orchestration-log/`
+- Session log: `.squad/log/2026-04-08T18-20-external-blog-post-support.md`
+- Decisions merged into `.squad/decisions.md` (2 entries from inbox)
+- Git commit staged for .squad/ changes

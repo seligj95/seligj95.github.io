@@ -44,3 +44,29 @@
 - **Layouts:** BaseLayout + BlogPostLayout in `src/layouts/`
 - **Content:** Markdown blog posts in `src/content/blog/`, schema in `src/content.config.ts`
 - **Build verified:** 7 pages, zero errors
+
+### External Link Support for Blog Posts
+**What was done:** Added external post UI across blog list, home page, and post layout.
+
+**External link pattern for list pages:**
+- Conditional `href` using nullish coalescing: `post.data.externalUrl ?? localUrl`
+- Spread `target="_blank"` and `rel="noopener noreferrer"` only when `externalUrl` is present
+- Feather-style SVG external-link icon (14px on blog list, 16px on home cards) in `--text-muted`, rendered inline via `display: inline-flex` on the title element
+- Icon only appears for external posts — zero visual change for internal posts
+
+**External post banner styling approach:**
+- `<aside class="external-banner">` placed after hero image, before `.prose` div in BlogPostLayout
+- Left accent border (3px solid `--accent`) + `--accent-subtle` background — matches the existing blockquote and tag pill patterns
+- Domain extracted dynamically from URL with `new URL(externalUrl).hostname.replace(/^www\./, "")`
+- Font-size 0.925rem, slightly smaller than prose body for visual hierarchy
+- Link text "Read the full article" with inline ↗ SVG icon, opens in new tab
+- Visually distinct without being loud — uses the existing design token vocabulary
+
+### 2026-04-08: Session Completed — External Blog Post Support
+**Team:** Yusuf, Ariadne, Arthur (all background agents)
+**Status:** SUCCESS — Full feature end-to-end. Build passed, 154/154 tests green.
+**What Scribe recorded:**
+- Orchestration logs written to `.squad/orchestration-log/`
+- Session log: `.squad/log/2026-04-08T18-20-external-blog-post-support.md`
+- Decisions merged into `.squad/decisions.md` (2 entries from inbox)
+- Git commit staged for .squad/ changes

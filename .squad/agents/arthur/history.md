@@ -22,6 +22,27 @@
 - **CI integration:** Added `npm test` step to deploy.yml before the build step — tests run the build themselves via globalSetup, so CI gets a double-build but correctness is guaranteed
 - **Accessibility tests are parameterized:** Each HTML page in dist/ is tested independently for lang attr, heading hierarchy, image alt text, and link accessibility — adding pages automatically adds test coverage
 
+### 2026-04-08: externalUrl schema test patterns
+- **New field:** `externalUrl: z.string().url().optional()` added to the test schema mirror in `tests/schema.test.ts`
+- **Three tests added:** (1) valid URL accepted and value preserved, (2) non-URL string rejected by `z.string().url()`, (3) omitted field defaults to `undefined`
+- **Pattern note:** Zod's `.url()` refinement rejects bare strings like `"not-a-url"` — no need to test edge-case URLs (protocol-relative, etc.) since Zod handles RFC compliance internally
+- **Test count:** Schema tests now at 13 (was 10)
+
+### 2026-04-08: Session Completed — External Blog Post Support
+**Team:** Yusuf, Ariadne, Arthur (all background agents)
+**Status:** SUCCESS — Full feature end-to-end. Build passed, 154/154 tests green.
+**What Scribe recorded:**
+- Orchestration logs written to `.squad/orchestration-log/`
+- Session log: `.squad/log/2026-04-08T18-20-external-blog-post-support.md`
+- Decisions merged into `.squad/decisions.md` (2 entries from inbox)
+- Git commit staged for .squad/ changes
+
+### 2026-02-24: externalUrl schema test patterns
+- **New field:** `externalUrl: z.string().url().optional()` added to the test schema mirror in `tests/schema.test.ts`
+- **Three tests added:** (1) valid URL accepted and value preserved, (2) non-URL string rejected by `z.string().url()`, (3) omitted field defaults to `undefined`
+- **Pattern note:** Zod's `.url()` refinement rejects bare strings like `"not-a-url"` — no need to test edge-case URLs (protocol-relative, etc.) since Zod handles RFC compliance internally
+- **Test count:** Schema tests now at 13 (was 10)
+
 ### 2026-02-24: Architecture decided by Cobb
 - **Stack:** Astro v5 + GoatCounter + Giscus, deployed via GitHub Actions to GitHub Pages
 - **Content schema:** title, description, pubDate, updatedDate, heroImage, tags, draft — Zod-validated in `src/content.config.ts`
