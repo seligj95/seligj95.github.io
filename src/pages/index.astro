@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import ViewCount from "../components/ViewCount.astro";
 import { getCollection } from "astro:content";
 
 const posts = (await getCollection("blog"))
@@ -42,6 +43,8 @@ const posts = (await getCollection("blog"))
                   day: "numeric",
                 })}
               </time>
+              <span class="sep" aria-hidden="true">&middot;</span>
+              <ViewCount path={`${import.meta.env.BASE_URL}blog/${post.id}/`} />
             </p>
           </a>
         </li>
@@ -132,6 +135,12 @@ const posts = (await getCollection("blog"))
   .meta {
     font-size: 0.8rem;
     color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .meta .sep {
+    opacity: 0.4;
   }
   .description {
     font-size: 0.925rem;

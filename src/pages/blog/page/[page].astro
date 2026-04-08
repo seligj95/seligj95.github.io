@@ -1,20 +1,45 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import ViewCount from "../../components/ViewCount.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ViewCount from "../../../components/ViewCount.astro";
 import { getCollection } from "astro:content";
 
-const POSTS_PER_PAGE = 10;
+export async function getStaticPaths() {
+  const POSTS_PER_PAGE = 10;
+  const allPosts = (await getCollection("blog"))
+    .filter((post) => !post.data.draft)
+    .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-const allPosts = (await getCollection("blog"))
-  .filter((post) => !post.data.draft)
-  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+  const totalPages = Math.ceil(allPosts.length / POSTS_PER_PAGE);
 
-const totalPages = Math.ceil(allPosts.length / POSTS_PER_PAGE);
-const posts = allPosts.slice(0, POSTS_PER_PAGE);
-const hasNextPage = totalPages > 1;
+  // Generate pages 2 through totalPages (page 1 is index.astro)
+  return Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => {
+    const pageNum = i + 2;
+    const start = (pageNum - 1) * POSTS_PER_PAGE;
+    return {
+      params: { page: String(pageNum) },
+      props: {
+        posts: allPosts.slice(start, start + POSTS_PER_PAGE),
+        currentPage: pageNum,
+        totalPages,
+      },
+    };
+  });
+}
+
+const { posts, currentPage, totalPages } = Astro.props;
+const hasPrevPage = currentPage > 1;
+const hasNextPage = currentPage < totalPages;
+const prevUrl =
+  currentPage === 2
+    ? `${import.meta.env.BASE_URL}blog/`
+    : `${import.meta.env.BASE_URL}blog/page/${currentPage - 1}/`;
+const nextUrl = `${import.meta.env.BASE_URL}blog/page/${currentPage + 1}/`;
 ---
 
-<BaseLayout title="Blog — Jordan Selig" description="All blog posts.">
+<BaseLayout
+  title={`Blog — Page ${currentPage} — Jordan Selig`}
+  description={`Blog posts, page ${currentPage} of ${totalPages}.`}
+>
   <section class="blog-list">
     <h1>All Posts</h1>
     <ul>
@@ -48,12 +73,18 @@ const hasNextPage = totalPages > 1;
         </li>
       ))}
     </ul>
-    {(hasNextPage) && (
-      <nav class="pagination" aria-label="Blog pagination">
+    <nav class="pagination" aria-label="Blog pagination">
+      {hasPrevPage ? (
+        <a href={prevUrl}>← Previous</a>
+      ) : (
         <span />
-        <a href={`${import.meta.env.BASE_URL}blog/page/2/`}>Next →</a>
-      </nav>
-    )}
+      )}
+      {hasNextPage ? (
+        <a href={nextUrl}>Next →</a>
+      ) : (
+        <span />
+      )}
+    </nav>
   </section>
 </BaseLayout>
 

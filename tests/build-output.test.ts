@@ -54,4 +54,16 @@ describe("Build output", () => {
   it("generates the RSS feed", () => {
     expect(existsSync(join(dist, "rss.xml"))).toBe(true);
   });
+
+  it("generates the MCP Apps blog post page", () => {
+    expect(
+      existsSync(join(dist, "blog", "mcp-apps-azure-appservice", "index.html"))
+    ).toBe(true);
+  });
+
+  it("does not generate blog page 2 (only 5 posts, page size 10)", () => {
+    expect(
+      existsSync(join(dist, "blog", "page", "2", "index.html"))
+    ).toBe(false);
+  });
 });

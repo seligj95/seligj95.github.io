@@ -2,6 +2,7 @@
 import BaseLayout from "./BaseLayout.astro";
 import Comments from "../components/Comments.astro";
 import ShareButtons from "../components/ShareButtons.astro";
+import ViewCount from "../components/ViewCount.astro";
 import type { CollectionEntry } from "astro:content";
 
 interface Props {
@@ -48,6 +49,8 @@ const readingTime = Math.max(1, Math.round(words / 225));
         </time>
         <span class="sep" aria-hidden="true">&middot;</span>
         <span>{readingTime} min read</span>
+        <span class="sep" aria-hidden="true">&middot;</span>
+        <ViewCount path={Astro.url.pathname} />
         {updatedDate && (
           <span class="updated">
             &middot; Updated <time datetime={updatedDate.toISOString()}>
