@@ -45,3 +45,11 @@
 - Session log: `.squad/log/2026-04-08T18-20-external-blog-post-support.md`
 - Decisions merged into `.squad/decisions.md` (2 entries from inbox)
 - Git commit staged for .squad/ changes
+
+### 2026-04-08: Blog pagination + ViewCount integration
+- **Pagination structure:** Modified `src/pages/blog/index.astro` to show first page (10 posts max) with conditional "Next →" link. Created `src/pages/blog/page/[page].astro` for pages 2+ using `getStaticPaths`. This avoids conflicting with the existing `[...slug].astro` catch-all route.
+- **ViewCount integration:** Both pagination files import `ViewCount.astro` (built by Ariadne) and render it next to each post's date, passing `${import.meta.env.BASE_URL}blog/${post.id}/` as the path prop. ViewCount fetches from GoatCounter's JSON API client-side.
+- **Layout change:** Wrapped `<time>` and `<ViewCount>` in a `.post-meta` flex column (right-aligned) to stack date and view count cleanly.
+- **Astro scoping note:** `POSTS_PER_PAGE` must be defined inside `getStaticPaths()` — constants declared in the frontmatter outside that function are not accessible within it at build time.
+- **Pagination nav:** Centered flex container with `space-between`, styled with `--accent` color, 0.9rem font, no underline (underline on hover). Page 2's "Previous" link goes to `/blog/` (not `/blog/page/1/`).
+- **Build verified:** 22 pages, 156 tests passing, zero errors. With only 5 posts, no page 2 is generated — pagination infrastructure is ready for growth.

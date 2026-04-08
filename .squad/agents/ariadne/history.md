@@ -70,3 +70,15 @@
 - Session log: `.squad/log/2026-04-08T18-20-external-blog-post-support.md`
 - Decisions merged into `.squad/decisions.md` (2 entries from inbox)
 - Git commit staged for .squad/ changes
+
+### ViewCount Component — GoatCounter View Counts
+**What was done:** Created `src/components/ViewCount.astro` and integrated it into BlogPostLayout and the home page.
+
+**Design decisions:**
+- **Eye SVG icon:** Feather-style `eye` icon at 14px, `--text-muted` color, consistent with existing external-link icon pattern. Used `aria-hidden="true"` since the count text provides meaning.
+- **Placeholder text:** Shows "— views" as skeleton before client-side fetch resolves. Avoids layout shift.
+- **Error handling:** On 404 or fetch failure, the element is hidden (`display: none`) along with its preceding `.sep` separator — no broken UI for new posts with zero views.
+- **Parallel fetching:** Script uses `Promise.all` across all `.view-count` elements on the page, so the home page (multiple cards) fetches all counts concurrently.
+- **BlogPostLayout placement:** After reading time, before the optional "Updated" span, with a middot separator.
+- **Home page placement:** After the date in each post card's `.meta` line, with a middot separator. Made `.meta` `display: flex` with `align-items: center` to align inline-flex ViewCount properly.
+- **GoatCounter endpoint:** `https://jordanselig.goatcounter.com/counter/${encodeURIComponent(path)}.json` — path is `data-path` attribute on the element.

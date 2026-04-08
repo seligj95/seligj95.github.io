@@ -11,6 +11,12 @@
 
 ## Learnings
 
+### 2026-04-08: Pagination and new post build-output tests
+- **Two tests added** to `tests/build-output.test.ts`: (1) MCP Apps post page exists at `dist/blog/mcp-apps-azure-appservice/index.html`, (2) blog page 2 does NOT exist (`dist/blog/page/2/index.html` → false) since 5 posts < page size of 10.
+- **Negative existence test pattern:** Use `expect(existsSync(...)).toBe(false)` to assert pagination boundary — ensures page 2 isn't generated when all posts fit on page 1. This test will need updating when post count exceeds 10.
+- **ViewCount not tested in build output:** ViewCount.astro is client-side JS fetching from GoatCounter at runtime — no build artifact to assert on.
+- **Test count:** Build-output tests now at 13 (was 11). Total suite: 156 tests, all green.
+
 ### 2026-02-24: Test infrastructure established
 - **Framework:** Vitest 4.0.18 + happy-dom (lightweight, same Vite ecosystem as Astro)
 - **Pattern:** Global setup runs `astro build` once before all tests — avoids redundant builds, keeps test files simple
