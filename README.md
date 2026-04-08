@@ -111,15 +111,13 @@ The feed is auto-generated at `/personal-blog/rss.xml`. It includes post titles,
 
 ### Themes
 
-The site ships with six themes, cycled via the toggle button in the header:
+The site ships with four themes, cycled via the toggle button in the header:
 
 | Theme | Vibe |
 |-------|------|
 | **Light** | Clean default |
 | **Dark** | Dark mode |
-| **Retro** | Amber terminal / monospace |
 | **Rainbow** | Soft pastel purple |
-| **Vivid** | Neon gradient cyberpunk |
 | **GeoCities** | 90s chaos — Comic Sans, neon colors, marquee banner, spinning emoji, cursor sparkle trail, and a fake visitor counter |
 
 Theme preference is saved to `localStorage`. The valid theme list appears in three places: `global.css`, `ThemeToggle.astro`, and `BaseHead.astro` (flash-prevention script).
