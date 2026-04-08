@@ -14,8 +14,7 @@ const posts = (await getCollection("blog"))
       {posts.map((post) => (
         <li>
           <a
-            href={post.data.externalUrl ?? `${import.meta.env.BASE_URL}blog/${post.id}/`}
-            {...(post.data.externalUrl ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            href={`${import.meta.env.BASE_URL}blog/${post.id}/`}
           >
             <div class="post-info">
               <span class="title">
