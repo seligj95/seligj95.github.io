@@ -44,6 +44,24 @@ tags: ["tag1", "tag2"]
 Content goes here.
 ```
 
+### External Posts
+
+For posts published on other platforms (e.g., Tech Community, dev.to), add an `externalUrl` field:
+
+```markdown
+---
+title: "My External Post"
+description: "A short summary of the post."
+pubDate: 2026-04-08
+tags: ["azure", "mcp"]
+externalUrl: "https://techcommunity.microsoft.com/blog/..."
+---
+
+A brief summary of the post. Readers will be directed to the full article on the original platform.
+```
+
+External posts appear in the blog list with links to the original article. The individual post page shows a summary with a banner linking to the full content.
+
 ## Deployment
 
 Pushes to `main` automatically deploy via GitHub Actions.
@@ -89,7 +107,7 @@ Pushes to `main` automatically deploy via GitHub Actions.
 
 ### RSS Feed
 
-The feed is auto-generated at `/personal-blog/rss.xml`. It includes post titles, descriptions, dates, and tags as categories. Most RSS readers will auto-discover it via the `<link rel="alternate">` tag in the page head.
+The feed is auto-generated at `/personal-blog/rss.xml`. It includes post titles, descriptions, dates, and tags as categories. External posts link directly to the original URL in the feed. Most RSS readers will auto-discover it via the `<link rel="alternate">` tag in the page head.
 
 ### Themes
 

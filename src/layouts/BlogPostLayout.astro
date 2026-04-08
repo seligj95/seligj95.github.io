@@ -9,8 +9,11 @@ interface Props {
 }
 
 const { post } = Astro.props;
-const { title, description, pubDate, updatedDate, tags, heroImage } = post.data;
+const { title, description, pubDate, updatedDate, tags, heroImage, externalUrl } = post.data;
 const shareUrl = new URL(Astro.url.pathname, Astro.site).toString();
+
+// Extract domain for external post attribution
+const externalDomain = externalUrl ? new URL(externalUrl).hostname.replace(/^www\./, "") : null;
 
 // Reading time estimate
 const body = post.body ?? "";
@@ -67,6 +70,18 @@ const readingTime = Math.max(1, Math.round(words / 225));
       <img class="hero-image" src={heroImage} alt={title} />
     )}
 
+    {externalUrl && (
+      <aside class="external-banner">
+        <p>
+          This post was originally published on <strong>{externalDomain}</strong>.
+          <a href={externalUrl} target="_blank" rel="noopener noreferrer">
+            Read the full article
+            <svg class="external-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="External link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+          </a>
+        </p>
+      </aside>
+    )}
+
     <div class="prose">
       <slot />
     </div>
@@ -97,6 +112,30 @@ const readingTime = Math.max(1, Math.round(words / 225));
     object-fit: cover;
     border-radius: 0.75rem;
     margin-bottom: 2rem;
+  }
+  .external-banner {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-subtle);
+    padding: 1rem 1.25rem;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+    font-size: 0.925rem;
+    line-height: 1.6;
+  }
+  .external-banner p {
+    margin: 0;
+    color: var(--text);
+  }
+  .external-banner a {
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .external-banner .external-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.2rem;
+    position: relative;
+    top: -1px;
   }
   h1 {
     font-size: 2.25rem;

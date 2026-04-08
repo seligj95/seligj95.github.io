@@ -10,6 +10,7 @@ const blogSchema = z.object({
   heroImage: z.string().optional(),
   tags: z.array(z.string()).default([]),
   draft: z.boolean().default(false),
+  externalUrl: z.string().url().optional(),
 });
 
 describe("Blog content schema", () => {
@@ -136,5 +137,43 @@ describe("Blog content schema", () => {
     };
     const result = blogSchema.safeParse(data);
     expect(result.success).toBe(false);
+  });
+
+  it("accepts valid externalUrl", () => {
+    const data = {
+      title: "External Post",
+      description: "A post linking elsewhere",
+      pubDate: "2026-04-01",
+      externalUrl: "https://example.com/article",
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.externalUrl).toBe("https://example.com/article");
+    }
+  });
+
+  it("rejects invalid URL for externalUrl", () => {
+    const data = {
+      title: "Bad External",
+      description: "Not a real URL",
+      pubDate: "2026-04-01",
+      externalUrl: "not-a-url",
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(false);
+  });
+
+  it("externalUrl defaults to undefined when omitted", () => {
+    const data = {
+      title: "No External",
+      description: "No external link provided",
+      pubDate: "2026-04-01",
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.externalUrl).toBeUndefined();
+    }
   });
 });
