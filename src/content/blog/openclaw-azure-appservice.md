@@ -3,6 +3,7 @@ title: "You Can Host OpenClaw on Azure App Service — Here's How"
 description: "Deploy OpenClaw to Azure App Service with VNet integration, private endpoints, and one-command deployment using azd."
 pubDate: 2026-03-13
 tags: ["azure", "app-service", "ai", "agents", "open-source"]
+heroImage: "/images/blog/2026/03/openclaw-azure-appservice/openclaw-hero.png"
 ---
 
 ![OpenClaw on Azure App Service](/images/blog/2026/03/openclaw-azure-appservice/openclaw-hero.png)

@@ -26,6 +26,16 @@ const hasNextPage = totalPages > 1;
           <a
             href={`${import.meta.env.BASE_URL}blog/${post.id}/`}
           >
+            {post.data.heroImage && (
+              <img
+                class="post-thumbnail"
+                src={post.data.heroImage}
+                alt=""
+                loading="lazy"
+                width="80"
+                height="80"
+              />
+            )}
             <div class="post-info">
               <span class="title">
                 {post.data.title}
@@ -99,6 +109,13 @@ const hasNextPage = totalPages > 1;
   li a:hover .title {
     color: var(--accent);
   }
+  .post-thumbnail {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    flex-shrink: 0;
+  }
   .post-info {
     display: flex;
     flex-direction: column;
@@ -152,5 +169,11 @@ const hasNextPage = totalPages > 1;
   }
   .pagination a:hover {
     text-decoration: underline;
+  }
+  @media (max-width: 640px) {
+    .post-thumbnail {
+      width: 56px;
+      height: 56px;
+    }
   }
 </style>
