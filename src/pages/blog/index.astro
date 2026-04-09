@@ -19,6 +19,7 @@ const hasNextPage = totalPages > 1;
   <section class="blog-list">
     <h1>All Posts</h1>
     <BlogSearch />
+    <div id="blog-default-list">
     <ul>
       {posts.map((post) => (
         <li>
@@ -56,6 +57,7 @@ const hasNextPage = totalPages > 1;
         <a href={`${import.meta.env.BASE_URL}blog/page/2/`}>Next →</a>
       </nav>
     )}
+    </div>
   </section>
 </BaseLayout>
 

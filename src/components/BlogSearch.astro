@@ -161,9 +161,7 @@ const RESULTS_PER_PAGE = 10;
   const clearBtn = document.getElementById('search-clear');
   const resultsContainer = document.getElementById('search-results');
   const paginationContainer = document.getElementById('search-pagination');
-  const blogListSection = document.querySelector('.blog-list');
-  const postList = blogListSection ? blogListSection.querySelector('ul') : null;
-  const defaultPagination = blogListSection ? blogListSection.querySelector('nav.pagination') : null;
+  const defaultList = document.getElementById('blog-default-list');
 
   async function initPagefind() {
     if (pagefind) return pagefind;
@@ -178,15 +176,13 @@ const RESULTS_PER_PAGE = 10;
 
   function showSearchResults() {
     resultsContainer.hidden = false;
-    if (postList) postList.style.display = 'none';
-    if (defaultPagination) defaultPagination.style.display = 'none';
+    if (defaultList) defaultList.style.display = 'none';
   }
 
   function hideSearchResults() {
     resultsContainer.hidden = true;
     paginationContainer.hidden = true;
-    if (postList) postList.style.display = '';
-    if (defaultPagination) defaultPagination.style.display = '';
+    if (defaultList) defaultList.style.display = '';
   }
 
   async function renderPage(page) {
