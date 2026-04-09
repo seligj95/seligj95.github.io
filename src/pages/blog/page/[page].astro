@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import ViewCount from "../../../components/ViewCount.astro";
+import BlogSearch from "../../../components/BlogSearch.astro";
 import { getCollection } from "astro:content";
 
 export async function getStaticPaths() {
@@ -42,6 +43,7 @@ const nextUrl = `${import.meta.env.BASE_URL}blog/page/${currentPage + 1}/`;
 >
   <section class="blog-list">
     <h1>All Posts</h1>
+    <BlogSearch />
     <ul>
       {posts.map((post) => (
         <li>

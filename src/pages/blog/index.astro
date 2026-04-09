@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ViewCount from "../../components/ViewCount.astro";
+import BlogSearch from "../../components/BlogSearch.astro";
 import { getCollection } from "astro:content";
 
 const POSTS_PER_PAGE = 10;
@@ -17,6 +18,7 @@ const hasNextPage = totalPages > 1;
 <BaseLayout title="Blog — Jordan Selig" description="All blog posts.">
   <section class="blog-list">
     <h1>All Posts</h1>
+    <BlogSearch />
     <ul>
       {posts.map((post) => (
         <li>

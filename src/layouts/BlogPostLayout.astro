@@ -41,8 +41,8 @@ const readingTime = Math.max(1, Math.round(words / 225));
       url: shareUrl,
     })}
   />
-  <article>
-    <header class="post-header">
+  <article data-pagefind-meta={`title:${title}, description:${description}, date:${pubDate.toISOString()}`}>
+    <header class="post-header" data-pagefind-ignore>
       <div class="post-meta">
         <time datetime={pubDate.toISOString()}>
           {pubDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
@@ -85,7 +85,7 @@ const readingTime = Math.max(1, Math.round(words / 225));
       </aside>
     )}
 
-    <div class="prose">
+    <div class="prose" data-pagefind-body>
       <slot />
     </div>
 
