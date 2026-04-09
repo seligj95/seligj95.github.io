@@ -13,6 +13,7 @@ const posts = (await getCollection("blog"))
   description="Personal blog by Jordan Selig."
 >
   <section class="hero">
+    <img src={`${import.meta.env.BASE_URL}images/logo.png`} alt="Jordan Selig logo" class="hero-logo" />
     <p class="greeting">Hey, I'm</p>
     <h1>Jordan<span class="accent-dot">.</span></h1>
     <p class="tagline">Welcome to my corner of the internet. I'm a Product Manager on Azure App Service, writing about app development, AI, agents, and building samples to share along the way.</p>
@@ -61,10 +62,17 @@ const posts = (await getCollection("blog"))
     padding: 2rem;
   }
   .hero {
-    padding-top: 5rem;
+    padding-top: 3rem;
     padding-bottom: 3rem;
     border-bottom: 1px solid var(--border);
     margin-bottom: 1rem;
+  }
+  .hero-logo {
+    width: 10rem;
+    height: 10rem;
+    object-fit: contain;
+    margin-bottom: 1.5rem;
+    border-radius: 1rem;
   }
   .greeting {
     font-size: 1.125rem;
