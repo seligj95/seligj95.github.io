@@ -161,8 +161,9 @@ const RESULTS_PER_PAGE = 10;
   const clearBtn = document.getElementById('search-clear');
   const resultsContainer = document.getElementById('search-results');
   const paginationContainer = document.getElementById('search-pagination');
-  const postList = document.querySelector('.blog-list ul');
-  const defaultPagination = document.querySelector('.blog-list > .pagination');
+  const blogListSection = document.querySelector('.blog-list');
+  const postList = blogListSection ? blogListSection.querySelector('ul') : null;
+  const defaultPagination = blogListSection ? blogListSection.querySelector('nav.pagination') : null;
 
   async function initPagefind() {
     if (pagefind) return pagefind;
@@ -170,7 +171,6 @@ const RESULTS_PER_PAGE = 10;
       pagefind = await import('/pagefind/pagefind.js');
       await pagefind.init();
     } catch {
-      // In dev mode, pagefind index may not exist yet
       pagefind = null;
     }
     return pagefind;
@@ -178,15 +178,15 @@ const RESULTS_PER_PAGE = 10;
 
   function showSearchResults() {
     resultsContainer.hidden = false;
-    if (postList) postList.hidden = true;
-    if (defaultPagination) defaultPagination.hidden = true;
+    if (postList) postList.style.display = 'none';
+    if (defaultPagination) defaultPagination.style.display = 'none';
   }
 
   function hideSearchResults() {
     resultsContainer.hidden = true;
     paginationContainer.hidden = true;
-    if (postList) postList.hidden = false;
-    if (defaultPagination) defaultPagination.hidden = false;
+    if (postList) postList.style.display = '';
+    if (defaultPagination) defaultPagination.style.display = '';
   }
 
   async function renderPage(page) {
@@ -203,14 +203,18 @@ const RESULTS_PER_PAGE = 10;
       return;
     }
 
-    resultsContainer.innerHTML = items.map(item => `
-      <a href="${item.url}" class="search-result-item">
-        <div class="result-info">
-          <span class="result-title">${item.meta?.title || item.url}</span>
-          <span class="result-excerpt">${item.excerpt || ''}</span>
-        </div>
-      </a>
-    `).join('');
+    resultsContainer.innerHTML = items.map(item => {
+      const title = item.meta?.title || 'Untitled';
+      const excerpt = item.excerpt || item.meta?.description || '';
+      return `
+        <a href="${item.url}" class="search-result-item">
+          <div class="result-info">
+            <span class="result-title">${title}</span>
+            <span class="result-excerpt">${excerpt}</span>
+          </div>
+        </a>
+      `;
+    }).join('');
 
     const totalPages = Math.ceil(allResults.length / RESULTS_PER_PAGE);
     if (totalPages > 1) {
