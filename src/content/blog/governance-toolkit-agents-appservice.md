@@ -4,7 +4,7 @@ description: "Add policy enforcement, tool allowlists, and deny-by-default gover
 pubDate: 2026-04-13
 tags: ["azure", "app-service", "ai", "agents", "governance", "security"]
 heroImage: "/images/blog/2026/04/governance-toolkit-agents-appservice/hero.png"
-externalUrl: "https://techcommunity.microsoft.com/blog/appsonazureblog/govern-ai-agents-on-app-service-with-the-microsoft-agent-governance-toolkit/4411583"
+externalUrl: "https://techcommunity.microsoft.com/blog/AppsonAzureBlog/govern-ai-agents-on-app-service-with-the-microsoft-agent-governance-toolkit/4510962"
 ---
 
 You built the agents. You can see them in App Insights. But can you control what they're allowed to do?
@@ -13,4 +13,4 @@ This is Part 3 of our multi-agent series on Azure App Service. Building on the t
 
 The full article walks through the governance integration pattern, the YAML policy schema, how the toolkit intercepts tool calls at the MAF middleware layer, and why App Service is the ideal host for governed agents (Managed Identity, VNet isolation, deployment slots for policy rollout).
 
-👉 [Read the full article on Tech Community](https://techcommunity.microsoft.com/blog/appsonazureblog/govern-ai-agents-on-app-service-with-the-microsoft-agent-governance-toolkit/4411583) to lock down your AI agents.
+👉 [Read the full article on Tech Community](https://techcommunity.microsoft.com/blog/AppsonAzureBlog/govern-ai-agents-on-app-service-with-the-microsoft-agent-governance-toolkit/4510962) to lock down your AI agents.
