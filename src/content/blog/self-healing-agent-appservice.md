@@ -1,7 +1,7 @@
 ---
 title: "Turn Your App Service Web App Into a Self-Healing Agent: LLMOps Best Practices for Production"
 description: "Web-app SLOs (Http5xx, p95) don't catch the failures that actually hurt an agent in production: unbounded cost, silent quality regressions, prompt drift. This post walks through the LLMOps middleware — SLIs, a budget circuit breaker, prompt-repair retries, and an auto slot-swap rollback driven by Azure Monitor — that I built into a deployable App Service sample."
-pubDate: 2026-05-18
+pubDate: 2026-05-18T10:00:00
 tags: ["azure", "app-service", "llmops", "ai", "python", "agents"]
 heroImage: "/images/blog/2026/05/self-healing-agent-appservice/hero.png"
 externalUrl: "https://techcommunity.microsoft.com/blog/appsonazureblog/turn-your-app-service-web-app-into-a-self-healing-agent-llmops-best-practices-fo/4520867"
