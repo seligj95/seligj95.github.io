@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ViewCount from "../../components/ViewCount.astro";
 import BlogSearch from "../../components/BlogSearch.astro";
+import Pagination from "../../components/Pagination.astro";
 import { getCollection } from "astro:content";
 
 const POSTS_PER_PAGE = 10;
@@ -12,7 +13,6 @@ const allPosts = (await getCollection("blog"))
 
 const totalPages = Math.ceil(allPosts.length / POSTS_PER_PAGE);
 const posts = allPosts.slice(0, POSTS_PER_PAGE);
-const hasNextPage = totalPages > 1;
 ---
 
 <BaseLayout title="Blog — Jordan Selig" description="All blog posts.">
@@ -61,11 +61,8 @@ const hasNextPage = totalPages > 1;
         </li>
       ))}
     </ul>
-    {(hasNextPage) && (
-      <nav class="pagination" aria-label="Blog pagination">
-        <span />
-        <a href={`${import.meta.env.BASE_URL}blog/page/2/`}>Next →</a>
-      </nav>
+    {(totalPages > 1) && (
+      <Pagination currentPage={1} totalPages={totalPages} basePath={import.meta.env.BASE_URL} />
     )}
     </div>
   </section>
@@ -154,21 +151,6 @@ const hasNextPage = totalPages > 1;
     white-space: nowrap;
     flex-shrink: 0;
     padding-top: 0.125rem;
-  }
-  .pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 2rem;
-    font-size: 0.9rem;
-  }
-  .pagination a {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 500;
-  }
-  .pagination a:hover {
-    text-decoration: underline;
   }
   @media (max-width: 640px) {
     .post-thumbnail {

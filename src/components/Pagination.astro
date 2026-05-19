@@ -1,0 +1,127 @@
+---
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  basePath: string;
+}
+
+const { currentPage, totalPages, basePath } = Astro.props;
+
+const pageUrl = (n: number) =>
+  n === 1 ? `${basePath}blog/` : `${basePath}blog/page/${n}/`;
+
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+const prevUrl = pageUrl(currentPage - 1);
+const nextUrl = pageUrl(currentPage + 1);
+
+const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+---
+
+{totalPages > 1 && (
+  <nav class="pagination" aria-label="Blog pagination">
+    <a
+      class="arrow"
+      href={hasPrev ? prevUrl : undefined}
+      aria-disabled={hasPrev ? undefined : "true"}
+      aria-label="Previous page"
+    >← Prev</a>
+
+    <ol class="pages">
+      {pageNumbers.map((n) => (
+        n === currentPage ? (
+          <li><span class="page current" aria-current="page">{n}</span></li>
+        ) : (
+          <li><a class="page" href={pageUrl(n)} aria-label={`Page ${n}`}>{n}</a></li>
+        )
+      ))}
+    </ol>
+
+    <a
+      class="arrow"
+      href={hasNext ? nextUrl : undefined}
+      aria-disabled={hasNext ? undefined : "true"}
+      aria-label="Next page"
+    >Next →</a>
+
+    <span class="status" aria-live="polite">Page {currentPage} of {totalPages}</span>
+  </nav>
+)}
+
+<style>
+  .pagination {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 1rem;
+    row-gap: 0.5rem;
+    margin-top: 2rem;
+    font-size: 0.9rem;
+  }
+  .pages {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0;
+    margin: 0;
+  }
+  .page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 500;
+    line-height: 1;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .page:hover {
+    background: var(--surface);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .page.current {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg, #fff);
+    cursor: default;
+  }
+  .arrow {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .arrow:hover {
+    text-decoration: underline;
+  }
+  .arrow[aria-disabled="true"] {
+    color: var(--text-muted);
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  .status {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  @media (max-width: 480px) {
+    .pagination {
+      column-gap: 0.5rem;
+    }
+    .page {
+      min-width: 1.75rem;
+      height: 1.75rem;
+      font-size: 0.85rem;
+    }
+  }
+</style>
