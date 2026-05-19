@@ -61,9 +61,9 @@ describe("Build output", () => {
     ).toBe(true);
   });
 
-  it("does not generate blog page 2 (only 5 posts, page size 10)", () => {
+  it("generates blog page 2 (more than 10 posts, page size 10)", () => {
     expect(
       existsSync(join(dist, "blog", "page", "2", "index.html"))
-    ).toBe(false);
+    ).toBe(true);
   });
 });
