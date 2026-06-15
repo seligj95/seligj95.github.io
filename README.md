@@ -102,8 +102,8 @@ Pushes to `main` automatically deploy via GitHub Actions.
 1. Go to your repo's **Settings → Pages**.
 2. Under **Source**, select **GitHub Actions**.
 3. The included workflow (`.github/workflows/`) will build and deploy on every push to `main`.
-4. Your site will be live at `https://jordanselig.github.io/personal-blog/`.
-5. The `base` in `astro.config.mjs` is `/personal-blog` — change this if your repo name differs.
+4. Your site will be live at `https://jordanselig.com/` (custom domain configured via the `public/CNAME` file).
+5. The `site` in `astro.config.mjs` is set to the custom domain — update it if your domain changes.
 
 ### RSS Feed
 
