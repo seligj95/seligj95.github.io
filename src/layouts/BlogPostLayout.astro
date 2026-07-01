@@ -44,7 +44,6 @@ const readingTime = Math.max(1, Math.round(words / 225));
   <article>
     <header class="post-header">
       <div class="post-meta" data-pagefind-ignore>
-      <div class="post-meta">
         <time datetime={pubDate.toISOString()}>
           {pubDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
         </time>
@@ -119,7 +118,7 @@ const readingTime = Math.max(1, Math.round(words / 225));
     margin-bottom: 2rem;
   }
   .external-banner {
-    border-left: 3px solid var(--accent);
+    border: 1px solid var(--border);
     background: var(--accent-subtle);
     padding: 1rem 1.25rem;
     border-radius: 0.5rem;

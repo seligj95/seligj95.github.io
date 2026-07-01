@@ -2,6 +2,9 @@
 dist/
 node_modules/
 
+# impeccable design tooling cache
+.impeccable/
+
 # editor
 .vscode/
 *.swp

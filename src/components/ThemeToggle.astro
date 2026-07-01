@@ -45,6 +45,12 @@
   button:hover {
     border-color: var(--accent);
   }
+  @media (pointer: coarse) {
+    button {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
   .icon-light, .icon-dark, .icon-rainbow, .icon-geocities {
     display: none;
     transition: opacity 0.25s ease, transform 0.35s ease;

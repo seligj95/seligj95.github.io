@@ -94,6 +94,19 @@ const pathname = Astro.url.pathname;
     color: var(--text);
     padding: 0.25rem;
   }
+  @media (pointer: coarse) {
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    .menu-toggle {
+      min-width: 44px;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+    }
+  }
   .icon-close {
     display: none;
   }
