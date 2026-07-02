@@ -31,7 +31,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
         <ul class="socials">
           <li><a href="https://github.com/seligj95" target="_blank" rel="noopener noreferrer">GitHub</a></li>
           <li><a href="https://www.linkedin.com/in/jordan-selig/" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
-
+          <li><a href={`${import.meta.env.BASE_URL}rss.xml`}>RSS Feed</a></li>
         </ul>
       </div>
     </div>
@@ -74,11 +74,9 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     background: var(--surface);
   }
   .card h2 {
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
+    color: var(--text);
     margin-bottom: 1rem;
   }
   .card ul {

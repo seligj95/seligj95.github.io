@@ -6,7 +6,7 @@ interface Props {
 const { path } = Astro.props;
 ---
 
-<span class="view-count" data-path={path}>
+<span class="view-count" data-path={path} hidden>
   <svg
     width="14"
     height="14"
@@ -21,16 +21,18 @@ const { path } = Astro.props;
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
     <circle cx="12" cy="12" r="3" />
   </svg>
-  <span class="count-text">&mdash; views</span>
+  <span class="count-text"></span>
 </span>
 
 <style>
   .view-count {
-    display: inline-flex;
     align-items: center;
     gap: 0.25rem;
     font-size: 0.85rem;
     color: var(--text-muted);
+  }
+  .view-count:not([hidden]) {
+    display: inline-flex;
   }
 </style>
 
@@ -42,24 +44,29 @@ const { path } = Astro.props;
       const path = el.dataset.path;
       if (!path) return;
 
+      // Keep the count and its separator hidden until a real count resolves,
+      // so no "— views" placeholder or wrong grammar ever flashes.
+      const prev = el.previousElementSibling;
+      const sep = prev?.classList.contains("sep")
+        ? (prev as HTMLElement)
+        : null;
+      if (sep) sep.style.display = "none";
+
       try {
         const res = await fetch(
           `https://jordanselig.goatcounter.com/counter/${encodeURIComponent(path)}.json`
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        const count = Number(data.count) || 0;
         const countText = el.querySelector(".count-text");
         if (countText) {
-          countText.textContent = `${data.count} views`;
+          countText.textContent = `${count} ${count === 1 ? "view" : "views"}`;
         }
+        el.hidden = false;
+        if (sep) sep.style.display = "";
       } catch {
-        el.style.display = "none";
-
-        // Also hide the preceding separator if present
-        const prev = el.previousElementSibling;
-        if (prev?.classList.contains("sep")) {
-          (prev as HTMLElement).style.display = "none";
-        }
+        // Leave the count hidden and the separator collapsed.
       }
     });
 

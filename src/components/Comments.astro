@@ -29,7 +29,7 @@ const {
     data-reactions-enabled="1"
     data-emit-metadata="0"
     data-input-position="top"
-    data-theme="preferred_color_scheme"
+    data-theme="light"
     data-lang="en"
     crossorigin="anonymous"
     async
@@ -53,6 +53,15 @@ const {
       "https://giscus.app"
     );
   }
+
+  // Giscus initializes with its own default theme; as soon as it signals ready
+  // (it posts a message once the discussion loads), force it to match the
+  // site's current theme so a dark widget never renders on a light page.
+  window.addEventListener("message", (event) => {
+    if (event.origin !== "https://giscus.app") return;
+    if (typeof event.data !== "object" || !event.data.giscus) return;
+    setGiscusTheme(getGiscusTheme());
+  });
 
   // Watch for data-theme attribute changes on <html>
   const observer = new MutationObserver((mutations) => {

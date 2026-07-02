@@ -2,7 +2,7 @@
   /* Light theme (default) */
   --bg: #ffffff;
   --text: #1a1a1a;
-  --text-muted: #6b7280;
+  --text-muted: #5c6472;
   --border: #e5e7eb;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -26,9 +26,9 @@
   --text: #2d1b4e;
   --text-muted: #7c5ba6;
   --border: #e0c8f0;
-  --accent: #e040fb;
-  --accent-hover: #aa00ff;
-  --accent-subtle: rgba(224, 64, 251, 0.08);
+  --accent: #b010cf;
+  --accent-hover: #8c0aa6;
+  --accent-subtle: rgba(176, 16, 207, 0.08);
   --surface: #f3e8ff;
 }
 
@@ -332,4 +332,22 @@ p {
 }
 a:hover {
   color: var(--accent-hover);
+}
+
+/*
+ * Respect the OS "reduce motion" setting for the everyday themes.
+ * The geocities theme is a deliberate retro joke and is intentionally
+ * exempt — its blink / marquee / rainbow / spin animations stay put.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-theme="geocities"]) {
+    scroll-behavior: auto;
+  }
+  html:not([data-theme="geocities"]) *,
+  html:not([data-theme="geocities"]) *::before,
+  html:not([data-theme="geocities"]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
