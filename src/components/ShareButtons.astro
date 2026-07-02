@@ -7,12 +7,13 @@ interface Props {
 const { title, url } = Astro.props;
 const encodedUrl = encodeURIComponent(url);
 const encodedTitle = encodeURIComponent(title);
+const encodedShareText = encodeURIComponent(`${title}\n\n${url}`);
 ---
 
 <div class="share-buttons">
   <span>Share:</span>
   <a
-    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`}
+    href={`https://www.linkedin.com/feed/?shareActive=true&text=${encodedShareText}`}
     target="_blank"
     rel="noopener noreferrer"
     aria-label="Share on LinkedIn"
