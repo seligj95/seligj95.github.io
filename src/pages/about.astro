@@ -88,13 +88,30 @@ import BaseLayout from "../layouts/BaseLayout.astro";
   .card li {
     font-size: 0.95rem;
   }
+  .socials {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
   .socials a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--bg);
     text-decoration: none;
     color: var(--text);
-    transition: color 0.15s ease;
+    font-weight: 500;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
   }
   .socials a:hover {
     color: var(--accent);
+    background: var(--accent-subtle);
+    border-color: var(--accent);
   }
   @media (max-width: 640px) {
     .grid {
