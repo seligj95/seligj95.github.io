@@ -58,7 +58,11 @@ const { path } = Astro.props;
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        const count = Number(data.count) || 0;
+        // GoatCounter formats counts >= 1000 with a thousands separator
+        // (a U+202F narrow no-break space), e.g. "1 293". Strip any
+        // non-digit characters before parsing so large counts don't
+        // become NaN and fall back to 0.
+        const count = Number(String(data.count).replace(/[^0-9]/g, "")) || 0;
         const countText = el.querySelector(".count-text");
         if (countText) {
           countText.textContent = `${count} ${count === 1 ? "view" : "views"}`;
