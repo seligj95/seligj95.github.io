@@ -4,6 +4,9 @@ description: "An App Service PM on the quiet superpower of the cloud — the clo
 pubDate: 2026-07-08
 tags: ["op-ed", "azure", "cloud", "app-service", "paas", "product-management"]
 heroImage: "/images/blog/2026/07/blame-the-cloud-shared-responsibility/hero.png"
+coAuthors:
+  - name: "Jarod Aerts"
+    url: "https://www.linkedin.com/in/jarodaerts/"
 ---
 
 Anyone who's been in tech for a while — anyone who's ever pulled a servicing shift or carried a pager — knows this story. It's 2am, something is alerting, and a room full of very tired people are staring at a dashboard trying to answer one question. Not *"how do we fix it"* — that comes later. The first question is always **"whose fault is this?"**
