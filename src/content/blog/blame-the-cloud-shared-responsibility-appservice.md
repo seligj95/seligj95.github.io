@@ -7,6 +7,10 @@ heroImage: "/images/blog/2026/07/blame-the-cloud-shared-responsibility/hero.png"
 coAuthors:
   - name: "Jarod Aerts"
     url: "https://www.linkedin.com/in/jarodaerts/"
+  - name: "Gaurav Seth"
+    url: "https://www.linkedin.com/in/gaurav-seth-70459b121/"
+  - name: "Andrew Westgarth"
+    url: "https://www.linkedin.com/in/apwestgarth/"
 ---
 
 Anyone who's been in tech for a while — anyone who's ever pulled a servicing shift or carried a pager — knows this story. It's 2am, something is alerting, and a room full of very tired people are staring at a dashboard trying to answer one question. Not *"how do we fix it"* — that comes later. The first question is always **"whose fault is this?"**
@@ -71,6 +75,8 @@ And here's the part that matters most for anyone stuck on that first barrier: it
 If you've been cloud-curious but stuck at the starting line, this is a genuinely gentle place to start. Move one app. See how much of the pager stops being yours. Decide for yourself whether the "someone else to blame" feeling is worth it. (Spoiler: at 2am, it very much is.)
 
 One scheduling note: **Managed Instance is in preview today, and GA is planned for the coming months.** If you're one of the people who's been waiting for the "generally available" stamp before you'll touch it — fair enough, that's a reasonable line to hold — then consider this your heads-up to get ready. It's coming.
+
+And if you have questions about Managed Instance — what it supports, whether your app is a good fit, what the migration actually looks like — two of our co-authors on this post, [**Gaurav Seth**](https://www.linkedin.com/in/gaurav-seth-70459b121/) and [**Andrew Westgarth**](https://www.linkedin.com/in/apwestgarth/), are the lead PMs for Managed Instance on App Service. They're the right people to ask. Drop a question in the comments below, or reach out to them directly — they'd genuinely rather hear from you before you write off the move than after.
 
 ## So, next time the pager goes off
 
