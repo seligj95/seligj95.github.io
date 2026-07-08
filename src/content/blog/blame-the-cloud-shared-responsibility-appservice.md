@@ -13,6 +13,8 @@ Anyone who's been in tech for a while — anyone who's ever pulled a servicing s
 
 For a long time, in a lot of shops, the honest answer was *ours*. All of it. The app, the runtime it ran on, the OS under that, the box under that, the power and cooling and network under *that*. When something broke, there was no one to call, because the buck stopped at a rack the team owned in a room the company was paying for. Every layer of the stack was a layer someone on that call could get blamed for.
 
+Quick introduction before we go further, because there are two of us writing this. We both work on Azure App Service, from opposite sides of the same fence: one of us is a developer on the platform, the other is a PM on the product. We spend our days thinking about exactly this question — who owns which layer, and what it takes to hand a layer off — which is probably why the topic won't leave us alone.
+
 The single most underrated benefit of the cloud is that this list gets *shorter*. And the closer you move toward Platform as a Service, the shorter it gets — until "whose fault is this?" has a genuinely comforting answer more often than not: **not mine.**
 
 ## The slider nobody frames as a feature
@@ -52,7 +54,7 @@ The failure mode we've watched teams stumble into isn't *"the cloud didn't do en
 
 ## The App Service version of this
 
-Between the two of us writing this, we sit on both sides of App Service — one of us builds the platform as a developer on the team, the other manages it as a PM. So this is the part where we tell you the thing we actually believe: a lot of people who would benefit most from this trade haven't made it yet.
+This is the part where the two of us — the dev and the PM — tell you the thing we actually believe: a lot of people who would benefit most from this trade haven't made it yet.
 
 And we get why. If you're still running an app on-prem or on a VM you babysit, the reasons are usually some mix of *"the migration looks complicated"* and *"modernization sounds like a rewrite I don't have time for."* Those fears are legitimate. They're also, increasingly, out of date.
 
