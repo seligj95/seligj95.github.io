@@ -80,9 +80,9 @@ And if you have questions about Managed Instance — what it supports, whether y
 
 ## So, next time the pager goes off
 
-Look at the slider before you look at the logs.
+By all means, look at the logs and fix the incident. But once it's out, ask a second question: *which layer of the stack was this — and did it have to be mine?*
 
-If you're still holding the whole stack, some of that weight was never yours to carry well — and the cloud has spent a decade building teams whose entire job is to carry it better than you can. Sliding toward PaaS isn't giving up control. It's giving up the *parts of control you were never going to be great at*, so you can be great at the part that's actually your product.
+If you're on bare metal holding the whole stack, some of that weight was never yours to carry well — and the cloud has spent a decade building teams whose entire job is to carry it better than you can. So when a 2am page turns out to be an OS patch, a failed disk, or a scaling limit, treat it as a signal: that's a layer you could hand to a PaaS provider and never get paged for again. Sliding toward PaaS isn't giving up control. It's giving up the *parts of control you were never going to be great at*, so you can be great at the part that's actually your product.
 
 The cloud's flashiest features get all the blog posts. But the one we'd defend hardest is the quiet one: a shorter list of things that are your fault. Understand your side of the line, hand the rest to people who do it for a living, and go get some sleep.
 
