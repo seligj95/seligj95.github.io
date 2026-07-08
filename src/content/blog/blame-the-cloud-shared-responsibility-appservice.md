@@ -13,7 +13,7 @@ Anyone who's been in tech for a while — anyone who's ever pulled a servicing s
 
 For a long time, in a lot of shops, the honest answer was *ours*. All of it. The app, the runtime it ran on, the OS under that, the box under that, the power and cooling and network under *that*. When something broke, there was no one to call, because the buck stopped at a rack the team owned in a room the company was paying for. Every layer of the stack was a layer someone on that call could get blamed for.
 
-Quick introduction before we go further, because there are two of us writing this. We both work on Azure App Service, from opposite sides of the same fence: one of us is a developer on the platform, the other is a PM on the product. We spend our days thinking about exactly this question — who owns which layer, and what it takes to hand a layer off — which is probably why the topic won't leave us alone.
+Quick introduction before we go further, because there are two of us writing this. We both work on Azure App Service, from opposite sides of the same fence: one of us is a developer on the platform, the other is a product manager on the product. We spend our days thinking about exactly this question — who owns which layer, and what it takes to hand a layer off — which is probably why the topic won't leave us alone.
 
 The single most underrated benefit of the cloud is that this list gets *shorter*. And the closer you move toward Platform as a Service, the shorter it gets — until "whose fault is this?" has a genuinely comforting answer more often than not: **not mine.**
 
@@ -65,6 +65,8 @@ The whole promise of PaaS is that you slide up that responsibility scale and han
 This is exactly the gap [**App Service Managed Instance**](https://learn.microsoft.com/en-us/azure/app-service/quickstart-managed-instance?tabs=portal) is built to close.
 
 It's designed for the app that hasn't moved yet — the one carrying dependencies you'd rather not touch, running somewhere it's hard to change. Managed Instance gives you a path onto the App Service platform with far less rewriting than "just modernize it" usually implies, so you can actually *try* the PaaS trade instead of theorizing about it. You get to feel what it's like to hand the OS, the patching, and the platform availability to us — and keep your focus on your app.
+
+And here's the part that matters most for anyone stuck on that first barrier: it doesn't just soften the *modernization* fear, it collapses the *migration* itself. Remember those two objections — "the migration looks complicated" and "modernization sounds like a rewrite." Managed Instance is aimed squarely at both. Bringing an existing app onto the platform is dramatically less work than a traditional lift-and-modernize, because you're moving the app much closer to as-is and letting the managed platform absorb the environment underneath it. The migration stops being the scary multi-quarter project and starts being a step you can actually schedule.
 
 If you've been cloud-curious but stuck at the starting line, this is a genuinely gentle place to start. Move one app. See how much of the pager stops being yours. Decide for yourself whether the "someone else to blame" feeling is worth it. (Spoiler: at 2am, it very much is.)
 
