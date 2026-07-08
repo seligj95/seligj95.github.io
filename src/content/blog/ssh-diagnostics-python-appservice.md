@@ -5,6 +5,9 @@ pubDate: 2026-05-19
 tags: ["azure", "app-service", "python", "ssh", "diagnostics", "ai"]
 heroImage: "/images/blog/2026/05/ssh-diagnostics-python-appservice/hero.png"
 externalUrl: "https://techcommunity.microsoft.com/blog/AppsonAzureBlog/debugging-python-apps-on-app-service-with-the-new-ssh-helper-aliases/4520893"
+coAuthors:
+  - name: "Tulika Chaudharie"
+    url: "https://www.linkedin.com/in/tulika-chaudharie-2586692a/"
 ---
 
 You shipped a Python app to App Service. It worked in the demo. It works locally. In production, `/chat` is returning 502s — `/health` is green, the deployment succeeded, the logs are quiet, and your laptop can't reproduce it. What you actually need is a shell on the running container so you can poke at DNS, env vars, installed packages, the listening port, and the AI endpoint your app is calling.

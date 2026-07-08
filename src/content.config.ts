@@ -13,6 +13,14 @@ const blog = defineCollection({
     draft: z.boolean().default(false),
     featured: z.boolean().default(false),
     externalUrl: z.string().url().optional(),
+    coAuthors: z
+      .array(
+        z.object({
+          name: z.string(),
+          url: z.string().url().optional(),
+        })
+      )
+      .default([]),
   }),
 });
 
