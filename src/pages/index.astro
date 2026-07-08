@@ -222,14 +222,12 @@ const formatDate = (date: Date) =>
     font-size: 1.175rem;
     font-weight: 600;
     margin-bottom: 0.375rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
     transition: color 0.2s ease;
   }
   .external-icon {
     color: var(--text-muted);
-    flex-shrink: 0;
+    vertical-align: -0.125em;
+    margin-left: 0.25rem;
   }
   /* Featured lead card */
   .featured-card {
@@ -260,8 +258,6 @@ const formatDate = (date: Date) =>
     letter-spacing: -0.02em;
     line-height: 1.2;
     margin-bottom: 0.6rem;
-    align-items: flex-start;
-    gap: 0.4rem;
     text-wrap: balance;
   }
   .featured-card .description {
