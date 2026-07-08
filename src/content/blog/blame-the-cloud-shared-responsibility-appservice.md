@@ -1,6 +1,6 @@
 ---
 title: "The Cloud's Most Underrated Feature: Someone Else to Blame"
-description: "An App Service PM on the quiet superpower of the cloud — the closer you get to PaaS, the more of your infrastructure (and your outages) become someone else's problem. A love letter to the shared responsibility model, and a nudge toward App Service Managed Instance."
+description: "The App Service team on the quiet superpower of the cloud — the closer you get to PaaS, the more of your infrastructure (and your outages) become someone else's problem. A love letter to the shared responsibility model, and a nudge toward App Service Managed Instance."
 pubDate: 2026-07-08
 tags: ["op-ed", "azure", "cloud", "app-service", "paas", "product-management"]
 heroImage: "/images/blog/2026/07/blame-the-cloud-shared-responsibility/hero.png"
@@ -17,7 +17,7 @@ Anyone who's been in tech for a while — anyone who's ever pulled a servicing s
 
 For a long time, in a lot of shops, the honest answer was *ours*. All of it. The app, the runtime it ran on, the OS under that, the box under that, the power and cooling and network under *that*. When something broke, there was no one to call, because the buck stopped at a rack the team owned in a room the company was paying for. Every layer of the stack was a layer someone on that call could get blamed for.
 
-Quick introduction before we go further, because there are two of us writing this. We both work on Azure App Service, from opposite sides of the same fence: one of us is a developer on the platform, the other is a product manager on the product. We spend our days thinking about exactly this question — who owns which layer, and what it takes to hand a layer off — which is probably why the topic won't leave us alone.
+Quick introduction before we go further, because there's a group of us writing this. We all work on Azure App Service, but from different seats: one of us is a developer on the platform, and the rest are product managers — including the two lead PMs for App Service Managed Instance, which we'll get to. Between us we cover both sides of the fence this whole post is about, which is probably why the topic won't leave us alone.
 
 The single most underrated benefit of the cloud is that this list gets *shorter*. And the closer you move toward Platform as a Service, the shorter it gets — until "whose fault is this?" has a genuinely comforting answer more often than not: **not mine.**
 
@@ -58,7 +58,7 @@ The failure mode we've watched teams stumble into isn't *"the cloud didn't do en
 
 ## The App Service version of this
 
-This is the part where the two of us — the dev and the PM — tell you the thing we actually believe: a lot of people who would benefit most from this trade haven't made it yet.
+This is the part where we — the devs and PMs who put this together — tell you the thing we actually believe: a lot of people who would benefit most from this trade haven't made it yet.
 
 And we get why. If you're still running an app on-prem or on a VM you babysit, the reasons are usually some mix of *"the migration looks complicated"* and *"modernization sounds like a rewrite I don't have time for."* Those fears are legitimate. They're also, increasingly, out of date.
 
