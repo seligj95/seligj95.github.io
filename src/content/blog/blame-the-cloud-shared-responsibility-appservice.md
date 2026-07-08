@@ -76,7 +76,7 @@ If you've been cloud-curious but stuck at the starting line, this is a genuinely
 
 One scheduling note: **Managed Instance is in preview today, and GA is planned for the coming months.** If you're one of the people who's been waiting for the "generally available" stamp before you'll touch it — fair enough, that's a reasonable line to hold — then consider this your heads-up to get ready. It's coming.
 
-And if you have questions about Managed Instance — what it supports, whether your app is a good fit, what the migration actually looks like — two of our co-authors on this post, [**Gaurav Seth**](https://www.linkedin.com/in/gaurav-seth-70459b121/) and [**Andrew Westgarth**](https://www.linkedin.com/in/apwestgarth/), are the lead PMs for Managed Instance on App Service. They're the right people to ask. Drop a question in the comments below, or reach out to them directly — they'd genuinely rather hear from you before you write off the move than after.
+And if you have questions about Managed Instance — what it supports, whether your app is a good fit, what the migration actually looks like — two of our co-authors on this post, [**Gaurav Seth**](https://www.linkedin.com/in/gaurav-seth-70459b121/) and [**Andrew Westgarth**](https://www.linkedin.com/in/apwestgarth/), are the lead PMs for Managed Instance on App Service. They're the right people to ask. Drop a question in the comments below, or reach out to them directly.
 
 ## So, next time the pager goes off
 
