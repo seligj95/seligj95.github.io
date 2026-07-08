@@ -11,6 +11,14 @@ const blogSchema = z.object({
   tags: z.array(z.string()).default([]),
   draft: z.boolean().default(false),
   externalUrl: z.string().url().optional(),
+  coAuthors: z
+    .array(
+      z.object({
+        name: z.string(),
+        url: z.string().url().optional(),
+      })
+    )
+    .default([]),
 });
 
 describe("Blog content schema", () => {
@@ -175,5 +183,72 @@ describe("Blog content schema", () => {
     if (result.success) {
       expect(result.data.externalUrl).toBeUndefined();
     }
+  });
+
+  it("defaults coAuthors to empty array when omitted", () => {
+    const data = {
+      title: "Solo Post",
+      description: "No co-authors",
+      pubDate: "2026-05-01",
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.coAuthors).toEqual([]);
+    }
+  });
+
+  it("accepts coAuthors with name and LinkedIn url", () => {
+    const data = {
+      title: "Co-authored Post",
+      description: "Written with a friend",
+      pubDate: "2026-05-01",
+      coAuthors: [
+        { name: "Tulika Chaudharie", url: "https://www.linkedin.com/in/tulika-chaudharie/" },
+      ],
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.coAuthors).toHaveLength(1);
+      expect(result.data.coAuthors[0].name).toBe("Tulika Chaudharie");
+      expect(result.data.coAuthors[0].url).toBe("https://www.linkedin.com/in/tulika-chaudharie/");
+    }
+  });
+
+  it("accepts a co-author with name only (url optional)", () => {
+    const data = {
+      title: "Co-authored Post",
+      description: "Written with a friend",
+      pubDate: "2026-05-01",
+      coAuthors: [{ name: "Anonymous Collaborator" }],
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.coAuthors[0].url).toBeUndefined();
+    }
+  });
+
+  it("rejects a co-author missing a name", () => {
+    const data = {
+      title: "Bad Co-author",
+      description: "Missing name",
+      pubDate: "2026-05-01",
+      coAuthors: [{ url: "https://www.linkedin.com/in/someone/" }],
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a co-author with an invalid url", () => {
+    const data = {
+      title: "Bad Co-author URL",
+      description: "Invalid link",
+      pubDate: "2026-05-01",
+      coAuthors: [{ name: "Someone", url: "not-a-url" }],
+    };
+    const result = blogSchema.safeParse(data);
+    expect(result.success).toBe(false);
   });
 });
