@@ -6,11 +6,11 @@ tags: ["op-ed", "azure", "cloud", "app-service", "paas", "product-management"]
 heroImage: "/images/blog/2026/07/blame-the-cloud-shared-responsibility/hero.png"
 ---
 
-Every engineer has a version of this story. Mine goes like this: it's 2am, a pager is going off, and a room full of very tired people are staring at a dashboard trying to answer one question. Not *"how do we fix it"* — that comes later. The first question is always **"whose fault is this?"**
+Anyone who's been in tech for a while — anyone who's ever pulled a servicing shift or carried a pager — knows this story. It's 2am, something is alerting, and a room full of very tired people are staring at a dashboard trying to answer one question. Not *"how do we fix it"* — that comes later. The first question is always **"whose fault is this?"**
 
-For a long time in my career, the honest answer was *ours*. All of it. The app, the runtime it ran on, the OS under that, the box under that, the power and cooling and network under *that*. When something broke, there was no one to call, because the buck stopped at a rack we owned in a room we were paying for. Every layer of the stack was a layer we could get blamed for.
+For a long time, in a lot of shops, the honest answer was *ours*. All of it. The app, the runtime it ran on, the OS under that, the box under that, the power and cooling and network under *that*. When something broke, there was no one to call, because the buck stopped at a rack the team owned in a room the company was paying for. Every layer of the stack was a layer someone on that call could get blamed for.
 
-I've come to believe that the single most underrated benefit of the cloud is that this list gets *shorter*. And the closer you move toward Platform as a Service, the shorter it gets — until "whose fault is this?" has a genuinely comforting answer more often than not: **not mine.**
+The single most underrated benefit of the cloud is that this list gets *shorter*. And the closer you move toward Platform as a Service, the shorter it gets — until "whose fault is this?" has a genuinely comforting answer more often than not: **not mine.**
 
 ## The slider nobody frames as a feature
 
