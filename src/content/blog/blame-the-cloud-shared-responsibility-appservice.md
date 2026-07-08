@@ -30,9 +30,9 @@ Most people read that slider as a story about *convenience* — how much work yo
 
 ## Offloading isn't laziness — it's leverage
 
-Here's the reframe I wish someone had handed me earlier.
+Here's the reframe we wish someone had handed us earlier.
 
-When you move a workload to PaaS, you're not just saving yourself the chore of patching an OS. You're handing that entire responsibility to a team whose full-time, around-the-clock, this-is-literally-their-product job is to keep that layer healthy. The people running the App Service platform think about host patching, fleet health, and platform availability with a focus and a scale that I, running my one app, could never match. That's not me being lazy. That's me being outmatched, gratefully.
+When you move a workload to PaaS, you're not just saving yourself the chore of patching an OS. You're handing that entire responsibility to a team whose full-time, around-the-clock, this-is-literally-their-product job is to keep that layer healthy. The people running the App Service platform think about host patching, fleet health, and platform availability with a focus and a scale that any one team, running its own one app, could never match. That's not you being lazy. That's you being outmatched, gratefully.
 
 So yes — half-jokingly — the more PaaS you adopt, the more you can *blame the cloud provider* when something at that layer goes wrong. But the serious version of that joke is the actual point: **you've moved a class of failures off your plate and onto the plate of the people best equipped to handle them.** When the platform hiccups, it's their incident, their root-cause, their fix, their fleet-wide rollout. You get to spend that 2am staring at *your* app instead of the box it runs on.
 
@@ -48,13 +48,13 @@ The shared responsibility model is *shared*, not *transferred*. Even in the most
 - **Your identity and access.** Who can get in, with what permissions. A leaked credential is not the platform's fault.
 - **Your app and its configuration.** The bug you shipped is still your bug. The misconfigured setting is still your setting.
 
-The failure mode I've watched teams stumble into isn't *"the cloud didn't do enough."* It's *"we assumed the cloud was doing something it was never responsible for."* The value of the model is real, but you only get to collect it if you know exactly what you kept. Read the doc. Know your boundary. Then, everything on the other side of that line — genuinely, go ahead and let it be someone else's problem.
+The failure mode we've watched teams stumble into isn't *"the cloud didn't do enough."* It's *"we assumed the cloud was doing something it was never responsible for."* The value of the model is real, but you only get to collect it if you know exactly what you kept. Read the doc. Know your boundary. Then, everything on the other side of that line — genuinely, go ahead and let it be someone else's problem.
 
 ## The App Service version of this
 
-I'm a PM on Azure App Service, so this is the part where I tell you the thing I actually believe: a lot of people who would benefit most from this trade haven't made it yet.
+Between the two of us writing this, we sit on both sides of App Service — one of us builds the platform as a developer on the team, the other manages it as a PM. So this is the part where we tell you the thing we actually believe: a lot of people who would benefit most from this trade haven't made it yet.
 
-And I get why. If you're still running an app on-prem or on a VM you babysit, the reasons are usually some mix of *"the migration looks complicated"* and *"modernization sounds like a rewrite I don't have time for."* Those fears are legitimate. They're also, increasingly, out of date.
+And we get why. If you're still running an app on-prem or on a VM you babysit, the reasons are usually some mix of *"the migration looks complicated"* and *"modernization sounds like a rewrite I don't have time for."* Those fears are legitimate. They're also, increasingly, out of date.
 
 The whole promise of PaaS is that you slide up that responsibility scale and hand the boring, heavy, thankless layers to a platform team — and you shouldn't have to blow up your app to do it.
 
@@ -74,6 +74,6 @@ Look at the slider before you look at the logs.
 
 If you're still holding the whole stack, some of that weight was never yours to carry well — and the cloud has spent a decade building teams whose entire job is to carry it better than you can. Sliding toward PaaS isn't giving up control. It's giving up the *parts of control you were never going to be great at*, so you can be great at the part that's actually your product.
 
-The cloud's flashiest features get all the blog posts. But the one I'd defend hardest is the quiet one: a shorter list of things that are your fault. Understand your side of the line, hand the rest to people who do it for a living, and go get some sleep.
+The cloud's flashiest features get all the blog posts. But the one we'd defend hardest is the quiet one: a shorter list of things that are your fault. Understand your side of the line, hand the rest to people who do it for a living, and go get some sleep.
 
 Someone else has the pager for that layer now. That's the whole point.
