@@ -17,7 +17,7 @@ The single most underrated benefit of the cloud is that this list gets *shorter*
 
 ## The slider nobody frames as a feature
 
-Microsoft has a whole doc on this called the [shared responsibility model](https://learn.microsoft.com/en-us/azure/security/fundamentals/shared-responsibility), and it's worth reading, but the one-sentence version is: **in the cloud, responsibility for the stack is split between you and the provider, and where the line sits depends on the service model you choose.**
+The shared responsibility model isn't a Microsoft invention — it's an industry-wide concept that every major cloud provider frames some version of. [Microsoft's write-up](https://learn.microsoft.com/en-us/azure/security/fundamentals/shared-responsibility) is a good one to read, but the one-sentence version is universal: **in the cloud, responsibility for the stack is split between you and the provider, and where the line sits depends on the service model you choose.**
 
 Picture a slider.
 
