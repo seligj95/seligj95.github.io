@@ -334,6 +334,16 @@ import Search from "astro-pagefind/components/Search";
     }
   });
 
+  document.querySelector("header nav")?.addEventListener("mousedown", (event) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest("a[href]") &&
+      document.activeElement === getInput()
+    ) {
+      event.preventDefault();
+    }
+  });
+
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   if (!isMac) {
     shell.querySelector<HTMLElement>(".mac-key")!.style.display = "none";
