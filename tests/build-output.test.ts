@@ -82,5 +82,8 @@ describe("Build output", () => {
 
     expect(talksPage).toContain("<main data-pagefind-body>");
     expect(talksPage).toContain("Modernize .NET Apps");
+    expect(talksPage).toContain(
+      'id="talk-modernize-net-apps-and-add-agentic-functionality-in-minutes"'
+    );
   });
 });

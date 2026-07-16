@@ -1,5 +1,5 @@
 ---
-import Search from "astro-pagefind/components/Search";
+import "@pagefind/default-ui/css/ui.css";
 ---
 
 <div class="search-shell" id="global-search-shell">
@@ -15,18 +15,7 @@ import Search from "astro-pagefind/components/Search";
     </svg>
   </button>
   <div class="search-interface">
-    <Search
-      id="global-search"
-      className="global-search"
-      uiOptions={{
-        showImages: false,
-        excerptLength: 18,
-        pageSize: 7,
-        translations: {
-          placeholder: "Search",
-        },
-      }}
-    />
+    <div id="global-search" class="global-search"></div>
     <kbd><span class="mac-key">⌘</span><span class="other-key">Ctrl</span> K</kbd>
   </div>
 </div>
@@ -278,8 +267,73 @@ import Search from "astro-pagefind/components/Search";
 </style>
 
 <script>
+  import { PagefindUI } from "@pagefind/default-ui";
+
+  interface PagefindSubResult {
+    title: string;
+    url: string;
+    excerpt: string;
+    anchor?: unknown;
+  }
+
+  interface PagefindResult {
+    url: string;
+    excerpt: string;
+    meta: Record<string, string>;
+    sub_results?: PagefindSubResult[];
+  }
+
+  function promoteMatchingTalk(result: PagefindResult) {
+    const resultUrl = result.meta.url || result.url;
+    const pathname = new URL(resultUrl, window.location.origin).pathname;
+    if (!pathname.endsWith("/talks/")) {
+      return {
+        ...result,
+        sub_results: [
+          {
+            title: result.meta.title,
+            url: resultUrl,
+            excerpt: result.excerpt,
+          },
+        ],
+      };
+    }
+
+    const matchingTalk = result.sub_results?.find(({ anchor }) => anchor);
+    if (!matchingTalk) {
+      return result;
+    }
+
+    return {
+      ...result,
+      url: matchingTalk.url,
+      excerpt: matchingTalk.excerpt,
+      meta: {
+        ...result.meta,
+        title: matchingTalk.title,
+        url: matchingTalk.url,
+      },
+      sub_results: result.sub_results?.filter(
+        ({ url }) => url !== matchingTalk.url
+      ),
+    };
+  }
+
   const shell = document.getElementById("global-search-shell")!;
   const mobileTrigger = shell.querySelector<HTMLButtonElement>(".mobile-search-trigger")!;
+
+  new PagefindUI({
+    element: "#global-search",
+    bundlePath: `${import.meta.env.BASE_URL}pagefind/`,
+    showImages: false,
+    excerptLength: 18,
+    pageSize: 7,
+    processResult: promoteMatchingTalk,
+    showSubResults: true,
+    translations: {
+      placeholder: "Search",
+    },
+  });
 
   function getInput() {
     return shell.querySelector<HTMLInputElement>(".pagefind-ui__search-input");
