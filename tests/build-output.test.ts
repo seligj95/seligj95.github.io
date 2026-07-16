@@ -17,8 +17,14 @@ describe("Build output", () => {
     expect(existsSync(join(dist, "about", "index.html"))).toBe(true);
   });
 
-  it("generates the talks page", () => {
-    expect(existsSync(join(dist, "talks", "index.html"))).toBe(true);
+  it("generates YouTube view-count hooks for every talk", () => {
+    const talksPage = join(dist, "talks", "index.html");
+    expect(existsSync(talksPage)).toBe(true);
+
+    const html = readFileSync(talksPage, "utf-8");
+    const hooks = html.match(/class="youtube-view-count"/g) ?? [];
+    expect(hooks).toHaveLength(5);
+    expect(html).toContain('data-video-id="4NEquVnq36w"');
   });
 
   it("generates the blog index page", () => {
