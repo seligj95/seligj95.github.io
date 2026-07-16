@@ -1,0 +1,73 @@
+---
+interface Props {
+  videoId: string;
+}
+
+const { videoId } = Astro.props;
+---
+
+<span class="youtube-view-count" data-video-id={videoId} hidden>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+  <span class="count-text"></span>
+</span>
+
+<style>
+  .youtube-view-count {
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .youtube-view-count:not([hidden]) {
+    display: inline-flex;
+  }
+</style>
+
+<script>
+  interface ShieldsResponse {
+    message?: string;
+  }
+
+  const elements = document.querySelectorAll<HTMLElement>(
+    ".youtube-view-count"
+  );
+
+  const fetches = Array.from(elements).map(async (element) => {
+    const videoId = element.dataset.videoId;
+    if (!videoId) return;
+
+    try {
+      const response = await fetch(
+        `https://img.shields.io/youtube/views/${encodeURIComponent(videoId)}.json`
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = (await response.json()) as ShieldsResponse;
+      if (!data.message) throw new Error("View count missing from response");
+
+      const countText = element.querySelector(".count-text");
+      if (countText) {
+        countText.textContent = `${data.message} ${data.message === "1" ? "view" : "views"}`;
+      }
+      element.hidden = false;
+    } catch {
+      // Leave the count hidden when the live YouTube statistic is unavailable.
+    }
+  });
+
+  Promise.all(fetches);
+</script>
