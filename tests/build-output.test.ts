@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const dist = join(process.cwd(), "dist");
@@ -15,6 +15,16 @@ describe("Build output", () => {
 
   it("generates the about page", () => {
     expect(existsSync(join(dist, "about", "index.html"))).toBe(true);
+  });
+
+  it("generates YouTube view-count hooks for every talk", () => {
+    const talksPage = join(dist, "talks", "index.html");
+    expect(existsSync(talksPage)).toBe(true);
+
+    const html = readFileSync(talksPage, "utf-8");
+    const hooks = html.match(/class="youtube-view-count"/g) ?? [];
+    expect(hooks).toHaveLength(5);
+    expect(html).toContain('data-video-id="4NEquVnq36w"');
   });
 
   it("generates the blog index page", () => {
