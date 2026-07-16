@@ -138,7 +138,12 @@ import "@pagefind/default-ui/css/ui.css";
   :global(#global-search .pagefind-ui__result) {
     padding: 0.9rem 0.75rem;
     border-top: 1px solid var(--border);
+    border-radius: 8px;
     cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  :global(#global-search .pagefind-ui__result:hover) {
+    background: var(--accent-subtle);
   }
   :global(#global-search .pagefind-ui__result:last-of-type) {
     border-bottom: 0;
@@ -158,9 +163,6 @@ import "@pagefind/default-ui/css/ui.css";
     display: block;
     color: var(--text);
     text-decoration: none;
-  }
-  :global(#global-search .pagefind-ui__result-link:hover) {
-    color: var(--accent);
   }
   :global(#global-search .pagefind-ui__result-excerpt) {
     margin-top: 0.2rem;
