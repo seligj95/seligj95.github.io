@@ -42,6 +42,50 @@ const { videoId } = Astro.props;
     message?: string;
   }
 
+  interface MixernoResponse {
+    counts?: Array<{
+      value?: string;
+      count?: number;
+    }>;
+  }
+
+  const isViewCount = (value: string) =>
+    /^\d+(?:\.\d+)?[kMGTPE]?$/.test(value);
+
+  async function fetchViewCount(videoId: string): Promise<string> {
+    const shieldsResponse = await fetch(
+      `https://img.shields.io/youtube/views/${encodeURIComponent(videoId)}.json`
+    );
+    if (!shieldsResponse.ok) {
+      throw new Error(`Shields returned HTTP ${shieldsResponse.status}`);
+    }
+
+    const shieldsData = (await shieldsResponse.json()) as ShieldsResponse;
+    if (shieldsData.message && isViewCount(shieldsData.message)) {
+      return shieldsData.message;
+    }
+
+    const fallbackResponse = await fetch(
+      `https://mixerno.space/api/youtube-video-counter/user/${encodeURIComponent(videoId)}`
+    );
+    if (!fallbackResponse.ok) {
+      throw new Error(`Mixerno returned HTTP ${fallbackResponse.status}`);
+    }
+
+    const fallbackData = (await fallbackResponse.json()) as MixernoResponse;
+    const count = fallbackData.counts?.find(
+      (entry) => entry.value === "views"
+    )?.count;
+    if (typeof count !== "number" || !Number.isFinite(count)) {
+      throw new Error("View count missing from fallback response");
+    }
+
+    return new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(count);
+  }
+
   const elements = document.querySelectorAll<HTMLElement>(
     ".youtube-view-count"
   );
@@ -51,17 +95,11 @@ const { videoId } = Astro.props;
     if (!videoId) return;
 
     try {
-      const response = await fetch(
-        `https://img.shields.io/youtube/views/${encodeURIComponent(videoId)}.json`
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const data = (await response.json()) as ShieldsResponse;
-      if (!data.message) throw new Error("View count missing from response");
+      const count = await fetchViewCount(videoId);
 
       const countText = element.querySelector(".count-text");
       if (countText) {
-        countText.textContent = `${data.message} ${data.message === "1" ? "view" : "views"}`;
+        countText.textContent = `${count} ${count === "1" ? "view" : "views"}`;
       }
       element.hidden = false;
     } catch {
