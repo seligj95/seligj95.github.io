@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const dist = join(process.cwd(), "dist");
@@ -15,6 +15,10 @@ describe("Build output", () => {
 
   it("generates the about page", () => {
     expect(existsSync(join(dist, "about", "index.html"))).toBe(true);
+  });
+
+  it("generates the talks page", () => {
+    expect(existsSync(join(dist, "talks", "index.html"))).toBe(true);
   });
 
   it("generates the blog index page", () => {
@@ -65,5 +69,12 @@ describe("Build output", () => {
     expect(
       existsSync(join(dist, "blog", "page", "2", "index.html"))
     ).toBe(true);
+  });
+
+  it("marks non-blog page content for search indexing", () => {
+    const talksPage = readFileSync(join(dist, "talks", "index.html"), "utf8");
+
+    expect(talksPage).toContain("<main data-pagefind-body>");
+    expect(talksPage).toContain("Modernize .NET Apps");
   });
 });
