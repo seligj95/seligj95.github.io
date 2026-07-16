@@ -1,0 +1,344 @@
+---
+import Search from "astro-pagefind/components/Search";
+---
+
+<div class="search-shell" id="global-search-shell">
+  <button
+    class="mobile-search-trigger"
+    type="button"
+    aria-label="Search site"
+    aria-expanded="false"
+  >
+    <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7"></circle>
+      <path d="m20 20-4-4"></path>
+    </svg>
+  </button>
+  <div class="search-interface">
+    <Search
+      id="global-search"
+      className="global-search"
+      uiOptions={{
+        showImages: false,
+        excerptLength: 18,
+        pageSize: 7,
+        translations: {
+          placeholder: "Search",
+        },
+      }}
+    />
+    <kbd><span class="mac-key">⌘</span><span class="other-key">Ctrl</span> K</kbd>
+  </div>
+</div>
+
+<style>
+  .search-shell {
+    position: relative;
+    width: 10.5rem;
+    flex-shrink: 0;
+  }
+  .search-shell:focus-within {
+    width: 17rem;
+  }
+  .mobile-search-trigger {
+    display: none;
+  }
+  .search-interface {
+    position: relative;
+    --pagefind-ui-scale: 0.72;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--bg);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-tag: var(--accent-subtle);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 8px;
+    --pagefind-ui-font: inherit;
+  }
+  kbd {
+    position: absolute;
+    top: 50%;
+    right: 0.55rem;
+    z-index: 2;
+    padding: 0.1rem 0.3rem;
+    transform: translateY(-50%);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    background: var(--bg);
+    font: inherit;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    pointer-events: none;
+  }
+  .other-key {
+    display: none;
+  }
+  .search-shell:focus-within kbd,
+  .search-interface:has(.pagefind-ui__search-input:not(:placeholder-shown)) kbd {
+    display: none;
+  }
+  :global(#global-search) {
+    width: 100%;
+  }
+  :global(#global-search .pagefind-ui__search-input) {
+    height: 2.5rem;
+    padding-right: 3.2rem;
+    padding-left: 2.5rem;
+    border-radius: 9999px;
+    color: var(--text);
+    background: var(--surface);
+    -webkit-text-fill-color: var(--text);
+    caret-color: var(--accent);
+    font-weight: 400;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  :global(#global-search .pagefind-ui__search-input:focus) {
+    border-color: var(--accent);
+    background: var(--bg);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+  :global(#global-search .pagefind-ui__search-clear) {
+    display: grid;
+    place-items: center;
+    top: 50%;
+    right: 0.35rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 9999px;
+    color: var(--text);
+    background: transparent;
+    font-size: 0;
+  }
+  :global(#global-search .pagefind-ui__search-clear::after) {
+    content: "×";
+    font-size: 1.3rem;
+    font-weight: 300;
+  }
+  :global(#global-search .pagefind-ui__form::before) {
+    top: 50%;
+    left: 0.85rem;
+    transform: translateY(-50%);
+    background-color: var(--text);
+  }
+  :global(#global-search .pagefind-ui__drawer) {
+    position: absolute;
+    top: calc(100% + 0.75rem);
+    right: 0;
+    z-index: 110;
+    width: min(40rem, calc(100vw - 2rem));
+    max-height: min(38rem, calc(100dvh - 6rem));
+    padding: 0.85rem 1rem 1rem;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--text) 16%, transparent);
+  }
+  :global(#global-search .pagefind-ui__message) {
+    padding: 0.35rem 0.25rem 0.8rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  :global(#global-search .pagefind-ui__results-area) {
+    margin-top: 0;
+  }
+  :global(#global-search .pagefind-ui__result) {
+    padding: 0.9rem 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+  :global(#global-search .pagefind-ui__result:last-of-type) {
+    border-bottom: 0;
+  }
+  :global(#global-search .pagefind-ui__result-inner) {
+    margin-top: 0;
+  }
+  :global(#global-search .pagefind-ui__result-title) {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  :global(#global-search .pagefind-ui__result-link) {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+  }
+  :global(#global-search .pagefind-ui__result-link:hover) {
+    color: var(--accent);
+  }
+  :global(#global-search .pagefind-ui__result-excerpt) {
+    margin-top: 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  :global(#global-search .pagefind-ui__result-tags) {
+    display: none;
+  }
+  :global(#global-search mark) {
+    color: var(--text);
+    background: var(--accent-subtle);
+  }
+  :global(#global-search .pagefind-ui__button) {
+    margin-top: 0.75rem;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    background: var(--bg);
+    font-weight: 500;
+  }
+  :global([data-theme="geocities"]) .search-interface {
+    --pagefind-ui-primary: #00ffff;
+    --pagefind-ui-text: #00ff00;
+    --pagefind-ui-background: #000033;
+    --pagefind-ui-border: #00ffff;
+    --pagefind-ui-tag: #000066;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__search-input),
+  :global([data-theme="geocities"] #global-search .pagefind-ui__search-input:focus) {
+    color: #00ff00;
+    border-color: #00ffff;
+    background: #000066;
+    -webkit-text-fill-color: #00ff00;
+    caret-color: #ffff00;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__search-input::placeholder) {
+    color: #ffff00;
+    opacity: 0.85;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__form::before) {
+    background-color: #00ffff;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__search-clear) {
+    color: #ffff00;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__drawer) {
+    border-color: #00ffff;
+    background: #000033;
+    box-shadow: 0 0 18px #ff00ff;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__result) {
+    border-color: #00ffff;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__result-link) {
+    color: #00ffff;
+  }
+  :global([data-theme="geocities"] #global-search .pagefind-ui__result-excerpt) {
+    color: #ffff00;
+  }
+  @media (max-width: 860px) {
+    .search-shell {
+      width: auto;
+    }
+    .search-shell:focus-within {
+      width: auto;
+    }
+    .mobile-search-trigger {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 0;
+      color: var(--text);
+      background: transparent;
+      cursor: pointer;
+    }
+    .mobile-search-trigger svg {
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-width: 2;
+    }
+    .search-interface {
+      display: none;
+    }
+    .search-shell.open .search-interface {
+      display: block;
+      position: fixed;
+      top: 0.65rem;
+      right: 4.25rem;
+      left: 1rem;
+      z-index: 120;
+    }
+    .search-shell.open .global-search {
+      width: 100%;
+    }
+    .search-shell.open :global(#global-search .pagefind-ui__drawer) {
+      position: fixed;
+      top: 4.2rem;
+      right: 0.5rem;
+      left: 0.5rem;
+      width: auto;
+      max-height: calc(100dvh - 4.7rem);
+    }
+  }
+</style>
+
+<script>
+  const shell = document.getElementById("global-search-shell")!;
+  const mobileTrigger = shell.querySelector<HTMLButtonElement>(".mobile-search-trigger")!;
+
+  function getInput() {
+    return shell.querySelector<HTMLInputElement>(".pagefind-ui__search-input");
+  }
+
+  function configureInput() {
+    const input = getInput();
+    if (!input) {
+      window.setTimeout(configureInput, 50);
+      return;
+    }
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.setAttribute("autocapitalize", "off");
+  }
+
+  function focusSearch() {
+    shell.classList.add("open");
+    mobileTrigger.setAttribute("aria-expanded", "true");
+    const input = getInput();
+    if (input) {
+      input.focus();
+    } else {
+      window.setTimeout(focusSearch, 50);
+    }
+  }
+
+  function closeMobileSearch() {
+    shell.classList.remove("open");
+    mobileTrigger.setAttribute("aria-expanded", "false");
+    getInput()?.blur();
+  }
+
+  mobileTrigger.addEventListener("click", focusSearch);
+
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      focusSearch();
+    } else if (event.key === "Escape" && shell.classList.contains("open")) {
+      closeMobileSearch();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (
+      shell.classList.contains("open") &&
+      event.target instanceof Node &&
+      !shell.contains(event.target)
+    ) {
+      closeMobileSearch();
+    }
+  });
+
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  if (!isMac) {
+    shell.querySelector<HTMLElement>(".mac-key")!.style.display = "none";
+    shell.querySelector<HTMLElement>(".other-key")!.style.display = "inline";
+  }
+
+  configureInput();
+</script>

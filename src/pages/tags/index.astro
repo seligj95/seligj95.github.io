@@ -5,42 +5,88 @@ import { getCollection } from "astro:content";
 const posts = (await getCollection("blog"))
   .filter((post) => !post.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
-const allTags = [...new Set(posts.flatMap((post) => post.data.tags))].sort();
+const tags = [...new Set(posts.flatMap((post) => post.data.tags))]
+  .map((name) => ({
+    name,
+    count: posts.filter((post) => post.data.tags.includes(name)).length,
+  }))
+  .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+const popularTags = tags.slice(0, 8);
+const moreTags = tags.slice(8);
 const baseUrl = import.meta.env.BASE_URL;
-
-const postsData = posts.map((post) => ({
-  id: post.id,
-  title: post.data.title,
-  description: post.data.description,
-  pubDate: post.data.pubDate.toISOString(),
-  tags: post.data.tags,
-}));
 ---
 
 <BaseLayout title="Tags — Jordan Selig" description="Browse posts by tag.">
   <section class="tags-page">
-    <h1>Tags</h1>
-    <div class="tag-list" id="tag-list">
-      {allTags.map((tag) => (
-        <button
-          type="button"
-          class="tag"
-          data-tag={tag}
-        >
-          #{tag}
-          <span class="count">
-            ({posts.filter((p) => p.data.tags.includes(tag)).length})
-          </span>
-        </button>
-      ))}
+    <header class="page-header">
+      <h1>Topics</h1>
+      <p>Search {posts.length} posts or filter by subject.</p>
+    </header>
+
+    <label class="search-box">
+      <span class="sr-only">Search posts</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-4-4"></path>
+      </svg>
+      <input
+        type="search"
+        id="post-search"
+        placeholder="Search posts..."
+        autocomplete="off"
+      />
+    </label>
+
+    <div class="tag-picker" id="tag-list" aria-label="Filter posts by topic">
+      <div class="tag-list popular-tags">
+        {popularTags.map((tag) => (
+          <button
+            type="button"
+            class="tag"
+            data-tag={tag.name}
+            aria-pressed="false"
+          >
+            <span>{tag.name}</span>
+            <span class="count">{tag.count}</span>
+          </button>
+        ))}
+      </div>
+      {moreTags.length > 0 && (
+        <details class="more-topics" id="more-topics">
+          <summary>
+            More topics
+            <span>{moreTags.length}</span>
+          </summary>
+          <div class="tag-list">
+            {moreTags.map((tag) => (
+              <button
+                type="button"
+                class="tag"
+                data-tag={tag.name}
+                aria-pressed="false"
+              >
+                <span>{tag.name}</span>
+                <span class="count">{tag.count}</span>
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
-    <div class="filter-bar" id="filter-bar" hidden>
-      <span class="filter-summary" id="filter-summary"></span>
+
+    <div class="results-header">
+      <h2 aria-live="polite">
+        <span id="filter-summary">All posts</span>
+        <span class="results-count" id="results-count">{posts.length}</span>
+      </h2>
       <button type="button" class="clear-btn" id="clear-tags">Clear all</button>
     </div>
-    <ul class="post-list" id="post-list">
+    <ul class="post-list" id="post-list" aria-label="Posts">
       {posts.map((post) => (
-        <li data-tags={JSON.stringify(post.data.tags)}>
+        <li
+          data-tags={JSON.stringify(post.data.tags)}
+          data-search={`${post.data.title} ${post.data.description ?? ""} ${post.data.tags.join(" ")}`.toLowerCase()}
+        >
           <a href={`${baseUrl}blog/${post.id}/`}>
             <div class="post-info">
               <span class="title">{post.data.title}</span>
@@ -68,10 +114,13 @@ const postsData = posts.map((post) => ({
     const selectedTags = new Set<string>();
     const tagButtons = document.querySelectorAll<HTMLButtonElement>("#tag-list .tag");
     const postItems = document.querySelectorAll<HTMLLIElement>("#post-list li");
-    const filterBar = document.getElementById("filter-bar") as HTMLDivElement;
+    const searchInput = document.getElementById("post-search") as HTMLInputElement;
     const filterSummary = document.getElementById("filter-summary") as HTMLSpanElement;
+    const resultsCount = document.getElementById("results-count") as HTMLSpanElement;
     const clearBtn = document.getElementById("clear-tags") as HTMLButtonElement;
     const noResults = document.getElementById("no-results") as HTMLParagraphElement;
+    const moreTopics = document.getElementById("more-topics") as HTMLDetailsElement | null;
+    const availableTags = new Set([...tagButtons].map((button) => button.dataset.tag!));
 
     function readTagsFromURL() {
       const params = new URLSearchParams(window.location.search);
@@ -79,9 +128,10 @@ const postsData = posts.map((post) => ({
       if (tags) {
         tags.split(",").forEach((t) => {
           const trimmed = t.trim();
-          if (trimmed) selectedTags.add(trimmed);
+          if (availableTags.has(trimmed)) selectedTags.add(trimmed);
         });
       }
+      searchInput.value = params.get("q") ?? "";
     }
 
     function updateURL() {
@@ -91,33 +141,56 @@ const postsData = posts.map((post) => ({
       } else {
         url.searchParams.delete("tags");
       }
+      const query = searchInput.value.trim();
+      if (query) {
+        url.searchParams.set("q", query);
+      } else {
+        url.searchParams.delete("q");
+      }
       window.history.replaceState({}, "", url.toString());
     }
 
     function render() {
       const hasSelection = selectedTags.size > 0;
+      const query = searchInput.value.trim().toLocaleLowerCase();
+      const hasQuery = query.length > 0;
 
       tagButtons.forEach((btn) => {
         const tag = btn.dataset.tag!;
-        btn.classList.toggle("active", selectedTags.has(tag));
+        const isActive = selectedTags.has(tag);
+        btn.classList.toggle("active", isActive);
+        btn.setAttribute("aria-pressed", String(isActive));
       });
 
-      filterBar.hidden = !hasSelection;
-      if (hasSelection) {
-        const tagNames = [...selectedTags].map((t) => `#${t}`).join(", ");
-        filterSummary.textContent = `Filtering by: ${tagNames}`;
-      } else {
-        filterSummary.textContent = "";
+      if (
+        moreTopics &&
+        [...moreTopics.querySelectorAll<HTMLButtonElement>(".tag")].some((button) =>
+          selectedTags.has(button.dataset.tag!)
+        )
+      ) {
+        moreTopics.open = true;
       }
 
       let visibleCount = 0;
       postItems.forEach((li) => {
         const postTags: string[] = JSON.parse(li.dataset.tags || "[]");
-        const matches = !hasSelection || [...selectedTags].every((t) => postTags.includes(t));
+        const matchesTags =
+          !hasSelection || [...selectedTags].every((t) => postTags.includes(t));
+        const matchesQuery = !hasQuery || (li.dataset.search ?? "").includes(query);
+        const matches = matchesTags && matchesQuery;
         li.hidden = !matches;
         if (matches) visibleCount++;
       });
 
+      if (hasQuery) {
+        filterSummary.textContent = `Results for “${searchInput.value.trim()}”`;
+      } else if (hasSelection) {
+        filterSummary.textContent = [...selectedTags].map((tag) => `#${tag}`).join(" + ");
+      } else {
+        filterSummary.textContent = "All posts";
+      }
+      resultsCount.textContent = String(visibleCount);
+      clearBtn.hidden = !hasSelection && !hasQuery;
       noResults.hidden = visibleCount > 0;
 
       updateURL();
@@ -135,8 +208,12 @@ const postsData = posts.map((post) => ({
       });
     });
 
+    searchInput.addEventListener("input", render);
+
     clearBtn.addEventListener("click", () => {
       selectedTags.clear();
+      searchInput.value = "";
+      searchInput.focus();
       render();
     });
 
@@ -149,64 +226,162 @@ const postsData = posts.map((post) => ({
 
 <style>
   .tags-page {
-    max-width: 48rem;
+    max-width: 52rem;
     margin: 0 auto;
-    padding: 2rem;
+    padding: clamp(2rem, 5vw, 4rem) 2rem;
   }
   h1 {
     font-size: 2rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .page-header {
+    margin-bottom: 1.75rem;
+  }
+  .page-header p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    margin-bottom: 1rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    color: var(--text-muted);
+    background: var(--bg);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-subtle);
+  }
+  .search-box svg {
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-width: 2;
+  }
+  .search-box input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: var(--text);
+    background: transparent;
+    font: inherit;
+    font-size: 0.95rem;
+  }
+  .search-box input::placeholder {
+    color: var(--text-muted);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .tag-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
   .tag {
-    padding: 0.375rem 0.75rem;
-    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.7rem;
+    border: 1px solid transparent;
     border-radius: 9999px;
-    background: transparent;
-    color: var(--text);
-    font-size: 0.9rem;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 500;
     font-family: inherit;
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s;
   }
   .tag:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    background: var(--accent);
+    color: var(--bg);
   }
   .tag.active {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--bg);
   }
   .tag.active:hover {
-    opacity: 0.85;
-    color: #fff;
+    background: var(--accent-hover);
+    color: var(--bg);
   }
   .count {
+    color: currentColor;
+    font-size: 0.75rem;
+    opacity: 0.72;
+  }
+  .more-topics {
+    margin-top: 0.9rem;
+  }
+  .more-topics summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--accent);
+    font-size: 0.85rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  .more-topics summary::-webkit-details-marker {
+    display: none;
+  }
+  .more-topics summary::after {
+    content: "↓";
+    transition: transform 0.15s ease;
+  }
+  .more-topics[open] summary {
+    margin-bottom: 0.75rem;
+  }
+  .more-topics[open] summary::after {
+    transform: rotate(180deg);
+  }
+  .more-topics summary span {
     color: var(--text-muted);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
-  .tag.active .count {
-    color: rgba(255, 255, 255, 0.8);
-  }
-  .filter-bar {
+  .results-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 1.25rem;
-    padding: 0.5rem 0;
     gap: 1rem;
+    margin-top: 2.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
   }
-  .filter-bar[hidden] {
-    display: none;
+  .results-header h2 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    min-width: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
   }
-  .filter-summary {
-    font-size: 0.85rem;
+  #filter-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .results-count {
     color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 400;
   }
   .clear-btn {
     background: none;
@@ -215,7 +390,7 @@ const postsData = posts.map((post) => ({
     font-size: 0.85rem;
     font-family: inherit;
     cursor: pointer;
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 0.25rem;
     transition: background 0.15s;
     white-space: nowrap;
@@ -225,8 +400,6 @@ const postsData = posts.map((post) => ({
   }
   .post-list {
     list-style: none;
-    margin-top: 0.5rem;
-    border-top: 1px solid var(--border);
   }
   .post-list li {
     border-bottom: 1px solid var(--border);
@@ -235,15 +408,10 @@ const postsData = posts.map((post) => ({
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 1rem 0.5rem;
+    padding: 1rem 0;
     text-decoration: none;
     color: var(--text);
-    border-radius: 0.375rem;
-    transition: background 0.15s ease;
     gap: 1rem;
-  }
-  .post-list li a:hover {
-    background: var(--surface);
   }
   .post-list li a:hover .title {
     color: var(--accent);
@@ -277,5 +445,23 @@ const postsData = posts.map((post) => ({
     color: var(--text-muted);
     padding: 2rem 0;
     text-align: center;
+  }
+  .tag:focus-visible,
+  .clear-btn:focus-visible,
+  .more-topics summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  @media (max-width: 36rem) {
+    .tags-page {
+      padding-inline: 1.25rem;
+    }
+    .post-list li a {
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    time {
+      padding-top: 0;
+    }
   }
 </style>
