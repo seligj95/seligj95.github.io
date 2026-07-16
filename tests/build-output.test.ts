@@ -76,4 +76,11 @@ describe("Build output", () => {
       existsSync(join(dist, "blog", "page", "2", "index.html"))
     ).toBe(true);
   });
+
+  it("marks non-blog page content for search indexing", () => {
+    const talksPage = readFileSync(join(dist, "talks", "index.html"), "utf8");
+
+    expect(talksPage).toContain("<main data-pagefind-body>");
+    expect(talksPage).toContain("Modernize .NET Apps");
+  });
 });
