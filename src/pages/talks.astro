@@ -48,6 +48,12 @@ const talks = [
 const sorted = talks.sort(
   (a, b) => new Date(b.date).valueOf() - new Date(a.date).valueOf()
 );
+
+const talkAnchor = (title: string) =>
+  `talk-${title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}`;
 ---
 
 <BaseLayout
@@ -81,7 +87,7 @@ const sorted = talks.sort(
           </a>
           <div class="talk-info">
             <span class="event-badge">{talk.event}</span>
-            <h2>
+            <h2 id={talkAnchor(talk.title)}>
               <a
                 href={`https://www.youtube.com/watch?v=${talk.youtubeId}`}
                 target="_blank"

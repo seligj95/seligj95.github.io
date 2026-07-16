@@ -1,5 +1,5 @@
 ---
-import Search from "astro-pagefind/components/Search";
+import "@pagefind/default-ui/css/ui.css";
 ---
 
 <div class="search-shell" id="global-search-shell">
@@ -15,18 +15,7 @@ import Search from "astro-pagefind/components/Search";
     </svg>
   </button>
   <div class="search-interface">
-    <Search
-      id="global-search"
-      className="global-search"
-      uiOptions={{
-        showImages: false,
-        excerptLength: 18,
-        pageSize: 7,
-        translations: {
-          placeholder: "Search",
-        },
-      }}
-    />
+    <div id="global-search" class="global-search"></div>
     <kbd><span class="mac-key">⌘</span><span class="other-key">Ctrl</span> K</kbd>
   </div>
 </div>
@@ -149,12 +138,21 @@ import Search from "astro-pagefind/components/Search";
   :global(#global-search .pagefind-ui__result) {
     padding: 0.9rem 0.75rem;
     border-top: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  :global(#global-search .pagefind-ui__result:hover) {
+    background: var(--accent-subtle);
   }
   :global(#global-search .pagefind-ui__result:last-of-type) {
     border-bottom: 0;
   }
   :global(#global-search .pagefind-ui__result-inner) {
     margin-top: 0;
+  }
+  :global(#global-search .pagefind-ui__result-nested) {
+    cursor: pointer;
   }
   :global(#global-search .pagefind-ui__result-title) {
     font-size: 0.95rem;
@@ -165,9 +163,6 @@ import Search from "astro-pagefind/components/Search";
     display: block;
     color: var(--text);
     text-decoration: none;
-  }
-  :global(#global-search .pagefind-ui__result-link:hover) {
-    color: var(--accent);
   }
   :global(#global-search .pagefind-ui__result-excerpt) {
     margin-top: 0.2rem;
@@ -278,8 +273,74 @@ import Search from "astro-pagefind/components/Search";
 </style>
 
 <script>
+  import { PagefindUI } from "@pagefind/default-ui";
+
+  interface PagefindSubResult {
+    title: string;
+    url: string;
+    excerpt: string;
+    anchor?: unknown;
+  }
+
+  interface PagefindResult {
+    url: string;
+    excerpt: string;
+    meta: Record<string, string>;
+    sub_results?: PagefindSubResult[];
+  }
+
+  function promoteMatchingTalk(result: PagefindResult) {
+    const resultUrl = result.meta.url || result.url;
+    const pathname = new URL(resultUrl, window.location.origin).pathname;
+    if (!pathname.endsWith("/talks/")) {
+      return {
+        ...result,
+        sub_results: [
+          {
+            title: result.meta.title,
+            url: resultUrl,
+            excerpt: result.excerpt,
+          },
+        ],
+      };
+    }
+
+    const matchingTalk = result.sub_results?.find(({ anchor }) => anchor);
+    if (!matchingTalk) {
+      return result;
+    }
+
+    return {
+      ...result,
+      url: matchingTalk.url,
+      excerpt: matchingTalk.excerpt,
+      meta: {
+        ...result.meta,
+        title: matchingTalk.title,
+        url: matchingTalk.url,
+      },
+      sub_results: result.sub_results?.filter(
+        ({ url }) => url !== matchingTalk.url
+      ),
+    };
+  }
+
   const shell = document.getElementById("global-search-shell")!;
+  const searchRoot = shell.querySelector<HTMLElement>("#global-search")!;
   const mobileTrigger = shell.querySelector<HTMLButtonElement>(".mobile-search-trigger")!;
+
+  new PagefindUI({
+    element: "#global-search",
+    bundlePath: `${import.meta.env.BASE_URL}pagefind/`,
+    showImages: false,
+    excerptLength: 18,
+    pageSize: 7,
+    processResult: promoteMatchingTalk,
+    showSubResults: true,
+    translations: {
+      placeholder: "Search",
+    },
+  });
 
   function getInput() {
     return shell.querySelector<HTMLInputElement>(".pagefind-ui__search-input");
@@ -314,6 +375,29 @@ import Search from "astro-pagefind/components/Search";
   }
 
   mobileTrigger.addEventListener("click", focusSearch);
+
+  searchRoot.addEventListener("click", (event) => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      window.getSelection()?.toString()
+    ) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("a, button, input")) {
+      return;
+    }
+
+    const result = target.closest<HTMLElement>(
+      ".pagefind-ui__result-nested, .pagefind-ui__result"
+    );
+    result?.querySelector<HTMLAnchorElement>(".pagefind-ui__result-link")?.click();
+  });
 
   document.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
