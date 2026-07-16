@@ -138,12 +138,16 @@ import "@pagefind/default-ui/css/ui.css";
   :global(#global-search .pagefind-ui__result) {
     padding: 0.9rem 0.75rem;
     border-top: 1px solid var(--border);
+    cursor: pointer;
   }
   :global(#global-search .pagefind-ui__result:last-of-type) {
     border-bottom: 0;
   }
   :global(#global-search .pagefind-ui__result-inner) {
     margin-top: 0;
+  }
+  :global(#global-search .pagefind-ui__result-nested) {
+    cursor: pointer;
   }
   :global(#global-search .pagefind-ui__result-title) {
     font-size: 0.95rem;
@@ -320,6 +324,7 @@ import "@pagefind/default-ui/css/ui.css";
   }
 
   const shell = document.getElementById("global-search-shell")!;
+  const searchRoot = shell.querySelector<HTMLElement>("#global-search")!;
   const mobileTrigger = shell.querySelector<HTMLButtonElement>(".mobile-search-trigger")!;
 
   new PagefindUI({
@@ -368,6 +373,29 @@ import "@pagefind/default-ui/css/ui.css";
   }
 
   mobileTrigger.addEventListener("click", focusSearch);
+
+  searchRoot.addEventListener("click", (event) => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      window.getSelection()?.toString()
+    ) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("a, button, input")) {
+      return;
+    }
+
+    const result = target.closest<HTMLElement>(
+      ".pagefind-ui__result-nested, .pagefind-ui__result"
+    );
+    result?.querySelector<HTMLAnchorElement>(".pagefind-ui__result-link")?.click();
+  });
 
   document.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
