@@ -212,9 +212,8 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
 - **Style:** the pond container uses the active theme's semantic tokens; natural koi,
   lily, and food colors live inside the canvas as illustration colors rather than UI
   colors.
-- **Interaction:** tapping the water drops food at that point; Enter or Space drops food
-  in the center for keyboard visitors. The local feeding count persists on the visitor's
-  device.
+- **Interaction:** tapping the water drops food at that point. The local feeding count
+  persists on the visitor's device.
 - **Performance and motion:** canvas rendering runs only while the pond is near the
   viewport. Reduced-motion visitors get a still pond with immediate feeding feedback.
 

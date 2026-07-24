@@ -16,8 +16,9 @@ describe("Build output", () => {
   it("includes the interactive koi pond on the home page", () => {
     const homePage = readFileSync(join(dist, "index.html"), "utf8");
 
-    expect(homePage).toContain('id="koi-pond" role="button" tabindex="0"');
+    expect(homePage).toContain('id="koi-pond"');
     expect(homePage).not.toContain('id="pond-feed-button"');
+    expect(homePage).not.toContain("Keyboard visitors");
     expect(homePage.indexOf('class="posts"')).toBeLessThan(
       homePage.indexOf('class="pond-section"')
     );

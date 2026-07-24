@@ -2,7 +2,7 @@
   <div class="pond-intro">
     <div>
       <h2 id="pond-title">Feed the koi</h2>
-      <p id="pond-instructions">Tap anywhere in the water to toss in a snack. Keyboard visitors can use Enter or Space.</p>
+      <p id="pond-instructions">Tap anywhere in the water to toss in a snack.</p>
     </div>
     <span id="pond-feed-count" aria-live="polite">0 snacks served</span>
   </div>
@@ -10,8 +10,6 @@
   <div class="pond-stage">
     <canvas
       id="koi-pond"
-      role="button"
-      tabindex="0"
       aria-label="Feed seven swimming koi"
       aria-describedby="pond-instructions"
     >
@@ -52,11 +50,6 @@
     font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
-  }
-
-  canvas:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
   }
 
   .pond-stage {
@@ -426,12 +419,6 @@
       ((event.clientX - rect.left) / rect.width) * width,
       ((event.clientY - rect.top) / rect.height) * height
     );
-  });
-
-  canvas.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    addFood(width / 2, height / 2);
   });
 
   const resizeObserver = new ResizeObserver(resizeCanvas);
