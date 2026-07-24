@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ViewCount from "../components/ViewCount.astro";
+import KoiPond from "../components/KoiPond.astro";
 import { getCollection } from "astro:content";
 
 const all = (await getCollection("blog"))
@@ -112,6 +113,8 @@ const formatDate = (date: Date) =>
       ))}
     </ul>
   </section>
+
+  <KoiPond />
 </BaseLayout>
 
 <style>
@@ -126,7 +129,7 @@ const formatDate = (date: Date) =>
     padding-bottom: 0.5rem;
   }
   .posts {
-    padding-top: 1rem;
+    padding-top: 1.5rem;
   }
   .hero {
     padding-top: 3rem;

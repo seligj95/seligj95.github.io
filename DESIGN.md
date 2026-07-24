@@ -206,9 +206,20 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   sparkle / CRT icon per active theme and spins 180° on press.
 - **Touch:** ≥44×44px hit area on coarse pointers.
 
+### Koi Pond
+- **Placement:** a playful sign-off at the bottom of the homepage after recent posts, so
+  it never interrupts the site's primary reading flow.
+- **Style:** the pond container uses the active theme's semantic tokens; natural koi,
+  lily, and food colors live inside the canvas as illustration colors rather than UI
+  colors.
+- **Interaction:** tapping the water drops food at that point. The local feeding count
+  persists on the visitor's device.
+- **Performance and motion:** canvas rendering runs only while the pond is near the
+  viewport. Reduced-motion visitors get a still pond with immediate feeding feedback.
+
 ### Navigation
 - **Style:** muted-slate links, weight 500, 0.925rem; active page is accent-colored with a
-  2px accent underline. Sticky, blurred header. Collapses to a hamburger menu ≤640px.
+  2px accent underline. Sticky, blurred header. Collapses to a hamburger menu <=640px.
 - **Touch:** nav links and the menu button meet a 44px minimum target on coarse pointers.
 
 ### Blockquotes (prose)

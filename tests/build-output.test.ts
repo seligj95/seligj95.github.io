@@ -13,6 +13,29 @@ describe("Build output", () => {
     expect(existsSync(join(dist, "index.html"))).toBe(true);
   });
 
+  it("includes the interactive koi pond on the home page", () => {
+    const homePage = readFileSync(join(dist, "index.html"), "utf8");
+
+    expect(homePage).toContain('id="koi-pond"');
+    expect(homePage).not.toContain('id="pond-feed-button"');
+    expect(homePage).not.toContain("Keyboard visitors");
+    expect(homePage.indexOf('class="posts"')).toBeLessThan(
+      homePage.indexOf('class="pond-section"')
+    );
+    expect(homePage).toContain("Feed the koi");
+  });
+
+  it("assigns food drops to individual koi", () => {
+    const pondSource = readFileSync(
+      join(process.cwd(), "src", "components", "KoiPond.astro"),
+      "utf8"
+    );
+
+    expect(pondSource).toContain("claimedBy");
+    expect(pondSource).toContain("claimedFish");
+    expect(pondSource).toContain("separationRadius");
+  });
+
   it("generates the about page", () => {
     expect(existsSync(join(dist, "about", "index.html"))).toBe(true);
   });
