@@ -35,6 +35,7 @@
     overflow: hidden;
     white-space: nowrap;
     border-bottom: 2px solid #000;
+    contain: paint;
   }
 
   .gc-marquee-text {
@@ -45,6 +46,7 @@
     font-weight: bold;
     font-size: 0.85rem;
     text-shadow: 1px 1px 0 #fff;
+    will-change: transform;
   }
 
   .gc-counter {
@@ -58,17 +60,23 @@
 
 <script>
   const RETRO_DECORATIONS = ["🚧", "🌐", "🔥", "⭐", "💾", "📧", "🏗️", "💿", "🎵", "👷", "🌈", "💥"];
+  const MAX_SPARKLES = 20;
+  const MIN_SPARKLE_INTERVAL_MS = 40;
 
-  let sparkleTimer: number | null = null;
   let decoElements: HTMLElement[] = [];
-  let floatInterval: number | null = null;
   const sparkles: HTMLElement[] = [];
+  let sparkleFrame: number | null = null;
+  let latestPointer: { x: number; y: number } | null = null;
+  let lastSparkleAt = 0;
+  let active = false;
 
   function isGeocities(): boolean {
     return document.documentElement.getAttribute("data-theme") === "geocities";
   }
 
   function createSparkle(x: number, y: number) {
+    if (sparkles.length >= MAX_SPARKLES) return;
+
     const sparkle = document.createElement("span");
     sparkle.textContent = ["✦", "✧", "★", "⋆", "✶", "❋", "✺"][Math.floor(Math.random() * 7)];
     sparkle.style.cssText = `
@@ -81,6 +89,8 @@
       color: ${["#ff0000", "#ffff00", "#00ff00", "#00ffff", "#ff00ff", "#ff8800"][Math.floor(Math.random() * 6)]};
       animation: geocities-sparkle-fade 0.8s ease-out forwards;
       text-shadow: 0 0 6px currentColor;
+      contain: paint;
+      will-change: transform, opacity;
     `;
     document.body.appendChild(sparkle);
     sparkles.push(sparkle);
@@ -92,8 +102,19 @@
   }
 
   function onMouseMove(e: MouseEvent) {
-    if (!isGeocities()) return;
-    createSparkle(e.clientX + (Math.random() - 0.5) * 20, e.clientY + (Math.random() - 0.5) * 20);
+    latestPointer = { x: e.clientX, y: e.clientY };
+    if (sparkleFrame !== null) return;
+
+    sparkleFrame = requestAnimationFrame((now) => {
+      sparkleFrame = null;
+      if (!isGeocities() || !latestPointer || now - lastSparkleAt < MIN_SPARKLE_INTERVAL_MS) return;
+
+      createSparkle(
+        latestPointer.x + (Math.random() - 0.5) * 20,
+        latestPointer.y + (Math.random() - 0.5) * 20
+      );
+      lastSparkleAt = now;
+    });
   }
 
   function spawnFloatingDecos() {
@@ -112,38 +133,35 @@
         pointer-events: none;
         opacity: 0.7;
         filter: drop-shadow(0 0 6px #ff00ff);
-        animation: geocities-spin ${3 + Math.random() * 5}s linear infinite;
+        animation: geocities-float-spin ${3 + Math.random() * 5}s linear ${-Math.random() * 5}s infinite;
+        contain: paint;
+        will-change: transform;
       `;
       document.body.appendChild(el);
       decoElements.push(el);
     }
-
-    // Gently float them around
-    floatInterval = window.setInterval(() => {
-      for (const el of decoElements) {
-        const currentTop = parseFloat(el.style.top);
-        const drift = Math.sin(Date.now() / 1000 + decoElements.indexOf(el)) * 0.3;
-        el.style.top = `${currentTop + drift}vh`;
-      }
-    }, 50);
   }
 
   function removeFloatingDecos() {
     for (const el of decoElements) el.remove();
     decoElements = [];
-    if (floatInterval) {
-      clearInterval(floatInterval);
-      floatInterval = null;
-    }
   }
 
   function activate() {
-    document.addEventListener("mousemove", onMouseMove);
+    if (active) return;
+    active = true;
+    document.addEventListener("mousemove", onMouseMove, { passive: true });
     spawnFloatingDecos();
   }
 
   function deactivate() {
+    active = false;
     document.removeEventListener("mousemove", onMouseMove);
+    if (sparkleFrame !== null) {
+      cancelAnimationFrame(sparkleFrame);
+      sparkleFrame = null;
+    }
+    latestPointer = null;
     removeFloatingDecos();
     for (const s of sparkles) s.remove();
     sparkles.length = 0;

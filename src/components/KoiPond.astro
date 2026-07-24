@@ -1,0 +1,473 @@
+<section class="pond-section" aria-labelledby="pond-title">
+  <div class="pond-intro">
+    <div>
+      <h2 id="pond-title">Feed the koi</h2>
+      <p id="pond-instructions">Tap anywhere in the water to toss in a snack. Keyboard visitors can use Enter or Space.</p>
+    </div>
+    <span id="pond-feed-count" aria-live="polite">0 snacks served</span>
+  </div>
+
+  <div class="pond-stage">
+    <canvas
+      id="koi-pond"
+      role="button"
+      tabindex="0"
+      aria-label="Feed seven swimming koi"
+      aria-describedby="pond-instructions"
+    >
+      Your browser does not support the interactive koi pond.
+    </canvas>
+  </div>
+</section>
+
+<style>
+  .pond-section {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 2rem;
+  }
+
+  .pond-intro {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  h2 {
+    margin-bottom: 0.25rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  p {
+    color: var(--text-muted);
+    font-size: 0.925rem;
+  }
+
+  #pond-feed-count {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  canvas:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .pond-stage {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    min-height: 280px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background:
+      radial-gradient(circle at 18% 22%, color-mix(in srgb, var(--bg) 44%, transparent) 0 2%, transparent 12%),
+      radial-gradient(circle at 72% 68%, color-mix(in srgb, var(--accent) 12%, transparent) 0 4%, transparent 18%),
+      linear-gradient(
+        145deg,
+        color-mix(in srgb, var(--accent) 16%, var(--surface)),
+        color-mix(in srgb, var(--accent) 32%, var(--bg))
+      );
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 25%, transparent);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: manipulation;
+  }
+
+  :global([data-theme="geocities"]) .pond-stage {
+    border: 3px ridge #00ffff;
+    box-shadow: 0 0 16px #ff00ff, inset 0 0 18px #00ffff;
+  }
+
+  @media (max-width: 640px) {
+    .pond-section {
+      padding: 2rem 1.25rem 1.5rem;
+    }
+
+    .pond-intro {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .pond-stage {
+      aspect-ratio: 4 / 3;
+      min-height: 260px;
+    }
+  }
+</style>
+
+<script>
+  interface Food {
+    x: number;
+    y: number;
+    age: number;
+    claimedBy: number;
+  }
+
+  interface Ripple {
+    x: number;
+    y: number;
+    radius: number;
+    alpha: number;
+  }
+
+  interface Koi {
+    x: number;
+    y: number;
+    angle: number;
+    baseSpeed: number;
+    size: number;
+    phase: number;
+    primary: string;
+    secondary: string;
+    spot: string;
+  }
+
+  const FISH_COLORS = [
+    ["#f58232", "#fff8e7", "#262626"],
+    ["#fff8e7", "#e85d2a", "#262626"],
+    ["#e85d2a", "#262626", "#fff8e7"],
+    ["#f2c84b", "#fff8e7", "#d9472b"],
+    ["#fff8e7", "#262626", "#e85d2a"],
+    ["#d9472b", "#fff8e7", "#f2c84b"],
+    ["#262626", "#fff8e7", "#e85d2a"],
+  ] as const;
+
+  const canvas = document.getElementById("koi-pond") as HTMLCanvasElement;
+  const feedCount = document.getElementById("pond-feed-count") as HTMLSpanElement;
+  const context = canvas.getContext("2d")!;
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  let width = 1;
+  let height = 1;
+  let pixelRatio = 1;
+  let fish: Koi[] = [];
+  let food: Food[] = [];
+  let ripples: Ripple[] = [];
+  let animationFrame: number | null = null;
+  let previousTime = 0;
+  let isVisible = false;
+  let reducedMotion = motionQuery.matches;
+
+  const savedCount = Number.parseInt(localStorage.getItem("koi-feed-count") ?? "0", 10);
+  let servedCount = Number.isFinite(savedCount) ? savedCount : 0;
+
+  function updateCounter(message?: string) {
+    feedCount.textContent = message ?? `${servedCount} ${servedCount === 1 ? "snack" : "snacks"} served`;
+  }
+
+  function createFish() {
+    fish = FISH_COLORS.map(([primary, secondary, spot], index) => ({
+      x: width * (0.16 + Math.random() * 0.68),
+      y: height * (0.18 + Math.random() * 0.64),
+      angle: Math.random() * Math.PI * 2,
+      baseSpeed: 17 + Math.random() * 12,
+      size: 38 + Math.random() * 18,
+      phase: index * 0.9 + Math.random(),
+      primary,
+      secondary,
+      spot,
+    }));
+  }
+
+  function resizeCanvas() {
+    const previousWidth = width;
+    const previousHeight = height;
+    const rect = canvas.getBoundingClientRect();
+    width = Math.max(rect.width, 1);
+    height = Math.max(rect.height, 1);
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    if (fish.length === 0) {
+      createFish();
+    } else {
+      for (const koi of fish) {
+        koi.x = (koi.x / previousWidth) * width;
+        koi.y = (koi.y / previousHeight) * height;
+      }
+    }
+    drawScene();
+  }
+
+  function normalizeAngle(angle: number) {
+    return Math.atan2(Math.sin(angle), Math.cos(angle));
+  }
+
+  function serveSnack() {
+    servedCount += 1;
+    localStorage.setItem("koi-feed-count", String(servedCount));
+    updateCounter();
+  }
+
+  function update(delta: number, time: number) {
+    for (const pellet of food) pellet.age += delta;
+
+    for (const [fishIndex, koi] of fish.entries()) {
+      const target = food.find((pellet) => pellet.claimedBy === fishIndex);
+      let desiredAngle = koi.angle;
+      let speed = koi.baseSpeed;
+
+      if (target) {
+        desiredAngle = Math.atan2(target.y - koi.y, target.x - koi.x);
+        speed *= 2.15;
+      } else {
+        koi.angle += Math.sin(time * 0.0007 + koi.phase) * delta * 0.22;
+      }
+
+      let separationX = 0;
+      let separationY = 0;
+      for (const other of fish) {
+        if (other === koi) continue;
+        const offsetX = koi.x - other.x;
+        const offsetY = koi.y - other.y;
+        const distance = Math.hypot(offsetX, offsetY);
+        const separationRadius = (koi.size + other.size) * 0.75;
+        if (distance === 0 || distance >= separationRadius) continue;
+
+        const strength = 1 - distance / separationRadius;
+        separationX += (offsetX / distance) * strength;
+        separationY += (offsetY / distance) * strength;
+      }
+
+      if (separationX !== 0 || separationY !== 0) {
+        const desiredX = Math.cos(desiredAngle) + separationX * 2.4;
+        const desiredY = Math.sin(desiredAngle) + separationY * 2.4;
+        desiredAngle = Math.atan2(desiredY, desiredX);
+      }
+
+      const edge = koi.size * 0.7;
+      if (koi.x < edge || koi.x > width - edge || koi.y < edge || koi.y > height - edge) {
+        desiredAngle = Math.atan2(height / 2 - koi.y, width / 2 - koi.x);
+      }
+
+      koi.angle += normalizeAngle(desiredAngle - koi.angle) * Math.min(1, delta * 2.4);
+      koi.x += Math.cos(koi.angle) * speed * delta;
+      koi.y += Math.sin(koi.angle) * speed * delta;
+      koi.x = Math.max(2, Math.min(width - 2, koi.x));
+      koi.y = Math.max(2, Math.min(height - 2, koi.y));
+
+      if (target && Math.hypot(target.x - koi.x, target.y - koi.y) < koi.size * 0.34) {
+        food = food.filter((pellet) => pellet !== target);
+        ripples.push({ x: target.x, y: target.y, radius: 5, alpha: 0.42 });
+        serveSnack();
+      }
+    }
+
+    for (const ripple of ripples) {
+      ripple.radius += delta * 23;
+      ripple.alpha -= delta * 0.32;
+    }
+    ripples = ripples.filter((ripple) => ripple.alpha > 0);
+  }
+
+  function drawLilyPad(x: number, y: number, radius: number, rotation: number) {
+    context.save();
+    context.translate(x, y);
+    context.rotate(rotation);
+    context.fillStyle = "rgba(46, 112, 76, 0.78)";
+    context.beginPath();
+    context.arc(0, 0, radius, 0.15, Math.PI * 2 - 0.15);
+    context.lineTo(0, 0);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = "rgba(225, 255, 226, 0.26)";
+    context.lineWidth = 1;
+    context.stroke();
+    context.restore();
+  }
+
+  function drawKoi(koi: Koi, time: number) {
+    const tailWave = Math.sin(time * 0.006 + koi.phase) * 0.24;
+    context.save();
+    context.translate(koi.x, koi.y);
+    context.rotate(koi.angle);
+
+    context.save();
+    context.translate(-koi.size * 0.38, 0);
+    context.rotate(tailWave);
+    context.fillStyle = koi.secondary;
+    context.globalAlpha = 0.88;
+    context.beginPath();
+    context.moveTo(0, 0);
+    context.quadraticCurveTo(-koi.size * 0.34, -koi.size * 0.3, -koi.size * 0.48, -koi.size * 0.12);
+    context.quadraticCurveTo(-koi.size * 0.35, 0, -koi.size * 0.48, koi.size * 0.12);
+    context.quadraticCurveTo(-koi.size * 0.34, koi.size * 0.3, 0, 0);
+    context.fill();
+    context.restore();
+
+    context.globalAlpha = 0.72;
+    context.fillStyle = koi.secondary;
+    context.beginPath();
+    context.ellipse(-koi.size * 0.05, -koi.size * 0.18, koi.size * 0.22, koi.size * 0.08, -0.4, 0, Math.PI * 2);
+    context.ellipse(-koi.size * 0.05, koi.size * 0.18, koi.size * 0.22, koi.size * 0.08, 0.4, 0, Math.PI * 2);
+    context.fill();
+
+    context.globalAlpha = 1;
+    context.fillStyle = koi.primary;
+    context.beginPath();
+    context.ellipse(0, 0, koi.size * 0.5, koi.size * 0.21, 0, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = koi.secondary;
+    context.beginPath();
+    context.ellipse(koi.size * 0.17, -koi.size * 0.04, koi.size * 0.17, koi.size * 0.12, -0.15, 0, Math.PI * 2);
+    context.ellipse(-koi.size * 0.18, koi.size * 0.04, koi.size * 0.13, koi.size * 0.1, 0.2, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = koi.spot;
+    context.beginPath();
+    context.arc(koi.size * 0.34, -koi.size * 0.065, koi.size * 0.025, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }
+
+  function drawFood(pellet: Food) {
+    context.save();
+    context.translate(pellet.x, pellet.y);
+    context.fillStyle = "#8c5a32";
+    for (let index = 0; index < 4; index += 1) {
+      const angle = index * 1.7 + pellet.age;
+      context.beginPath();
+      context.arc(Math.cos(angle) * 5, Math.sin(angle) * 4, 2.2, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  }
+
+  function drawScene(time = performance.now()) {
+    context.clearRect(0, 0, width, height);
+    drawLilyPad(width * 0.14, height * 0.2, Math.min(width, height) * 0.07, -0.35);
+    drawLilyPad(width * 0.84, height * 0.76, Math.min(width, height) * 0.09, 0.45);
+    drawLilyPad(width * 0.76, height * 0.16, Math.min(width, height) * 0.045, 0.12);
+
+    for (const koi of fish) drawKoi(koi, time);
+    for (const pellet of food) drawFood(pellet);
+
+    for (const ripple of ripples) {
+      context.strokeStyle = `rgba(255, 255, 255, ${ripple.alpha})`;
+      context.lineWidth = 1.5;
+      context.beginPath();
+      context.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+      context.stroke();
+    }
+  }
+
+  function frame(time: number) {
+    if (!isVisible || document.hidden || reducedMotion) {
+      animationFrame = null;
+      return;
+    }
+
+    const delta = Math.min((time - previousTime) / 1000 || 0, 0.033);
+    previousTime = time;
+    update(delta, time);
+    drawScene(time);
+    animationFrame = requestAnimationFrame(frame);
+  }
+
+  function startAnimation() {
+    if (animationFrame !== null || !isVisible || document.hidden || reducedMotion) return;
+    previousTime = performance.now();
+    animationFrame = requestAnimationFrame(frame);
+  }
+
+  function stopAnimation() {
+    if (animationFrame === null) return;
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  }
+
+  function addFood(x: number, y: number) {
+    ripples.push({ x, y, radius: 4, alpha: 0.5 });
+
+    if (reducedMotion) {
+      serveSnack();
+      updateCounter(`A koi ate the snack. ${servedCount} served.`);
+      drawScene();
+      return;
+    }
+
+    if (food.length >= fish.length) food.shift();
+
+    const claimedFish = new Set(food.map((pellet) => pellet.claimedBy));
+    let claimedBy = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (const [fishIndex, koi] of fish.entries()) {
+      if (claimedFish.has(fishIndex)) continue;
+      const distance = (x - koi.x) ** 2 + (y - koi.y) ** 2;
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        claimedBy = fishIndex;
+      }
+    }
+
+    food.push({ x, y, age: 0, claimedBy });
+    startAnimation();
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    addFood(
+      ((event.clientX - rect.left) / rect.width) * width,
+      ((event.clientY - rect.top) / rect.height) * height
+    );
+  });
+
+  canvas.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    addFood(width / 2, height / 2);
+  });
+
+  const resizeObserver = new ResizeObserver(resizeCanvas);
+  resizeObserver.observe(canvas);
+
+  const visibilityObserver = new IntersectionObserver(
+    ([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
+    },
+    { rootMargin: "100px" }
+  );
+  visibilityObserver.observe(canvas);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopAnimation();
+    } else {
+      startAnimation();
+    }
+  });
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+    if (reducedMotion) {
+      stopAnimation();
+      drawScene();
+    } else {
+      startAnimation();
+    }
+  });
+
+  updateCounter();
+  resizeCanvas();
+</script>
