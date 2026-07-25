@@ -112,66 +112,15 @@ const formatDate = (date: Date) =>
       ))}
     </ul>
   </section>
-
-  <section class="arcade">
-    <a class="arcade-card" href={`${base}games/`}>
-      <div>
-        <h2>Games</h2>
-        <p>
-          The koi pond moved. It now lives in a small arcade with a falling-sand box,
-          a generative garden, a rainbow sketchpad, and a pond that plays notes.
-        </p>
-      </div>
-      <span class="arcade-cue">Play &rarr;</span>
-    </a>
-  </section>
 </BaseLayout>
 
 <style>
   .hero,
   .featured,
-  .posts,
-  .arcade {
+  .posts {
     max-width: 48rem;
     margin: 0 auto;
     padding: 2rem;
-  }
-  .arcade {
-    padding-top: 0.5rem;
-    padding-bottom: 3rem;
-  }
-  .arcade-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
-    padding: 1.35rem 1.5rem;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--accent-subtle);
-    text-decoration: none;
-    color: var(--text);
-    transition: border-color 0.2s ease, transform 0.2s ease;
-  }
-  .arcade-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-  }
-  .arcade-card h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
-  }
-  .arcade-card p {
-    font-size: 0.9rem;
-    line-height: 1.6;
-    color: var(--text);
-  }
-  .arcade-cue {
-    flex-shrink: 0;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--accent);
   }
   .featured {
     padding-bottom: 0.5rem;
