@@ -23,6 +23,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
       Sound stays off until you ask for it, because nobody likes a website that
       makes noise unprompted.
     </p>
+    <p>
+      On an iPhone the ring/silent switch mutes web audio on older versions of iOS.
+      If the pond stays quiet after you turn sound on, that switch is the usual
+      culprit; the volume buttons alone won't do it.
+    </p>
   </div>
 </GameLayout>
 
@@ -91,24 +96,46 @@ import GameLayout from "../../layouts/GameLayout.astro";
     draw();
   }
 
+  function unlockAudio() {
+    // iOS routes Web Audio through the ringer channel by default, where the
+    // hardware silent switch mutes it. Claiming a playback session moves the
+    // page to the media channel instead. Must be set before the context exists.
+    const session = (navigator as any).audioSession;
+    if (session && session.type === "auto") session.type = "playback";
+
+    audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    // Safari only truly starts a context once something has been played
+    // through it, so push a single silent sample during the user gesture.
+    const primer = audio.createBufferSource();
+    primer.buffer = audio.createBuffer(1, 1, audio.sampleRate);
+    primer.connect(audio.destination);
+    primer.start(0);
+
+    void audio.resume();
+    return audio;
+  }
+
   function playNote(y: number) {
     if (!soundOn) return;
-    audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (audio.state === "suspended") void audio.resume();
+    const output = audio ?? unlockAudio();
+    // A backgrounded tab or an interrupting phone call can suspend the
+    // context after it started; every tap is a gesture, so retry here.
+    if (output.state !== "running") void output.resume();
 
     // Higher in the pond means a higher note.
     const position = 1 - Math.min(Math.max(y / height, 0), 1);
     const note = SCALE[Math.min(SCALE.length - 1, Math.floor(position * SCALE.length))];
 
-    const now = audio.currentTime;
-    const oscillator = audio.createOscillator();
-    const gain = audio.createGain();
+    const now = output.currentTime;
+    const oscillator = output.createOscillator();
+    const gain = output.createGain();
     oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(note, now);
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.16, now + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.9);
-    oscillator.connect(gain).connect(audio.destination);
+    oscillator.connect(gain).connect(output.destination);
     oscillator.start(now);
     oscillator.stop(now + 2);
   }
@@ -196,6 +223,14 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   canvas.addEventListener("pointerdown", (event) => {
+    // Taps are gestures too, so a context the browser refused to start
+    // earlier gets another chance here.
+    if (soundOn && audio && audio.state !== "running") {
+      void audio.resume().then(() => {
+        if (audio?.state === "running") status.textContent = "Sound on";
+      });
+    }
+
     const rect = canvas.getBoundingClientRect();
     drop(
       ((event.clientX - rect.left) / rect.width) * width,
@@ -207,12 +242,20 @@ import GameLayout from "../../layouts/GameLayout.astro";
     soundOn = !soundOn;
     soundButton.setAttribute("aria-pressed", String(soundOn));
     soundButton.textContent = soundOn ? "Turn sound off" : "Turn sound on";
-    status.textContent = soundOn ? "Sound on" : "Sound off";
-    if (soundOn) {
-      // Created inside the click so browsers allow audio to start.
-      audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
-      void audio.resume();
+
+    if (!soundOn) {
+      status.textContent = "Sound off";
+      return;
     }
+
+    // Unlocked inside the click so browsers allow audio to start.
+    const output = unlockAudio();
+    status.textContent = "Sound on";
+    void output.resume().then(() => {
+      if (soundOn && output.state !== "running") {
+        status.textContent = "Sound blocked — tap the water";
+      }
+    });
   });
 
   rainButton.addEventListener("click", () => {
