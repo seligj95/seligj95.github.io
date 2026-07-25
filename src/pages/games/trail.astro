@@ -1,0 +1,298 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="trail" ratio="16 / 10">
+  <span slot="status" id="trail-status" aria-live="polite">Ready</span>
+
+  <canvas id="trail-canvas" aria-label="Rainbow drawing surface with fading lines" aria-describedby="game-instructions">
+    Your browser does not support the drawing surface.
+  </canvas>
+
+  <div slot="controls">
+    <button id="trail-glow" type="button" aria-pressed="true">Glow</button>
+    <div class="control-group" role="radiogroup" aria-label="How long lines last">
+      <button type="button" role="radio" aria-checked="false" data-life="1.5">Quick</button>
+      <button type="button" role="radio" aria-checked="true" data-life="3">Normal</button>
+      <button type="button" role="radio" aria-checked="false" data-life="6">Lingering</button>
+    </div>
+    <button id="trail-clear" type="button">Clear canvas</button>
+  </div>
+
+  <div slot="notes">
+    <p>
+      The hue advances as you draw, so a long stroke walks the whole rainbow and a
+      flurry of short ones comes out in matching sets. Every point remembers when it
+      was drawn and fades out on its own schedule &mdash; nothing to save, nothing to undo.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    background: #0d0f16;
+  }
+</style>
+
+<script>
+  interface Point {
+    x: number;
+    y: number;
+    hue: number;
+    born: number;
+    width: number;
+  }
+
+  const canvas = document.getElementById("trail-canvas") as HTMLCanvasElement;
+  const status = document.getElementById("trail-status") as HTMLSpanElement;
+  const clearButton = document.getElementById("trail-clear") as HTMLButtonElement;
+  const glowButton = document.getElementById("trail-glow") as HTMLButtonElement;
+  const lifeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-life]"));
+  const context = canvas.getContext("2d")!;
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  const MAX_POINTS = 6000;
+  const HUE_SPEED = 0.55; // degrees of hue per millisecond of drawing
+
+  let width = 1;
+  let height = 1;
+  let pixelRatio = 1;
+  let strokes: Point[][] = [];
+  let current: Point[] | null = null;
+  let frameId: number | null = null;
+  let isVisible = false;
+  let reducedMotion = motionQuery.matches;
+  let drawing = false;
+  let hue = Math.random() * 360;
+  let lifetime = 3000; // ms before a point is fully gone
+  let glow = true;
+  let lastPoint: { x: number; y: number; time: number } | null = null;
+
+  function pointCount() {
+    let total = 0;
+    for (const stroke of strokes) total += stroke.length;
+    return total;
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const previousWidth = width;
+    const previousHeight = height;
+    width = Math.max(rect.width, 1);
+    height = Math.max(rect.height, 1);
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    // Keep whatever is on screen roughly where the user put it.
+    if (previousWidth > 1 && previousHeight > 1) {
+      const scaleX = width / previousWidth;
+      const scaleY = height / previousHeight;
+      for (const stroke of strokes) {
+        for (const point of stroke) {
+          point.x *= scaleX;
+          point.y *= scaleY;
+        }
+      }
+    }
+    draw();
+  }
+
+  function addPoint(x: number, y: number) {
+    if (!current) return;
+    const now = performance.now();
+
+    if (lastPoint) {
+      const distance = Math.hypot(x - lastPoint.x, y - lastPoint.y);
+      if (distance < 1.2) return;
+      const elapsed = Math.max(now - lastPoint.time, 1);
+      hue = (hue + Math.min(distance * 1.6, 26) + elapsed * HUE_SPEED * 0.04) % 360;
+    }
+
+    // Faster strokes draw thinner lines, like a real brush.
+    const speed = lastPoint ? Math.hypot(x - lastPoint.x, y - lastPoint.y) : 0;
+    const lineWidth = Math.max(2.2, 8 - speed * 0.16);
+
+    current.push({ x, y, hue, born: now, width: lineWidth });
+    lastPoint = { x, y, time: now };
+
+    if (pointCount() > MAX_POINTS) {
+      const oldest = strokes[0];
+      if (oldest && oldest !== current) strokes.shift();
+      else if (oldest) oldest.splice(0, 100);
+    }
+
+    if (reducedMotion) draw();
+  }
+
+  function prune(now: number) {
+    if (reducedMotion) return; // lines stay put when motion is reduced
+    for (const stroke of strokes) {
+      let alive = 0;
+      while (alive < stroke.length && now - stroke[alive].born >= lifetime) alive += 1;
+      if (alive > 0) stroke.splice(0, alive);
+    }
+    strokes = strokes.filter((stroke) => stroke.length > 0 || stroke === current);
+  }
+
+  function draw(now = performance.now()) {
+    context.clearRect(0, 0, width, height);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+
+    for (const stroke of strokes) {
+      for (let i = 1; i < stroke.length; i += 1) {
+        const point = stroke[i];
+        const previous = stroke[i - 1];
+        const age = now - point.born;
+        const fade = reducedMotion ? 1 : 1 - age / lifetime;
+        if (fade <= 0) continue;
+
+        // Ease the tail out so lines dissolve instead of blinking off.
+        const alpha = fade * fade;
+
+        if (glow) {
+          context.strokeStyle = `hsl(${point.hue} 95% 62% / ${alpha * 0.28})`;
+          context.lineWidth = point.width * 3.2;
+          context.beginPath();
+          context.moveTo(previous.x, previous.y);
+          context.lineTo(point.x, point.y);
+          context.stroke();
+        }
+
+        context.strokeStyle = `hsl(${point.hue} 100% ${64 + (1 - alpha) * 16}% / ${alpha})`;
+        context.lineWidth = point.width * (0.4 + alpha * 0.6);
+        context.beginPath();
+        context.moveTo(previous.x, previous.y);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      }
+    }
+  }
+
+  function frame(time: number) {
+    if (!isVisible || document.hidden || reducedMotion) {
+      frameId = null;
+      return;
+    }
+    prune(time);
+    draw(time);
+
+    if (!drawing && strokes.length === 0) {
+      frameId = null; // blank canvas; stop drawing frames
+      return;
+    }
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (frameId !== null || !isVisible || document.hidden || reducedMotion) return;
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    if (frameId === null) return;
+    cancelAnimationFrame(frameId);
+    frameId = null;
+  }
+
+  function toLocal(event: PointerEvent) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * width,
+      y: ((event.clientY - rect.top) / rect.height) * height,
+    };
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    drawing = true;
+    lastPoint = null;
+    current = [];
+    strokes.push(current);
+    const { x, y } = toLocal(event);
+    addPoint(x, y);
+    addPoint(x + 0.01, y + 0.01); // seed a second point so a tap leaves a dot
+    status.textContent = "Drawing";
+    start();
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!drawing) return;
+    const { x, y } = toLocal(event);
+    addPoint(x, y);
+  });
+
+  for (const type of ["pointerup", "pointercancel", "pointerleave"] as const) {
+    canvas.addEventListener(type, () => {
+      if (!drawing) return;
+      drawing = false;
+      current = null;
+      lastPoint = null;
+      status.textContent = reducedMotion ? "Ready" : "Fading";
+    });
+  }
+
+  clearButton.addEventListener("click", () => {
+    strokes = [];
+    current = null;
+    drawing = false;
+    lastPoint = null;
+    draw();
+    status.textContent = "Cleared";
+  });
+
+  glowButton.addEventListener("click", () => {
+    glow = !glow;
+    glowButton.setAttribute("aria-pressed", String(glow));
+    draw();
+  });
+
+  for (const button of lifeButtons) {
+    button.addEventListener("click", () => {
+      lifetime = Number(button.dataset.life) * 1000;
+      for (const other of lifeButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      status.textContent = `${button.textContent?.trim()} fade`;
+      start();
+    });
+  }
+
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(canvas);
+
+  const visibilityObserver = new IntersectionObserver(
+    ([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) start();
+      else stop();
+    },
+    { rootMargin: "100px" }
+  );
+  visibilityObserver.observe(canvas);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+    if (reducedMotion) {
+      stop();
+      draw();
+    } else {
+      start();
+    }
+  });
+
+  resize();
+</script>

@@ -1,0 +1,335 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="bloom" ratio="16 / 10">
+  <span slot="status" id="bloom-status" aria-live="polite">0 seeds planted</span>
+
+  <canvas id="bloom-canvas" aria-label="Generative flower garden" aria-describedby="game-instructions">
+    Your browser does not support the garden.
+  </canvas>
+
+  <div slot="controls">
+    <button id="bloom-seed" type="button">Plant one for me</button>
+    <button id="bloom-clear" type="button">Clear the bed</button>
+  </div>
+
+  <div slot="notes">
+    <p>
+      Each seed is a little recursive vine: it grows upward, wobbles, occasionally
+      forks, and when a branch runs out of energy it opens into a flower. Petal count,
+      hue and curl are all rolled per seed, so no two clicks give you the same plant.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: manipulation;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--accent) 8%, var(--surface)),
+      color-mix(in srgb, var(--accent) 20%, var(--bg))
+    );
+  }
+</style>
+
+<script>
+  interface Branch {
+    x: number;
+    y: number;
+    angle: number;
+    width: number;
+    energy: number;
+    hue: number;
+    curl: number;
+    petals: number;
+    generation: number;
+  }
+
+  interface Flower {
+    x: number;
+    y: number;
+    angle: number;
+    hue: number;
+    petals: number;
+    size: number;
+    open: number;
+  }
+
+  const canvas = document.getElementById("bloom-canvas") as HTMLCanvasElement;
+  const status = document.getElementById("bloom-status") as HTMLSpanElement;
+  const seedButton = document.getElementById("bloom-seed") as HTMLButtonElement;
+  const clearButton = document.getElementById("bloom-clear") as HTMLButtonElement;
+  const context = canvas.getContext("2d")!;
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  const MAX_BRANCHES = 400;
+  const MAX_FLOWERS = 260;
+
+  let width = 1;
+  let height = 1;
+  let pixelRatio = 1;
+  let growth: HTMLCanvasElement | null = null; // stems are drawn once and kept
+  let growthContext: CanvasRenderingContext2D | null = null;
+  let branches: Branch[] = [];
+  let flowers: Flower[] = [];
+  let frameId: number | null = null;
+  let isVisible = false;
+  let reducedMotion = motionQuery.matches;
+  let seeded = 0;
+
+  function setStatus() {
+    status.textContent = `${seeded} ${seeded === 1 ? "seed" : "seeds"} planted`;
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    width = Math.max(rect.width, 1);
+    height = Math.max(rect.height, 1);
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    const previous = growth;
+    growth = document.createElement("canvas");
+    growth.width = canvas.width;
+    growth.height = canvas.height;
+    growthContext = growth.getContext("2d")!;
+    growthContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    if (previous) {
+      growthContext.save();
+      growthContext.setTransform(1, 0, 0, 1, 0, 0);
+      growthContext.drawImage(previous, 0, 0, canvas.width, canvas.height);
+      growthContext.restore();
+    }
+    render();
+  }
+
+  function plant(x: number, y: number) {
+    const hue = Math.random() * 360;
+    const curl = (Math.random() - 0.5) * 0.06;
+    const petals = 5 + Math.floor(Math.random() * 4);
+    const stems = 1 + Math.floor(Math.random() * 2);
+
+    for (let i = 0; i < stems; i += 1) {
+      branches.push({
+        x,
+        y,
+        angle: -Math.PI / 2 + (Math.random() - 0.5) * 0.7,
+        width: 2.6 + Math.random() * 1.4,
+        energy: 45 + Math.random() * 45,
+        hue,
+        curl,
+        petals,
+        generation: 0,
+      });
+    }
+
+    if (branches.length > MAX_BRANCHES) branches = branches.slice(-MAX_BRANCHES);
+    seeded += 1;
+    setStatus();
+
+    if (reducedMotion) {
+      // No animation: run the whole growth to completion in one go.
+      let guard = 0;
+      while (branches.length > 0 && guard < 4000) {
+        grow();
+        guard += 1;
+      }
+      for (const flower of flowers) flower.open = 1;
+      render();
+      return;
+    }
+
+    start();
+  }
+
+  function grow() {
+    if (!growthContext) return;
+    const next: Branch[] = [];
+
+    for (const branch of branches) {
+      const stepLength = 3 + branch.generation * 0.4;
+      const nextX = branch.x + Math.cos(branch.angle) * stepLength;
+      const nextY = branch.y + Math.sin(branch.angle) * stepLength;
+
+      growthContext.strokeStyle = `hsl(${115 + branch.generation * 6} 34% ${26 + branch.generation * 4}%)`;
+      growthContext.lineWidth = branch.width;
+      growthContext.lineCap = "round";
+      growthContext.beginPath();
+      growthContext.moveTo(branch.x, branch.y);
+      growthContext.lineTo(nextX, nextY);
+      growthContext.stroke();
+
+      branch.x = nextX;
+      branch.y = nextY;
+      branch.angle += branch.curl + (Math.random() - 0.5) * 0.14;
+      // Phototropism: nudge back toward straight up so stems never fully invert.
+      const toLight = Math.atan2(
+        Math.sin(-Math.PI / 2 - branch.angle),
+        Math.cos(-Math.PI / 2 - branch.angle)
+      );
+      branch.angle += toLight * 0.035;
+      branch.width *= 0.985;
+      branch.energy -= 1;
+
+      const offscreen = nextY < 4 || nextX < -20 || nextX > width + 20;
+      if (branch.energy <= 0 || offscreen || branch.width < 0.7) {
+        if (!offscreen) {
+          flowers.push({
+            x: nextX,
+            y: nextY,
+            angle: branch.angle + Math.PI / 2,
+            hue: branch.hue + (Math.random() - 0.5) * 24,
+            petals: branch.petals,
+            size: 5 + Math.random() * 7,
+            open: 0,
+          });
+        }
+        continue;
+      }
+
+      // Fork occasionally; deeper generations fork less so plants stay legible.
+      if (branch.generation < 3 && Math.random() < 0.035 && next.length + branches.length < MAX_BRANCHES) {
+        next.push({
+          ...branch,
+          angle: branch.angle + (Math.random() < 0.5 ? -1 : 1) * (0.4 + Math.random() * 0.4),
+          width: branch.width * 0.72,
+          energy: branch.energy * 0.6,
+          generation: branch.generation + 1,
+        });
+      }
+
+      next.push(branch);
+    }
+
+    branches = next;
+    if (flowers.length > MAX_FLOWERS) flowers = flowers.slice(-MAX_FLOWERS);
+  }
+
+  function drawFlower(flower: Flower) {
+    const scale = flower.size * flower.open;
+    if (scale <= 0.2) return;
+
+    context.save();
+    context.translate(flower.x, flower.y);
+    context.rotate(flower.angle);
+
+    for (let i = 0; i < flower.petals; i += 1) {
+      context.save();
+      context.rotate((i / flower.petals) * Math.PI * 2);
+      context.fillStyle = `hsl(${flower.hue} 72% ${64 + (i % 2) * 6}%)`;
+      context.beginPath();
+      context.ellipse(scale * 0.72, 0, scale * 0.72, scale * 0.34, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+
+    context.fillStyle = `hsl(${(flower.hue + 42) % 360} 78% 62%)`;
+    context.beginPath();
+    context.arc(0, 0, scale * 0.34, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }
+
+  function render() {
+    context.clearRect(0, 0, width, height);
+    if (growth) {
+      context.save();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.drawImage(growth, 0, 0);
+      context.restore();
+    }
+    for (const flower of flowers) drawFlower(flower);
+  }
+
+  function frame() {
+    if (!isVisible || document.hidden || reducedMotion) {
+      frameId = null;
+      return;
+    }
+
+    let opening = false;
+    for (const flower of flowers) {
+      if (flower.open >= 1) continue;
+      flower.open = Math.min(1, flower.open + 0.045);
+      opening = true;
+    }
+
+    if (branches.length > 0) grow();
+    render();
+
+    if (branches.length === 0 && !opening) {
+      frameId = null; // garden is settled; stop burning frames
+      return;
+    }
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (frameId !== null || !isVisible || document.hidden || reducedMotion) return;
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    if (frameId === null) return;
+    cancelAnimationFrame(frameId);
+    frameId = null;
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    plant(
+      ((event.clientX - rect.left) / rect.width) * width,
+      ((event.clientY - rect.top) / rect.height) * height
+    );
+  });
+
+  seedButton.addEventListener("click", () => {
+    plant(width * (0.12 + Math.random() * 0.76), height * (0.72 + Math.random() * 0.24));
+  });
+
+  clearButton.addEventListener("click", () => {
+    branches = [];
+    flowers = [];
+    growthContext?.clearRect(0, 0, width, height);
+    render();
+  });
+
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(canvas);
+
+  const visibilityObserver = new IntersectionObserver(
+    ([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) start();
+      else stop();
+    },
+    { rootMargin: "100px" }
+  );
+  visibilityObserver.observe(canvas);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+    if (reducedMotion) {
+      stop();
+      render();
+    } else {
+      start();
+    }
+  });
+
+  setStatus();
+  resize();
+</script>

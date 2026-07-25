@@ -206,9 +206,28 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   sparkle / CRT icon per active theme and spins 180° on press.
 - **Touch:** ≥44×44px hit area on coarse pointers.
 
+### Games (arcade pages)
+- **Placement:** every game lives at `/games/<slug>/` and is listed on the `/games/` index
+  as a card grid. The homepage carries only a single accent-washed callout linking to the
+  arcade, so play never interrupts the site's primary reading flow.
+- **Page chrome:** a shared `GameLayout` gives each game the same frame — a back link,
+  title + tagline + tag pill, a one-line instruction, an `aria-live` status readout, the
+  stage, then controls and explanatory notes below.
+- **Stage:** 1px `--border`, 12px radius, `aspect-ratio` per game with a 280px minimum.
+  The geocities theme replaces the border with its ridged neon glow.
+- **Style:** stage chrome and controls read from the semantic tokens; the illustration
+  colors *inside* a canvas (koi, sand, petals, rainbow strokes) are artwork, not UI color,
+  and are exempt from the token-only rule.
+- **Controls:** shared button/swatch styling from `GameLayout`; toggles use
+  `aria-pressed`, material pickers use `role="radio"` + `aria-checked`, and every control
+  meets a 44px target on coarse pointers.
+- **Performance and motion:** canvas rendering runs only while the stage is near the
+  viewport and the tab is visible, and loops stop themselves once a scene settles.
+  Reduced-motion visitors get a still frame with immediate, non-animated feedback.
+- **Sound:** always off by default and only started from a user gesture.
+
 ### Koi Pond
-- **Placement:** a playful sign-off at the bottom of the homepage after recent posts, so
-  it never interrupts the site's primary reading flow.
+- **Placement:** `/games/koi-pond/`, the flagship zen entry in the arcade.
 - **Style:** the pond container uses the active theme's semantic tokens; natural koi,
   lily, and food colors live inside the canvas as illustration colors rather than UI
   colors.

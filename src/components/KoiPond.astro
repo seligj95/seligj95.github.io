@@ -1,64 +1,18 @@
-<section class="pond-section" aria-labelledby="pond-title">
-  <div class="pond-intro">
-    <div>
-      <h2 id="pond-title">Feed the koi</h2>
-      <p id="pond-instructions">Tap anywhere in the water to toss in a snack.</p>
-    </div>
-    <span id="pond-feed-count" aria-live="polite">0 snacks served</span>
-  </div>
-
-  <div class="pond-stage">
-    <canvas
-      id="koi-pond"
-      aria-label="Feed seven swimming koi"
-      aria-describedby="pond-instructions"
-    >
-      Your browser does not support the interactive koi pond.
-    </canvas>
-  </div>
-</section>
+<canvas
+  id="koi-pond"
+  aria-label="Feed seven swimming koi"
+  aria-describedby="game-instructions"
+>
+  Your browser does not support the interactive koi pond.
+</canvas>
 
 <style>
-  .pond-section {
-    max-width: 48rem;
-    margin: 0 auto;
-    padding: 2.5rem 2rem 2rem;
-  }
-
-  .pond-intro {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-  }
-
-  h2 {
-    margin-bottom: 0.25rem;
-    font-size: 1.5rem;
-    font-weight: 700;
-    text-wrap: balance;
-  }
-
-  p {
-    color: var(--text-muted);
-    font-size: 0.925rem;
-  }
-
-  #pond-feed-count {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
-  }
-
-  .pond-stage {
-    position: relative;
-    aspect-ratio: 16 / 9;
-    min-height: 280px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: manipulation;
     background:
       radial-gradient(circle at 18% 22%, color-mix(in srgb, var(--bg) 44%, transparent) 0 2%, transparent 12%),
       radial-gradient(circle at 72% 68%, color-mix(in srgb, var(--accent) 12%, transparent) 0 4%, transparent 18%),
@@ -68,36 +22,6 @@
         color-mix(in srgb, var(--accent) 32%, var(--bg))
       );
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bg) 25%, transparent);
-  }
-
-  canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    cursor: crosshair;
-    touch-action: manipulation;
-  }
-
-  :global([data-theme="geocities"]) .pond-stage {
-    border: 3px ridge #00ffff;
-    box-shadow: 0 0 16px #ff00ff, inset 0 0 18px #00ffff;
-  }
-
-  @media (max-width: 640px) {
-    .pond-section {
-      padding: 2rem 1.25rem 1.5rem;
-    }
-
-    .pond-intro {
-      align-items: flex-start;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .pond-stage {
-      aspect-ratio: 4 / 3;
-      min-height: 260px;
-    }
   }
 </style>
 

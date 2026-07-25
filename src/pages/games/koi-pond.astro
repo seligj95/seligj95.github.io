@@ -1,0 +1,18 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+import KoiPond from "../../components/KoiPond.astro";
+---
+
+<GameLayout slug="koi-pond">
+  <span slot="status" id="pond-feed-count" aria-live="polite">0 snacks served</span>
+
+  <KoiPond />
+
+  <div slot="notes">
+    <p>
+      The koi wander on their own with a bit of separation steering so they don't
+      pile up. Drop a snack and the nearest unoccupied fish claims it &mdash; the rest
+      keep drifting, blissfully unaware. Your snack count lives in this browser only.
+    </p>
+  </div>
+</GameLayout>
