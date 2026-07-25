@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#00ffff",
+        "reason": "Geocities theme stage border is intentional artwork, not UI color",
+        "createdAt": "2026-07-25T01:32:55.218Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#ff00ff",
+        "reason": "Geocities theme stage glow is intentional artwork, not UI color",
+        "createdAt": "2026-07-25T01:32:55.252Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, 0.25)",
+        "reason": "Inset hairline on game material swatches",
+        "createdAt": "2026-07-25T01:32:55.284Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0, 0, 0, 0.08)",
+        "reason": "Inset hairline on game card thumbnails",
+        "createdAt": "2026-07-25T01:32:55.314Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#10131a",
+        "reason": "Sand canvas backdrop is illustration color inside the canvas",
+        "createdAt": "2026-07-25T01:32:55.343Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#0d0f16",
+        "reason": "Trail canvas backdrop is illustration color inside the canvas",
+        "createdAt": "2026-07-25T01:32:55.372Z"
+      }
+    ]
+  }
+}

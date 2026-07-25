@@ -21,9 +21,9 @@ export const games: Game[] = [
     slug: "sand",
     title: "Sand",
     tagline: "A falling-sand box with nothing to win.",
-    blurb: "Pour sand, flood it with water, wall it off with stone, then grow something in it.",
+    blurb: "Pour sand, flood it with water, wall it off, then grow something in it.",
     tag: "zen",
-    instructions: "Pick a material, then drag inside the box to paint it.",
+    instructions: "Pick a material, then drag inside the box to pour it into open space.",
   },
   {
     slug: "bloom",

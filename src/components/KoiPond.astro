@@ -196,7 +196,8 @@
     context.save();
     context.translate(x, y);
     context.rotate(rotation);
-    context.fillStyle = "rgba(46, 112, 76, 0.78)";
+    // Opaque: pads float on the surface, so anything below is hidden by them.
+    context.fillStyle = "rgb(41, 104, 69)";
     context.beginPath();
     context.arc(0, 0, radius, 0.15, Math.PI * 2 - 0.15);
     context.lineTo(0, 0);
@@ -268,12 +269,15 @@
 
   function drawScene(time = performance.now()) {
     context.clearRect(0, 0, width, height);
+
+    // Fish and food sit in the water; pads float on top of it and hide
+    // whatever swims underneath.
+    for (const koi of fish) drawKoi(koi, time);
+    for (const pellet of food) drawFood(pellet);
+
     drawLilyPad(width * 0.14, height * 0.2, Math.min(width, height) * 0.07, -0.35);
     drawLilyPad(width * 0.84, height * 0.76, Math.min(width, height) * 0.09, 0.45);
     drawLilyPad(width * 0.76, height * 0.16, Math.min(width, height) * 0.045, 0.12);
-
-    for (const koi of fish) drawKoi(koi, time);
-    for (const pellet of food) drawFood(pellet);
 
     for (const ripple of ripples) {
       context.strokeStyle = `rgba(255, 255, 255, ${ripple.alpha})`;

@@ -10,13 +10,18 @@ import GameLayout from "../../layouts/GameLayout.astro";
   </canvas>
 
   <div slot="controls">
-    <button id="trail-glow" type="button" aria-pressed="true">Glow</button>
-    <div class="control-group" role="radiogroup" aria-label="How long lines last">
-      <button type="button" role="radio" aria-checked="false" data-life="1.5">Quick</button>
-      <button type="button" role="radio" aria-checked="true" data-life="3">Normal</button>
-      <button type="button" role="radio" aria-checked="false" data-life="6">Lingering</button>
+    <div class="control-set">
+      <span class="control-label" id="trail-life-label">Lines last</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="trail-life-label">
+        <button type="button" role="radio" aria-checked="false" data-life="1.5">Quick</button>
+        <button type="button" role="radio" aria-checked="true" data-life="3">Normal</button>
+        <button type="button" role="radio" aria-checked="false" data-life="6">Lingering</button>
+      </div>
     </div>
-    <button id="trail-clear" type="button">Clear canvas</button>
+    <div class="control-set">
+      <button id="trail-glow" type="button" aria-pressed="true">Glow</button>
+      <button id="trail-clear" type="button">Clear canvas</button>
+    </div>
   </div>
 
   <div slot="notes">

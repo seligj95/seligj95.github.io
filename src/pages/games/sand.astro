@@ -10,22 +10,30 @@ import GameLayout from "../../layouts/GameLayout.astro";
   </canvas>
 
   <div slot="controls">
-    <div class="control-group" role="radiogroup" aria-label="Material">
-      <button class="swatch" type="button" role="radio" aria-checked="true" data-material="sand" style="--swatch: #d8b26a">Sand</button>
-      <button class="swatch" type="button" role="radio" aria-checked="false" data-material="water" style="--swatch: #4a86c8">Water</button>
-      <button class="swatch" type="button" role="radio" aria-checked="false" data-material="stone" style="--swatch: #7c7c85">Stone</button>
-      <button class="swatch" type="button" role="radio" aria-checked="false" data-material="seed" style="--swatch: #4f9d52">Seed</button>
-      <button class="swatch" type="button" role="radio" aria-checked="false" data-material="empty" style="--swatch: transparent">Eraser</button>
+    <div class="control-set">
+      <span class="control-label" id="sand-material-label">Material</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="sand-material-label">
+        <button class="swatch" type="button" role="radio" aria-checked="true" data-material="sand" style="--swatch: #d8b26a">Sand</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="water" style="--swatch: #4a86c8">Water</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="stone" style="--swatch: #7c7c85">Wall</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="seed" style="--swatch: #4f9d52">Seed</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="empty" style="--swatch: transparent">Eraser</button>
+      </div>
     </div>
-    <button id="sand-rain" type="button" aria-pressed="false">Rain</button>
-    <button id="sand-clear" type="button">Clear</button>
+    <div class="control-set">
+      <button id="sand-rain" type="button" aria-pressed="false">Rain</button>
+      <button id="sand-clear" type="button">Clear</button>
+    </div>
   </div>
 
   <div slot="notes">
     <p>
       A cellular automaton on a small grid. Sand falls and slumps into piles, water
-      finds its level and sand sinks through it, stone stays put. Drop seeds onto wet
-      ground and they drink the water, creeping upward into a patch of green.
+      finds its level and sand sinks through it. Wall is the one material with no
+      physics &mdash; it hangs wherever you paint it, so you can build ledges and
+      funnels for everything else to fall through. Nothing paints over anything else:
+      to move a pile, erase it first. Drop seeds onto wet ground and they drink the
+      water, creeping upward into a patch of green.
     </p>
   </div>
 </GameLayout>
@@ -149,6 +157,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
         // Powders scatter a little so the brush edge isn't a perfect circle.
         if (brush !== STONE && brush !== EMPTY && Math.random() > 0.72) continue;
         const cell = index(nx, ny);
+        // Only the eraser overwrites. Everything else needs open space, so
+        // material lands on top of a pile and falls from there.
+        if (brush !== EMPTY && grid[cell] !== EMPTY) continue;
         grid[cell] = brush;
         shade[cell] = Math.floor(Math.random() * 32);
       }
