@@ -1,0 +1,401 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="sand">
+  <span slot="status" id="sand-status" aria-live="polite">Sand selected</span>
+
+  <canvas id="sand-canvas" aria-label="Falling sand sandbox" aria-describedby="game-instructions">
+    Your browser does not support the sandbox.
+  </canvas>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="sand-material-label">Material</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="sand-material-label">
+        <button class="swatch" type="button" role="radio" aria-checked="true" data-material="sand" style="--swatch: #d8b26a">Sand</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="water" style="--swatch: #4a86c8">Water</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="stone" style="--swatch: #7c7c85">Wall</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="seed" style="--swatch: #4f9d52">Seed</button>
+        <button class="swatch" type="button" role="radio" aria-checked="false" data-material="empty" style="--swatch: transparent">Eraser</button>
+      </div>
+    </div>
+    <div class="control-set">
+      <button id="sand-rain" type="button" aria-pressed="false">Rain</button>
+      <button id="sand-clear" type="button">Clear</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      A cellular automaton on a small grid. Sand falls and slumps into piles, water
+      finds its level and sand sinks through it. Wall is the one material with no
+      physics &mdash; it hangs wherever you paint it, so you can build ledges and
+      funnels for everything else to fall through. Nothing paints over anything else:
+      to move a pile, erase it first. Drop seeds onto wet ground and they drink the
+      water, creeping upward into a patch of green.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    image-rendering: pixelated;
+    background: #10131a;
+  }
+</style>
+
+<script>
+  const EMPTY = 0;
+  const SAND = 1;
+  const WATER = 2;
+  const STONE = 3;
+  const PLANT = 4;
+  const SEED = 5;
+
+  type Material = typeof EMPTY | typeof SAND | typeof WATER | typeof STONE | typeof PLANT | typeof SEED;
+
+  const MATERIALS: Record<string, Material> = {
+    empty: EMPTY,
+    sand: SAND,
+    water: WATER,
+    stone: STONE,
+    seed: SEED,
+  };
+
+  /** Base colors, jittered per cell so large areas don't look flat. */
+  const COLORS: Record<number, [number, number, number]> = {
+    [SAND]: [216, 178, 106],
+    [WATER]: [74, 134, 200],
+    [STONE]: [124, 124, 133],
+    [PLANT]: [79, 157, 82],
+    [SEED]: [150, 110, 62],
+  };
+
+  const BACKGROUND: [number, number, number] = [16, 19, 26];
+
+  const canvas = document.getElementById("sand-canvas") as HTMLCanvasElement;
+  const status = document.getElementById("sand-status") as HTMLSpanElement;
+  const clearButton = document.getElementById("sand-clear") as HTMLButtonElement;
+  const rainButton = document.getElementById("sand-rain") as HTMLButtonElement;
+  const swatches = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-material]")
+  );
+  const context = canvas.getContext("2d")!;
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  const CELL = 4; // CSS pixels per simulation cell
+  const BRUSH = 3; // brush radius in cells
+
+  let cols = 1;
+  let rows = 1;
+  let grid = new Uint8Array(1);
+  let shade = new Uint8Array(1); // per-cell color jitter, kept with the cell
+  let image: ImageData | null = null;
+  let frameId: number | null = null;
+  let isVisible = false;
+  let reducedMotion = motionQuery.matches;
+  let painting = false;
+  let raining = false;
+  let brush: Material = SAND;
+  let pointer = { x: -1, y: -1 };
+  let lastPainted: { x: number; y: number } | null = null;
+
+  const index = (x: number, y: number) => y * cols + x;
+  const inBounds = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
+
+  function setStatus(message: string) {
+    status.textContent = message;
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const nextCols = Math.max(Math.floor(rect.width / CELL), 8);
+    const nextRows = Math.max(Math.floor(rect.height / CELL), 8);
+    if (nextCols === cols && nextRows === rows && image) return;
+
+    const previous = grid;
+    const previousShade = shade;
+    const previousCols = cols;
+    const previousRows = rows;
+
+    cols = nextCols;
+    rows = nextRows;
+    grid = new Uint8Array(cols * rows);
+    shade = new Uint8Array(cols * rows);
+
+    // Carry the existing scene over so a window resize doesn't wipe it.
+    if (previous.length > 1) {
+      const copyCols = Math.min(previousCols, cols);
+      const copyRows = Math.min(previousRows, rows);
+      for (let y = 0; y < copyRows; y += 1) {
+        for (let x = 0; x < copyCols; x += 1) {
+          grid[index(x, y)] = previous[y * previousCols + x];
+          shade[index(x, y)] = previousShade[y * previousCols + x];
+        }
+      }
+    }
+
+    canvas.width = cols;
+    canvas.height = rows;
+    image = context.createImageData(cols, rows);
+    draw();
+  }
+
+  function stamp(x: number, y: number) {
+    for (let dy = -BRUSH; dy <= BRUSH; dy += 1) {
+      for (let dx = -BRUSH; dx <= BRUSH; dx += 1) {
+        if (dx * dx + dy * dy > BRUSH * BRUSH) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (!inBounds(nx, ny)) continue;
+        // Powders scatter a little so the brush edge isn't a perfect circle.
+        if (brush !== STONE && brush !== EMPTY && Math.random() > 0.72) continue;
+        const cell = index(nx, ny);
+        // Only the eraser overwrites. Everything else needs open space, so
+        // material lands on top of a pile and falls from there.
+        if (brush !== EMPTY && grid[cell] !== EMPTY) continue;
+        grid[cell] = brush;
+        shade[cell] = Math.floor(Math.random() * 32);
+      }
+    }
+  }
+
+  function paint(x: number, y: number) {
+    // Interpolate from the last stamp so a fast drag draws a line, not dots.
+    if (lastPainted) {
+      const dx = x - lastPainted.x;
+      const dy = y - lastPainted.y;
+      const steps = Math.ceil(Math.hypot(dx, dy));
+      for (let i = 1; i < steps; i += 1) {
+        stamp(Math.round(lastPainted.x + (dx * i) / steps), Math.round(lastPainted.y + (dy * i) / steps));
+      }
+    }
+
+    stamp(x, y);
+    lastPainted = { x, y };
+    if (reducedMotion) draw();
+  }
+
+  function swap(a: number, b: number) {
+    const material = grid[a];
+    const tone = shade[a];
+    grid[a] = grid[b];
+    shade[a] = shade[b];
+    grid[b] = material;
+    shade[b] = tone;
+  }
+
+  function stepPowder(cell: number, x: number, y: number, passesThrough: number) {
+    const below = index(x, y + 1);
+    if (grid[below] === EMPTY || grid[below] === passesThrough) {
+      swap(cell, below);
+      return true;
+    }
+
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    for (const dx of [direction, -direction]) {
+      const nx = x + dx;
+      if (!inBounds(nx, y + 1)) continue;
+      const diagonal = index(nx, y + 1);
+      if (grid[diagonal] === EMPTY || grid[diagonal] === passesThrough) {
+        swap(cell, diagonal);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function stepWater(cell: number, x: number, y: number) {
+    if (stepPowder(cell, x, y, EMPTY)) return;
+
+    // Spread sideways to find its level.
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    for (const dx of [direction, -direction]) {
+      const nx = x + dx;
+      if (!inBounds(nx, y)) continue;
+      const side = index(nx, y);
+      if (grid[side] === EMPTY) {
+        swap(cell, side);
+        return;
+      }
+    }
+  }
+
+  function stepSeed(cell: number, x: number, y: number) {
+    if (stepPowder(cell, x, y, WATER)) return;
+
+    // Resting on something solid: look for water to drink, then sprout.
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (!inBounds(nx, ny)) continue;
+        if (grid[index(nx, ny)] !== WATER) continue;
+        grid[index(nx, ny)] = EMPTY;
+        grid[cell] = PLANT;
+        const above = index(x, y - 1);
+        if (inBounds(x, y - 1) && grid[above] === EMPTY) {
+          grid[above] = SEED;
+          shade[above] = Math.floor(Math.random() * 32);
+        }
+        return;
+      }
+    }
+  }
+
+  function step() {
+    // Bottom-up, alternating row direction, so falling material doesn't teleport.
+    for (let y = rows - 2; y >= 0; y -= 1) {
+      const leftToRight = Math.random() < 0.5;
+      for (let i = 0; i < cols; i += 1) {
+        const x = leftToRight ? i : cols - 1 - i;
+        const cell = index(x, y);
+        const material = grid[cell];
+        if (material === EMPTY || material === STONE || material === PLANT) continue;
+        if (material === SAND) stepPowder(cell, x, y, WATER);
+        else if (material === WATER) stepWater(cell, x, y);
+        else if (material === SEED) stepSeed(cell, x, y);
+      }
+    }
+
+    if (raining) {
+      for (let i = 0; i < Math.max(1, Math.round(cols / 60)); i += 1) {
+        const x = Math.floor(Math.random() * cols);
+        const cell = index(x, 0);
+        if (grid[cell] !== EMPTY) continue;
+        grid[cell] = WATER;
+        shade[cell] = Math.floor(Math.random() * 32);
+      }
+    }
+  }
+
+  function draw() {
+    if (!image) return;
+    const pixels = image.data;
+    for (let cell = 0; cell < grid.length; cell += 1) {
+      const material = grid[cell];
+      const base = COLORS[material] ?? BACKGROUND;
+      const jitter = material === EMPTY ? 0 : shade[cell] - 16;
+      const offset = cell * 4;
+      pixels[offset] = Math.max(0, Math.min(255, base[0] + jitter));
+      pixels[offset + 1] = Math.max(0, Math.min(255, base[1] + jitter));
+      pixels[offset + 2] = Math.max(0, Math.min(255, base[2] + jitter));
+      pixels[offset + 3] = 255;
+    }
+    context.putImageData(image, 0, 0);
+  }
+
+  function frame() {
+    if (!isVisible || document.hidden || reducedMotion) {
+      frameId = null;
+      return;
+    }
+    if (painting && pointer.x >= 0) paint(pointer.x, pointer.y);
+    step();
+    draw();
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (frameId !== null || !isVisible || document.hidden || reducedMotion) return;
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    if (frameId === null) return;
+    cancelAnimationFrame(frameId);
+    frameId = null;
+  }
+
+  function toCell(event: PointerEvent) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.floor(((event.clientX - rect.left) / rect.width) * cols),
+      y: Math.floor(((event.clientY - rect.top) / rect.height) * rows),
+    };
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    painting = true;
+    lastPainted = null;
+    pointer = toCell(event);
+    paint(pointer.x, pointer.y);
+    start();
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!painting) return;
+    pointer = toCell(event);
+    paint(pointer.x, pointer.y);
+  });
+
+  for (const type of ["pointerup", "pointercancel", "pointerleave"] as const) {
+    canvas.addEventListener(type, () => {
+      painting = false;
+      pointer = { x: -1, y: -1 };
+      lastPainted = null;
+    });
+  }
+
+  for (const swatch of swatches) {
+    swatch.addEventListener("click", () => {
+      brush = MATERIALS[swatch.dataset.material ?? "sand"] ?? SAND;
+      for (const other of swatches) {
+        other.setAttribute("aria-checked", String(other === swatch));
+      }
+      setStatus(`${swatch.textContent?.trim()} selected`);
+    });
+  }
+
+  clearButton.addEventListener("click", () => {
+    grid.fill(EMPTY);
+    draw();
+    setStatus("Cleared");
+  });
+
+  rainButton.addEventListener("click", () => {
+    raining = !raining;
+    rainButton.setAttribute("aria-pressed", String(raining));
+    setStatus(raining ? "Raining" : "Rain stopped");
+    if (raining) start();
+  });
+
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(canvas);
+
+  const visibilityObserver = new IntersectionObserver(
+    ([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) start();
+      else stop();
+    },
+    { rootMargin: "100px" }
+  );
+  visibilityObserver.observe(canvas);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+    if (reducedMotion) {
+      stop();
+      draw();
+    } else {
+      start();
+    }
+  });
+
+  resize();
+  start();
+</script>

@@ -2,8 +2,9 @@
 dist/
 node_modules/
 
-# impeccable design tooling cache
-.impeccable/
+# impeccable design tooling cache (the config holds reviewed rule waivers)
+.impeccable/*
+!.impeccable/config.json
 
 # editor
 .vscode/

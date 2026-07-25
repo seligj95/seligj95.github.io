@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { games } from "../src/data/games";
 
 const dist = join(process.cwd(), "dist");
+const gameSlugs = games.map((game) => game.slug);
 
 describe("Build output", () => {
   it("produces a dist/ directory", () => {
@@ -13,16 +15,36 @@ describe("Build output", () => {
     expect(existsSync(join(dist, "index.html"))).toBe(true);
   });
 
-  it("includes the interactive koi pond on the home page", () => {
+  it("moves the interactive koi pond onto its own games page", () => {
     const homePage = readFileSync(join(dist, "index.html"), "utf8");
+    const pondPage = readFileSync(join(dist, "games", "koi-pond", "index.html"), "utf8");
 
-    expect(homePage).toContain('id="koi-pond"');
-    expect(homePage).not.toContain('id="pond-feed-button"');
-    expect(homePage).not.toContain("Keyboard visitors");
-    expect(homePage.indexOf('class="posts"')).toBeLessThan(
-      homePage.indexOf('class="pond-section"')
-    );
-    expect(homePage).toContain("Feed the koi");
+    expect(homePage).not.toContain('id="koi-pond"');
+    expect(homePage).toContain('href="/games/"');
+
+    expect(pondPage).toContain('id="koi-pond"');
+    expect(pondPage).not.toContain('id="pond-feed-button"');
+    expect(pondPage).not.toContain("Keyboard visitors");
+    expect(pondPage).toContain("snacks served");
+  });
+
+  it("generates every game page listed in the registry", () => {
+    expect(gameSlugs.length).toBeGreaterThan(0);
+    const index = readFileSync(join(dist, "games", "index.html"), "utf8");
+
+    for (const slug of gameSlugs) {
+      expect(existsSync(join(dist, "games", slug, "index.html"))).toBe(true);
+      expect(index).toContain(`href="/games/${slug}/"`);
+    }
+  });
+
+  it("keeps every game canvas labelled and paired with instructions", () => {
+    for (const slug of gameSlugs) {
+      const html = readFileSync(join(dist, "games", slug, "index.html"), "utf8");
+      expect(html).toMatch(/<canvas[^>]*aria-label="/);
+      expect(html).toContain('id="game-instructions"');
+      expect(html).toContain('href="/games/"');
+    }
   });
 
   it("assigns food drops to individual koi", () => {

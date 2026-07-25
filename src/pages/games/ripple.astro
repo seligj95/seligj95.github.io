@@ -1,0 +1,254 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="ripple">
+  <span slot="status" id="ripple-status" aria-live="polite">Sound off</span>
+
+  <canvas id="ripple-canvas" aria-label="Interactive water surface that plays notes" aria-describedby="game-instructions">
+    Your browser does not support the pond.
+  </canvas>
+
+  <div slot="controls">
+    <div class="control-set">
+      <button id="ripple-sound" type="button" aria-pressed="false">Turn sound on</button>
+      <button id="ripple-rain" type="button" aria-pressed="false">Let it rain</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      The notes are a C major pentatonic scale across three octaves, mapped to how
+      high you click &mdash; which is a fancy way of saying it will never sound wrong.
+      Sound stays off until you ask for it, because nobody likes a website that
+      makes noise unprompted.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: manipulation;
+    background:
+      radial-gradient(circle at 30% 18%, color-mix(in srgb, var(--bg) 30%, transparent) 0 6%, transparent 40%),
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--accent) 22%, var(--surface)),
+        color-mix(in srgb, var(--accent) 42%, var(--bg))
+      );
+  }
+</style>
+
+<script>
+  interface Ring {
+    x: number;
+    y: number;
+    radius: number;
+    life: number;
+    hue: number;
+    speed: number;
+  }
+
+  /** C major pentatonic across three octaves. */
+  const SCALE = [
+    261.63, 293.66, 329.63, 392.0, 440.0,
+    523.25, 587.33, 659.25, 783.99, 880.0,
+    1046.5, 1174.66, 1318.51, 1567.98, 1760.0,
+  ];
+
+  const canvas = document.getElementById("ripple-canvas") as HTMLCanvasElement;
+  const status = document.getElementById("ripple-status") as HTMLSpanElement;
+  const soundButton = document.getElementById("ripple-sound") as HTMLButtonElement;
+  const rainButton = document.getElementById("ripple-rain") as HTMLButtonElement;
+  const context = canvas.getContext("2d")!;
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  let width = 1;
+  let height = 1;
+  let pixelRatio = 1;
+  let rings: Ring[] = [];
+  let frameId: number | null = null;
+  let previousTime = 0;
+  let isVisible = false;
+  let reducedMotion = motionQuery.matches;
+  let soundOn = false;
+  let raining = false;
+  let rainTimer = 0;
+  let audio: AudioContext | null = null;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    width = Math.max(rect.width, 1);
+    height = Math.max(rect.height, 1);
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    draw();
+  }
+
+  function playNote(y: number) {
+    if (!soundOn) return;
+    audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (audio.state === "suspended") void audio.resume();
+
+    // Higher in the pond means a higher note.
+    const position = 1 - Math.min(Math.max(y / height, 0), 1);
+    const note = SCALE[Math.min(SCALE.length - 1, Math.floor(position * SCALE.length))];
+
+    const now = audio.currentTime;
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(note, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.16, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.9);
+    oscillator.connect(gain).connect(audio.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 2);
+  }
+
+  function drop(x: number, y: number, strength = 1) {
+    const position = 1 - Math.min(Math.max(y / height, 0), 1);
+    rings.push({
+      x,
+      y,
+      radius: 2,
+      life: 1,
+      hue: 186 + position * 120,
+      speed: (48 + position * 44) * strength,
+    });
+    if (rings.length > 90) rings.shift();
+    playNote(y);
+    if (reducedMotion) draw();
+    else start();
+  }
+
+  function update(delta: number) {
+    for (const ring of rings) {
+      ring.radius += ring.speed * delta;
+      ring.life -= delta * 0.42;
+    }
+    rings = rings.filter((ring) => ring.life > 0);
+
+    if (raining && !reducedMotion) {
+      rainTimer -= delta;
+      if (rainTimer <= 0) {
+        rainTimer = 0.35 + Math.random() * 0.9;
+        drop(Math.random() * width, Math.random() * height, 0.7);
+      }
+    }
+  }
+
+  function draw() {
+    context.clearRect(0, 0, width, height);
+    for (const ring of rings) {
+      const alpha = Math.max(0, ring.life);
+      context.strokeStyle = `hsl(${ring.hue} 76% 58% / ${alpha * 0.8})`;
+      context.lineWidth = 1 + alpha * 2.4;
+      context.beginPath();
+      context.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+      context.stroke();
+
+      // A trailing inner ring gives each drop a bit of depth.
+      if (ring.radius > 14) {
+        context.strokeStyle = `hsl(${ring.hue} 70% 72% / ${alpha * 0.45})`;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.arc(ring.x, ring.y, ring.radius * 0.62, 0, Math.PI * 2);
+        context.stroke();
+      }
+    }
+  }
+
+  function frame(time: number) {
+    if (!isVisible || document.hidden || reducedMotion) {
+      frameId = null;
+      return;
+    }
+    const delta = Math.min((time - previousTime) / 1000 || 0, 0.033);
+    previousTime = time;
+    update(delta);
+    draw();
+
+    if (rings.length === 0 && !raining) {
+      frameId = null; // still water; no need to keep drawing
+      return;
+    }
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (frameId !== null || !isVisible || document.hidden || reducedMotion) return;
+    previousTime = performance.now();
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    if (frameId === null) return;
+    cancelAnimationFrame(frameId);
+    frameId = null;
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    drop(
+      ((event.clientX - rect.left) / rect.width) * width,
+      ((event.clientY - rect.top) / rect.height) * height
+    );
+  });
+
+  soundButton.addEventListener("click", () => {
+    soundOn = !soundOn;
+    soundButton.setAttribute("aria-pressed", String(soundOn));
+    soundButton.textContent = soundOn ? "Turn sound off" : "Turn sound on";
+    status.textContent = soundOn ? "Sound on" : "Sound off";
+    if (soundOn) {
+      // Created inside the click so browsers allow audio to start.
+      audio ??= new (window.AudioContext || (window as any).webkitAudioContext)();
+      void audio.resume();
+    }
+  });
+
+  rainButton.addEventListener("click", () => {
+    raining = !raining;
+    rainButton.setAttribute("aria-pressed", String(raining));
+    rainButton.textContent = raining ? "Stop the rain" : "Let it rain";
+    if (raining) start();
+  });
+
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(canvas);
+
+  const visibilityObserver = new IntersectionObserver(
+    ([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) start();
+      else stop();
+    },
+    { rootMargin: "100px" }
+  );
+  visibilityObserver.observe(canvas);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+    if (reducedMotion) {
+      stop();
+      draw();
+    } else {
+      start();
+    }
+  });
+
+  resize();
+</script>

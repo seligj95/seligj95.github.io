@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ViewCount from "../components/ViewCount.astro";
-import KoiPond from "../components/KoiPond.astro";
 import { getCollection } from "astro:content";
 
 const all = (await getCollection("blog"))
@@ -113,8 +112,6 @@ const formatDate = (date: Date) =>
       ))}
     </ul>
   </section>
-
-  <KoiPond />
 </BaseLayout>
 
 <style>
