@@ -71,7 +71,7 @@ export const games: Game[] = [
     tagline: "One crown per row, column, and colour.",
     blurb: "A logic puzzle with a fresh board every time, generated and checked for a single solution in your browser.",
     tag: "puzzle",
-    instructions: "Tap once to mark a square, twice to place a crown. Crowns can't touch, even diagonally.",
+    instructions: "Tap once to cross a square out, twice to place a crown. Drag to cross out a run. Crowns can't touch, even diagonally.",
   },
 ];
 

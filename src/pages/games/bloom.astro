@@ -110,13 +110,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
       status.textContent = "Growing…";
       return;
     }
-    const planted = `${seeded} ${seeded === 1 ? "seed" : "seeds"} planted`;
-    if (dormant.length === 0) {
-      status.textContent = planted;
-      return;
-    }
-    const plants = new Set(dormant.map((branch) => branch.plant)).size;
-    status.textContent = `${planted} · ${plants} unfinished`;
+    status.textContent = `${seeded} ${seeded === 1 ? "seed" : "seeds"} planted`;
   }
 
   function resize() {

@@ -6,7 +6,16 @@ import GameLayout from "../../layouts/GameLayout.astro";
   <span slot="status" id="queens-status" aria-live="polite">0 of 8 crowns</span>
 
   <div class="wrap">
-    <div id="queens-board" class="board" role="grid" aria-label="Queens board" aria-describedby="game-instructions"></div>
+    <div class="frame">
+      <div id="queens-board" class="board" role="grid" aria-label="Queens board" aria-describedby="game-instructions"></div>
+      <div id="queens-win" class="win" aria-hidden="true" hidden>
+        <div class="win-panel">
+          <p class="win-title">Solved</p>
+          <p class="win-note" id="queens-win-note">Every crown in the right place.</p>
+          <button id="queens-next" type="button">New puzzle</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div slot="controls">
@@ -34,8 +43,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
   <div slot="notes">
     <p>
       One crown per row, one per column, one per colour &mdash; and no two crowns may
-      touch, not even at the corners. First tap on a square leaves a dot to mark it
-      as ruled out, second tap puts a crown there, third clears it.
+      touch, not even at the corners. Tap a square once to cross it out, again for a
+      crown, again to clear it. Drag across the board to cross out a run of squares
+      in one go.
     </p>
     <p>
       Every board is generated in your browser and checked to make sure it has
@@ -51,15 +61,92 @@ import GameLayout from "../../layouts/GameLayout.astro";
     padding: clamp(0.6rem, 2vw, 1.1rem);
   }
 
+  .frame {
+    position: relative;
+    width: min(100%, 30rem);
+  }
+
   .board {
     display: grid;
     grid-template-columns: repeat(var(--size, 8), 1fr);
+    /* Fixed rows, so a mark or a crown can never stretch a square. */
+    grid-template-rows: repeat(var(--size, 8), 1fr);
     gap: 0;
-    width: min(100%, 30rem);
+    width: 100%;
     aspect-ratio: 1;
     border: 2px solid var(--text);
     border-radius: 0.25rem;
     overflow: hidden;
+    touch-action: none;
+  }
+
+  .win {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    border-radius: 0.25rem;
+    animation: queens-win-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .win[hidden] {
+    display: none;
+  }
+
+  .win-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 1.1rem 1.6rem 1.3rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  .win-title {
+    margin: 0;
+    font-size: clamp(1.3rem, 4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .win-note {
+    margin: 0 0 0.5rem;
+    max-width: 22ch;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  .win-panel button {
+    padding: 0.45rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .win-panel button:hover {
+    opacity: 0.85;
+  }
+
+  @keyframes queens-win-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .win {
+      animation: none;
+    }
   }
 </style>
 
@@ -86,19 +173,50 @@ import GameLayout from "../../layouts/GameLayout.astro";
     display: grid;
     place-items: center;
     padding: 0;
+    min-width: 0;
+    min-height: 0;
     border: 0;
     border-right: 1px solid var(--grid-line);
     border-bottom: 1px solid var(--grid-line);
     background: hsl(var(--hue) var(--region-sat) var(--region-light));
     color: #1a1a1a;
-    font-size: clamp(0.9rem, 3.6vw, 1.6rem);
     line-height: 1;
     cursor: pointer;
+    touch-action: none;
     transition: background 0.15s ease-out;
   }
 
   [data-theme="dark"] #queens-board .cell {
     color: #f5f5f5;
+  }
+
+  /* Both glyphs share one grid slot, so neither can push the square around. */
+  #queens-board .cell .glyph {
+    grid-area: 1 / 1;
+    display: block;
+    pointer-events: none;
+  }
+
+  #queens-board .cell .mark {
+    width: 44%;
+    color: color-mix(in srgb, #1a1a1a 62%, transparent);
+  }
+
+  [data-theme="dark"] #queens-board .cell .mark {
+    color: color-mix(in srgb, #f5f5f5 66%, transparent);
+  }
+
+  #queens-board .cell .crown {
+    width: 76%;
+    color: #eab308;
+  }
+
+  #queens-board .cell .crown .crown-edge {
+    stroke: #5b3a06;
+  }
+
+  [data-theme="dark"] #queens-board .cell .crown {
+    color: #fbbf24;
   }
 
   #queens-board .cell:focus-visible {
@@ -114,15 +232,6 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   #queens-board .cell[data-edge-bottom="true"] {
     border-bottom: 2px solid var(--text);
-  }
-
-  #queens-board .cell[data-state="mark"]::after {
-    content: "";
-    width: 22%;
-    aspect-ratio: 1;
-    border-radius: 999px;
-    background: currentColor;
-    opacity: 0.4;
   }
 
   #queens-board .cell[data-conflict="true"] {
@@ -168,13 +277,30 @@ import GameLayout from "../../layouts/GameLayout.astro";
   const status = document.getElementById("queens-status") as HTMLSpanElement;
   const newButton = document.getElementById("queens-new") as HTMLButtonElement;
   const clearButton = document.getElementById("queens-clear") as HTMLButtonElement;
+  const win = document.getElementById("queens-win") as HTMLDivElement;
+  const winNote = document.getElementById("queens-win-note") as HTMLParagraphElement;
+  const nextButton = document.getElementById("queens-next") as HTMLButtonElement;
   const levelButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-level]")
   );
 
+  const MARK_SVG =
+    '<svg class="glyph mark" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M5.6 5.6 18.4 18.4M18.4 5.6 5.6 18.4" fill="none" stroke="currentColor" ' +
+    'stroke-width="3.2" stroke-linecap="round" /></svg>';
+
+  const CROWN_SVG =
+    '<svg class="glyph crown" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<g class="crown-edge" fill="currentColor" stroke-width="1.5" stroke-linejoin="round">' +
+    '<path d="M1.8 6.4 6.6 10.7 12 2.8l5.4 7.9 4.8-4.3L20.3 16.6H3.7Z" />' +
+    '<rect x="3.2" y="18" width="17.6" height="3.4" rx="1.4" />' +
+    "</g></svg>";
+
   let size = 8;
   let regions: number[] = [];
   let cells: CellState[] = [];
+  /** What each square currently shows, so paint only rebuilds what changed. */
+  let rendered: CellState[] = [];
   let solved = false;
 
   /**
@@ -423,7 +549,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
     const column = (index % size) + 1;
     const region = regions[index] + 1;
     const state =
-      cells[index] === "queen" ? "crown" : cells[index] === "mark" ? "marked" : "empty";
+      cells[index] === "queen"
+        ? "crown"
+        : cells[index] === "mark"
+          ? "crossed out"
+          : "empty";
     return `Row ${row}, column ${column}, colour ${region}, ${state}`;
   }
 
@@ -483,16 +613,12 @@ import GameLayout from "../../layouts/GameLayout.astro";
       if (isBad) button.dataset.conflict = "true";
       else delete button.dataset.conflict;
 
-      const crown = button.firstElementChild as HTMLSpanElement;
-      if (state === "queen" && crown.textContent === "") {
-        // Swap in a fresh node so the drop animation actually replays.
-        const fresh = document.createElement("span");
-        fresh.className = "crown";
-        fresh.setAttribute("aria-hidden", "true");
-        fresh.textContent = "\u265B";
-        crown.replaceWith(fresh);
-      } else if (state !== "queen") {
-        crown.textContent = "";
+      // Only touch the DOM when the square actually changed, otherwise every
+      // repaint would restart the crown drop on squares that never moved.
+      if (rendered[index] !== state) {
+        button.innerHTML =
+          state === "queen" ? CROWN_SVG : state === "mark" ? MARK_SVG : "";
+        rendered[index] = state;
       }
     }
 
@@ -500,10 +626,14 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (placed === size && bad.size === 0) {
       solved = true;
       setStatus("Solved. Every crown in the right place.");
+      winNote.textContent = `One crown in every row, column and colour on the ${size}\u00d7${size} board.`;
+      win.hidden = false;
+      nextButton.focus();
       return;
     }
 
     solved = false;
+    win.hidden = true;
     setStatus();
   }
 
@@ -511,7 +641,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
     const puzzle = generate(size);
     regions = puzzle.regions;
     cells = new Array(size * size).fill("empty");
+    rendered = new Array(size * size).fill("empty");
     solved = false;
+    win.hidden = true;
 
     board.style.setProperty("--size", String(size));
     board.replaceChildren();
@@ -534,17 +666,104 @@ import GameLayout from "../../layouts/GameLayout.astro";
         button.dataset.edgeBottom = "true";
       }
 
-      const crown = document.createElement("span");
-      crown.className = "crown";
-      crown.setAttribute("aria-hidden", "true");
-      button.append(crown);
       board.append(button);
     }
 
     paint();
   }
 
+  /**
+   * Pointer painting, the way the LinkedIn board works: a tap cycles one
+   * square, a drag crosses out (or clears) every square it passes over.
+   */
+  let startIndex = -1;
+  let dragging = false;
+  let paintMode: CellState = "mark";
+  let suppressClick = false;
+
+  function applyPaint(index: number) {
+    // A drag never disturbs a crown you already placed.
+    if (cells[index] === "queen" || cells[index] === paintMode) return;
+    cells[index] = paintMode;
+  }
+
+  /** Walks the straight line between two squares so fast drags leave no gaps. */
+  function paintLine(from: number, to: number) {
+    let row = Math.floor(from / size);
+    let column = from % size;
+    const endRow = Math.floor(to / size);
+    const endColumn = to % size;
+    const spanRow = Math.abs(endRow - row);
+    const spanColumn = Math.abs(endColumn - column);
+    const stepRow = row < endRow ? 1 : -1;
+    const stepColumn = column < endColumn ? 1 : -1;
+    let error = spanColumn - spanRow;
+    let guard = 0;
+
+    for (;;) {
+      applyPaint(row * size + column);
+      if ((row === endRow && column === endColumn) || (guard += 1) > 4 * size) break;
+      const doubled = 2 * error;
+      if (doubled > -spanRow) {
+        error -= spanRow;
+        column += stepColumn;
+      }
+      if (doubled < spanColumn) {
+        error += spanColumn;
+        row += stepRow;
+      }
+    }
+  }
+
+  function cellAt(x: number, y: number): number {
+    const element = document.elementFromPoint(x, y);
+    const button = element?.closest<HTMLButtonElement>(".cell");
+    if (!button?.dataset.index || !board.contains(button)) return -1;
+    return Number.parseInt(button.dataset.index, 10);
+  }
+
+  board.addEventListener("pointerdown", (event) => {
+    suppressClick = false;
+    if (solved || event.button !== 0) return;
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
+    if (!button?.dataset.index) return;
+
+    startIndex = Number.parseInt(button.dataset.index, 10);
+    dragging = false;
+    // Starting on a crossed-out square rubs out instead of drawing.
+    paintMode = cells[startIndex] === "mark" ? "empty" : "mark";
+  });
+
+  board.addEventListener("pointermove", (event) => {
+    if (solved || startIndex < 0 || event.buttons === 0) return;
+    const index = cellAt(event.clientX, event.clientY);
+    if (index < 0) return;
+
+    if (!dragging) {
+      if (index === startIndex) return; // still on the square you pressed
+      dragging = true;
+      applyPaint(startIndex);
+    }
+
+    paintLine(startIndex, index);
+    startIndex = index;
+    paint();
+  });
+
+  function endDrag() {
+    if (dragging) suppressClick = true;
+    startIndex = -1;
+    dragging = false;
+  }
+
+  board.addEventListener("pointerup", endDrag);
+  board.addEventListener("pointercancel", endDrag);
+
   board.addEventListener("click", (event) => {
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
     if (solved) return;
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
     if (!button?.dataset.index) return;
@@ -566,6 +785,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
   });
 
   newButton.addEventListener("click", build);
+  nextButton.addEventListener("click", build);
 
   for (const button of levelButtons) {
     button.addEventListener("click", () => {
