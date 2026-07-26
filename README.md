@@ -1,35 +1,42 @@
-# Personal Blog
+# jordanselig.com
 
-Personal blog by Jordan Selig, built with [Astro](https://astro.build) and deployed to GitHub Pages.
+Personal site by Jordan Selig — blog, talks, projects, and a small arcade of
+browser games. Built with [Astro](https://astro.build) and deployed to GitHub
+Pages at [jordanselig.com](https://jordanselig.com).
 
-## Quick Start
+## Quick start
 
 ```bash
 npm install
-npm run dev        # Start dev server at localhost:4321
-npm run build      # Build for production
-npm run preview    # Preview production build
+npm run dev        # dev server at localhost:4321
+npm run build      # static build into dist/
+npm run preview    # serve the built site
+npm test           # vitest run (builds first, then asserts on dist/)
 ```
 
-## Tech Stack
+## Tech stack
 
-- **Framework:** Astro (static site generator)
-- **Analytics:** GoatCounter (privacy-friendly, no cookies)
-- **Comments & Reactions:** Giscus (GitHub Discussions-backed)
+- **Framework:** Astro 5, static output, zero client framework
+- **Search:** Pagefind (`astro-pagefind`), indexed at build time
+- **Analytics:** GoatCounter (privacy friendly, no cookies)
+- **Comments:** Giscus, backed by GitHub Discussions
+- **Tests:** Vitest + happy-dom, run against the built `dist/`
 - **Hosting:** GitHub Pages via GitHub Actions
 
-## Project Structure
+## Project structure
 
 ```
 src/
-├── components/      # Reusable UI components
-├── content/blog/    # Markdown blog posts
-├── layouts/         # Page layouts
-├── pages/           # Route pages
-└── styles/          # Global CSS
+├── components/      # Header, Footer, search, comments, KoiPond, GameMark, ...
+├── content/blog/    # Markdown posts (the only content collection)
+├── data/games.ts    # Single source of truth for the games arcade
+├── layouts/         # BaseLayout, BlogPostLayout, GameLayout
+├── pages/           # Routes, including pages/games/*
+└── styles/          # global.css — all four themes live here
+tests/               # Vitest suites that assert on the built output
 ```
 
-## Writing Posts
+## Writing posts
 
 Add a `.md` file to `src/content/blog/`:
 
@@ -44,86 +51,110 @@ tags: ["tag1", "tag2"]
 Content goes here.
 ```
 
-### External Posts
+Optional frontmatter (see `src/content.config.ts` for the full schema):
 
-For posts published on other platforms (e.g., Tech Community, dev.to), add an `externalUrl` field:
+| Field | Effect |
+|-------|--------|
+| `featured: true` | Promotes the post to the homepage hero. Newest featured post wins. |
+| `draft: true` | Keeps the post out of listings, the RSS feed, and the sitemap. |
+| `updatedDate` | Shows an "updated" line and updates the JSON-LD schema. |
+| `heroImage` | Header image, also used for Open Graph. |
+| `coAuthors` | `[{ name, url }]` — renders a "By Jordan Selig & Name" byline. |
+| `externalUrl` | Marks the post as published elsewhere. |
 
-```markdown
----
-title: "My External Post"
-description: "A short summary of the post."
-pubDate: 2026-04-08
-tags: ["azure", "mcp"]
-externalUrl: "https://techcommunity.microsoft.com/blog/..."
----
+### External posts
 
-A brief summary of the post. Readers will be directed to the full article on the original platform.
+Posts published on another platform (Tech Community, dev.to) use `externalUrl`.
+They appear in the blog list and RSS feed linking straight to the original, and
+their own page shows the summary plus a banner pointing at the full article.
+
+## Games
+
+Every game under `/games/` is client-side only: no server, no accounts, no
+persistence beyond `localStorage` for best scores. `src/data/games.ts` is the
+single source of truth — it drives the games index, the header on each game
+page, and `tests/build-output.test.ts`.
+
+Adding a game:
+
+1. Add an entry to `src/data/games.ts` (`slug`, `title`, `tagline`, `blurb`,
+   `tag`, `instructions`). The `tag` decides which section of the index it
+   lands in: `puzzle` gets a row in the list, `zen` gets a tile on the shelf.
+2. Add a matching mark to `src/components/GameMark.astro` keyed on the slug.
+3. Create `src/pages/games/<slug>.astro` wrapping the game in `GameLayout`,
+   which supplies the title, instructions, stage, status line, and control bar.
+4. Reuse the shared `.control-set` / `.control-label` / `.control-group`
+   classes for controls so they stay consistent (and usable on phones).
+
+Note: Astro's scoped styles do not apply to elements created in JavaScript, so
+games that build their own DOM use `<style is:global>` with every selector
+prefixed by the game's root id.
+
+## Testing
+
+```bash
+npm test
 ```
 
-External posts appear in the blog list with links to the original article. The individual post page shows a summary with a banner linking to the full content.
+The suites build the site once (`tests/global-setup.ts`) and then assert
+against `dist/`: accessibility basics, SEO tags and JSON-LD, the RSS feed,
+GeoCities theme performance budgets, and build output (every game page exists,
+every route renders, no broken internal links).
 
 ## Deployment
 
-Pushes to `main` automatically deploy via GitHub Actions.
+Pushes to `main` build and deploy automatically via GitHub Actions. The custom
+domain comes from `public/CNAME`, and `site` in `astro.config.mjs` must match
+it since absolute URLs in the sitemap, RSS feed, and Open Graph tags are
+derived from it.
 
 ---
 
-## Service Configuration
+## Service configuration
 
-### GoatCounter (Analytics)
+### GoatCounter (analytics)
 
-1. Go to [goatcounter.com](https://www.goatcounter.com) and create a free account.
-2. Choose a site code (e.g., `jordanselig`) — your dashboard will be at `https://jordanselig.goatcounter.com`.
-3. The tracking script is already in `src/components/BaseHead.astro`. Update the `data-goatcounter` URL if your site code differs.
-4. **Local development:** The script includes `allow_local: true` so page views from `localhost` are tracked during development. Remove or set to `false` before launch if you don't want dev traffic counted.
+The tracking script lives in `src/components/BaseHead.astro`. Update the
+`data-goatcounter` URL if the site code changes. It sets `allow_local: true`,
+so `localhost` views are counted during development.
 
-### Giscus (Comments & Reactions)
+### Giscus (comments)
 
-1. **Enable GitHub Discussions** on your repo: Settings → General → Features → ✅ Discussions.
-2. **Create a "Blog Comments" category** in Discussions (use the Announcement type so only the Giscus bot can create top-level threads).
-3. **Install the Giscus app** at [github.com/apps/giscus](https://github.com/apps/giscus) — grant access to this repo only.
-4. **Get your IDs** at [giscus.app](https://giscus.app):
-   - Enter `jordanselig/personal-blog` as the repo.
-   - Select the "Blog Comments" category.
-   - Copy the `data-repo-id` and `data-category-id` values.
-5. **Paste the IDs** into the `<Comments>` usage in `src/layouts/BlogPostLayout.astro`:
-   ```astro
-   <Comments
-     repo="jordanselig/personal-blog"
-     repoId="YOUR_REPO_ID"
-     category="Blog Comments"
-     categoryId="YOUR_CATEGORY_ID"
-   />
-   ```
-6. The Giscus theme automatically syncs with the site's dark/light mode toggle.
+Comments render through `src/components/Comments.astro`, which already has the
+repo, repo id, category, and category id baked in as prop defaults — nothing to
+paste in per post. To point it at a different repo or discussion category, get
+new ids from [giscus.app](https://giscus.app) and update those defaults. The
+widget's theme follows the site's theme toggle.
 
-### GitHub Pages (Hosting)
+### GitHub Pages (hosting)
 
-1. Go to your repo's **Settings → Pages**.
-2. Under **Source**, select **GitHub Actions**.
-3. The included workflow (`.github/workflows/`) will build and deploy on every push to `main`.
-4. Your site will be live at `https://jordanselig.com/` (custom domain configured via the `public/CNAME` file).
-5. The `site` in `astro.config.mjs` is set to the custom domain — update it if your domain changes.
+Settings → Pages → Source: **GitHub Actions**. The workflow in
+`.github/workflows/` builds and deploys on every push to `main`.
 
-### RSS Feed
+### RSS feed
 
-The feed is auto-generated at `/personal-blog/rss.xml`. It includes post titles, descriptions, dates, and tags as categories. External posts link directly to the original URL in the feed. Most RSS readers will auto-discover it via the `<link rel="alternate">` tag in the page head.
+Generated by `src/pages/rss.xml.ts` at `/rss.xml`, with post titles,
+descriptions, dates, and tags as categories. External posts link to their
+original URL. Readers auto-discover it from the `<link rel="alternate">` tag.
 
 ### Themes
 
-The site ships with four themes, cycled via the toggle button in the header:
+Four themes, cycled by the toggle in the header:
 
 | Theme | Vibe |
 |-------|------|
 | **Light** | Clean default |
 | **Dark** | Dark mode |
 | **Rainbow** | Soft pastel purple |
-| **GeoCities** | 90s chaos — Comic Sans, neon colors, marquee banner, spinning emoji, cursor sparkle trail, and a fake visitor counter |
+| **GeoCities** | 90s chaos: Comic Sans, neon, marquee, spinning emoji, sparkle cursor, fake hit counter |
 
-Theme preference is saved to `localStorage`. The valid theme list appears in three places: `global.css`, `ThemeToggle.astro`, and `BaseHead.astro` (flash-prevention script).
+The preference is saved to `localStorage`. The valid theme list appears in
+three places that must stay in sync: `global.css`, `ThemeToggle.astro`, and the
+flash-prevention script in `BaseHead.astro`.
 
 ### SEO
 
-- **Open Graph & Twitter cards** are configured in `BaseHead.astro`.
-- **JSON-LD Article schema** is injected on each blog post page for rich search results.
-- **Sitemap** is generated by `@astrojs/sitemap` and referenced in `robots.txt`.
+- Open Graph and Twitter cards are set in `BaseHead.astro`.
+- JSON-LD `Article` schema is injected on every blog post.
+- The sitemap is generated by `@astrojs/sitemap` and referenced from
+  `public/robots.txt`.

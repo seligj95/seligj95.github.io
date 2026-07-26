@@ -1,137 +1,326 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import GameMark from "../../components/GameMark.astro";
 import { games } from "../../data/games";
 
 const base = import.meta.env.BASE_URL;
+const puzzles = games.filter((game) => game.tag === "puzzle");
+const toys = games.filter((game) => game.tag === "zen");
 ---
 
 <BaseLayout
   title="Games — Jordan Selig"
-  description="A small arcade of browser games and zen toys built by Jordan Selig — koi pond, falling sand, generative gardens, and more."
+  description="A small arcade of browser games and zen toys built by Jordan Selig — koi pond, falling sand, generative gardens, jigsaw, and more."
 >
   <section class="games">
-    <h1>Games</h1>
-    <p class="subtitle">
-      Little browser things I build when I should be doing something else. No accounts,
-      no ads, no loading screens &mdash; just canvas and a few hundred lines of JavaScript.
-    </p>
+    <header class="intro">
+      <h1>Games</h1>
+      <p>
+        Little browser things I build when I should be doing something else. No accounts,
+        no ads, no loading screens &mdash; just canvas and a few hundred lines of
+        JavaScript, running entirely on your machine.
+      </p>
+    </header>
 
-    <ul class="game-grid">
-      {games.map((game) => (
-        <li>
-          <a class="game-card" href={`${base}games/${game.slug}/`}>
-            <span class="tag">{game.tag}</span>
-            <h2>{game.title}</h2>
-            <p class="tagline">{game.tagline}</p>
-            <p class="blurb">{game.blurb}</p>
-            <span class="play">Play &rarr;</span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <section class="group">
+      <div class="group-head">
+        <h2>Puzzles</h2>
+        <p>Something to actually solve. Every board is generated fresh in your browser.</p>
+      </div>
 
-    <p class="coming-soon">
-      Coming eventually: a top-down parking puzzle, snake, brick, and something that
-      is legally distinct from Frogger.
-    </p>
+      <ul class="rows">
+        {
+          puzzles.map((game) => (
+            <li>
+              <a href={`${base}games/${game.slug}/`}>
+                <span class="mark">
+                  <GameMark slug={game.slug} />
+                </span>
+                <span class="text">
+                  <span class="name">
+                    {game.title}
+                    <span class="dash">&mdash;</span>
+                    <span class="tagline">{game.tagline}</span>
+                  </span>
+                  <span class="blurb">{game.blurb}</span>
+                </span>
+                <span class="go" aria-hidden="true">
+                  &rarr;
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="group">
+      <div class="group-head">
+        <h2>Zen toys</h2>
+        <p>No score, no timer, no way to lose. Poke them until you feel better.</p>
+      </div>
+
+      <ul class="shelf">
+        {
+          toys.map((game) => (
+            <li>
+              <a href={`${base}games/${game.slug}/`}>
+                <span class="mark">
+                  <GameMark slug={game.slug} />
+                </span>
+                <span class="name">{game.title}</span>
+                <span class="tagline">{game.tagline}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
   </section>
 </BaseLayout>
 
 <style>
   .games {
-    max-width: 48rem;
+    max-width: 52rem;
     margin: 0 auto;
     padding: 2rem;
   }
 
+  .intro {
+    max-width: 38rem;
+    margin-bottom: 3.5rem;
+  }
+
   h1 {
-    font-size: 2rem;
+    font-size: clamp(2rem, 6vw, 2.75rem);
     font-weight: 800;
-    margin-bottom: 0.5rem;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.6rem;
+    text-wrap: balance;
+  }
+
+  .intro p {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .group + .group {
+    margin-top: 4rem;
+  }
+
+  .group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 2px solid var(--text);
+  }
+
+  h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
 
-  .subtitle {
+  .group-head p {
     color: var(--text-muted);
-    margin-bottom: 2.5rem;
-    font-size: 1.05rem;
-    line-height: 1.6;
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
 
-  .game-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    gap: 1rem;
+  ul {
     list-style: none;
     padding: 0;
   }
 
-  .game-card {
+  /* Puzzles read as an index, not a wall of cards. */
+  .rows li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .rows a {
+    display: grid;
+    grid-template-columns: 2.75rem 1fr auto;
+    align-items: center;
+    gap: 0 1.1rem;
+    padding: 1.15rem 0.6rem;
+    margin-inline: -0.6rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--text);
+    transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .rows .mark {
+    color: var(--accent);
+    width: 2.75rem;
+    height: 2.75rem;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .text {
     display: flex;
     flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .dash {
+    color: var(--border);
+    margin-inline: 0.35rem;
+  }
+
+  .rows .tagline {
+    font-weight: 400;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+  }
+
+  .blurb {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+    max-width: 46ch;
+  }
+
+  .go {
+    color: var(--accent);
+    font-size: 1.1rem;
+    opacity: 0;
+    transform: translateX(-0.4rem);
+    transition:
+      opacity 0.25s ease-out,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .rows a:hover,
+  .rows a:focus-visible {
+    background: var(--accent-subtle);
+  }
+
+  .rows a:hover .go,
+  .rows a:focus-visible .go {
+    opacity: 1;
+    transform: none;
+  }
+
+  .rows a:hover .mark {
+    transform: rotate(-6deg) scale(1.06);
+  }
+
+  /* Toys are mark-led: you pick one by the shape of it. */
+  .shelf {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .shelf a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
     height: 100%;
-    gap: 0.4rem;
     padding: 1.25rem;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface);
+    color: var(--text);
     text-decoration: none;
-    color: var(--text);
-    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    transition:
+      border-color 0.2s ease-out,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .game-card:hover {
-    transform: translateY(-2px);
+  .shelf .mark {
+    width: 3.25rem;
+    height: 3.25rem;
+    margin-bottom: 0.6rem;
+    color: var(--accent);
+  }
+
+  .shelf .tagline {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+
+  .shelf a:hover,
+  .shelf a:focus-visible {
     border-color: var(--accent);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
   }
 
-  .tag {
-    align-self: flex-start;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 0.2rem 0.6rem;
-    border-radius: 999px;
+  .shelf li:first-child a {
     background: var(--accent-subtle);
-    color: var(--accent);
-    margin-bottom: 0.35rem;
+    border-color: transparent;
   }
 
-  h2 {
-    font-size: 1.15rem;
-    font-weight: 700;
+  @media (min-width: 48rem) {
+    .shelf li:first-child {
+      grid-column: span 2;
+      grid-row: span 2;
+    }
+
+    .shelf li:first-child a {
+      justify-content: center;
+    }
+
+    .shelf li:first-child .mark {
+      width: 4.5rem;
+      height: 4.5rem;
+    }
+
+    .shelf li:first-child .name {
+      font-size: 1.35rem;
+    }
   }
 
-  .tagline {
-    font-size: 0.9rem;
-    color: var(--text);
-  }
-
-  .blurb {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    line-height: 1.6;
-    margin-bottom: 0.75rem;
-  }
-
-  .play {
-    margin-top: auto;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--accent);
-  }
-
-  .coming-soon {
-    margin-top: 2rem;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-  }
-
-  @media (max-width: 640px) {
+  @media (max-width: 30rem) {
     .games {
       padding: 1.5rem 1.25rem 2rem;
+    }
+
+    .rows a {
+      grid-template-columns: 2.25rem 1fr;
+      gap: 0 0.9rem;
+    }
+
+    .rows .mark {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    .go,
+    .dash {
+      display: none;
+    }
+
+    .rows .tagline {
+      display: block;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rows a,
+    .rows .mark,
+    .shelf a,
+    .go {
+      transition-duration: 0.01ms;
+    }
+
+    .rows a:hover .mark,
+    .shelf a:hover {
+      transform: none;
     }
   }
 </style>

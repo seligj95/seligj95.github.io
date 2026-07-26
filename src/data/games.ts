@@ -28,10 +28,10 @@ export const games: Game[] = [
   {
     slug: "bloom",
     title: "Bloom",
-    tagline: "Plant a seed, look away, come back to a garden.",
-    blurb: "Every click grows a branching vine that opens into flowers wherever it runs out of room.",
+    tagline: "Hold on long enough and it flowers.",
+    blurb: "Press and hold to grow a branching vine. Let go too soon and you get a bare stem.",
     tag: "zen",
-    instructions: "Click anywhere to plant a seed. The vines grow on their own.",
+    instructions: "Press and hold anywhere to grow a plant. Press a paused tip to continue it.",
   },
   {
     slug: "trail",
@@ -48,6 +48,30 @@ export const games: Game[] = [
     blurb: "Touch the water for a ring and a note. It's a pentatonic scale, so there are no wrong ones.",
     tag: "zen",
     instructions: "Click the water to drop a note. Higher in the pond means a higher pitch.",
+  },
+  {
+    slug: "memory",
+    title: "Memory",
+    tagline: "Two of everything, hidden.",
+    blurb: "Flip cards two at a time and remember where things were. Three board sizes, best score kept locally.",
+    tag: "puzzle",
+    instructions: "Flip two cards. Matching pairs stay face up; everything else flips back.",
+  },
+  {
+    slug: "jigsaw",
+    title: "Jigsaw",
+    tagline: "It's a picture of my dog.",
+    blurb: "Drag the pieces back into the frame. Twelve pieces if you're in a hurry, forty if you're not.",
+    tag: "puzzle",
+    instructions: "Drag a piece into the frame. Get it close to its spot and it snaps in.",
+  },
+  {
+    slug: "queens",
+    title: "Queens",
+    tagline: "One crown per row, column, and colour.",
+    blurb: "A logic puzzle with a fresh board every time, generated and checked for a single solution in your browser.",
+    tag: "puzzle",
+    instructions: "Tap once to mark a square, twice to place a crown. Crowns can't touch, even diagonally.",
   },
 ];
 

@@ -30,7 +30,6 @@
     x: number;
     y: number;
     age: number;
-    claimedBy: number;
   }
 
   interface Ripple {
@@ -61,6 +60,9 @@
     ["#d9472b", "#fff8e7", "#f2c84b"],
     ["#262626", "#fff8e7", "#e85d2a"],
   ] as const;
+
+  /** Only a runaway-growth guard; pellets are never dropped to make room. */
+  const MAX_FOOD = 300;
 
   const canvas = document.getElementById("koi-pond") as HTMLCanvasElement;
   const feedCount = document.getElementById("pond-feed-count") as HTMLSpanElement;
@@ -131,11 +133,35 @@
     updateCounter();
   }
 
+  /**
+   * Hands every fish the nearest pellet nobody nearer has already claimed, so a
+   * whole handful of food becomes a queue they work through instead of a mess.
+   */
+  function assignTargets(): (Food | null)[] {
+    const taken = new Set<Food>();
+    return fish.map((koi) => {
+      let closest: Food | null = null;
+      let closestDistance = Number.POSITIVE_INFINITY;
+      for (const pellet of food) {
+        if (taken.has(pellet)) continue;
+        const distance = (pellet.x - koi.x) ** 2 + (pellet.y - koi.y) ** 2;
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closest = pellet;
+        }
+      }
+      if (closest) taken.add(closest);
+      return closest;
+    });
+  }
+
   function update(delta: number, time: number) {
     for (const pellet of food) pellet.age += delta;
 
+    const targets = assignTargets();
+
     for (const [fishIndex, koi] of fish.entries()) {
-      const target = food.find((pellet) => pellet.claimedBy === fishIndex);
+      const target = targets[fishIndex];
       let desiredAngle = koi.angle;
       let speed = koi.baseSpeed;
 
@@ -323,21 +349,11 @@
       return;
     }
 
-    if (food.length >= fish.length) food.shift();
+    // Food is never quietly removed to make room: pellets stay until a fish eats
+    // them. The ceiling only exists so a stuck tab can't grow the array forever.
+    if (food.length >= MAX_FOOD) return;
 
-    const claimedFish = new Set(food.map((pellet) => pellet.claimedBy));
-    let claimedBy = 0;
-    let closestDistance = Number.POSITIVE_INFINITY;
-    for (const [fishIndex, koi] of fish.entries()) {
-      if (claimedFish.has(fishIndex)) continue;
-      const distance = (x - koi.x) ** 2 + (y - koi.y) ** 2;
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        claimedBy = fishIndex;
-      }
-    }
-
-    food.push({ x, y, age: 0, claimedBy });
+    food.push({ x, y, age: 0 });
     startAnimation();
   }
 

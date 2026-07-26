@@ -207,27 +207,45 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
 - **Touch:** ≥44×44px hit area on coarse pointers.
 
 ### Games (arcade pages)
-- **Placement:** every game lives at `/games/<slug>/` and is listed on the `/games/` index
-  as a card grid. The homepage carries only a single accent-washed callout linking to the
-  arcade, so play never interrupts the site's primary reading flow.
+- **Placement:** every game lives at `/games/<slug>/`. The `/games/` index splits them
+  into two sections with different shapes: puzzles are an index of rows (mark, name,
+  tagline, blurb, arrow on hover), zen toys are a mark-led shelf of tiles with the
+  flagship toy given a larger 2x2 tile. No uniform card wall, no uppercase eyebrow tags.
+  The homepage carries only a single accent-washed callout linking to the arcade, so play
+  never interrupts the site's primary reading flow.
+- **Marks:** each game has its own line-art SVG in `GameMark.astro`, drawn in
+  `currentColor` on a 40x40 grid so it inherits the accent and themes for free.
 - **Page chrome:** a shared `GameLayout` gives each game the same frame — a back link,
   title + tagline + tag pill, a one-line instruction, an `aria-live` status readout, the
   stage, then controls and explanatory notes below.
 - **Stage:** 1px `--border`, 12px radius, `aspect-ratio` per game with a 280px minimum.
   The geocities theme replaces the border with its ridged neon glow.
 - **Style:** stage chrome and controls read from the semantic tokens; the illustration
-  colors *inside* a canvas (koi, sand, petals, rainbow strokes) are artwork, not UI color,
-  and are exempt from the token-only rule.
+  colors *inside* a canvas (koi, sand, petals, rainbow strokes, puzzle regions) are
+  artwork, not UI color, and are exempt from the token-only rule.
 - **Controls:** grouped into labelled sets that stack as rows, so buttons never
   scatter into a ragged wrap. A set is a small text label plus its controls; "pick one"
   choices render as a segmented control (one bordered object, hairline dividers, accent
   fill on the active segment) while independent actions stay separate pills. Toggles use
   `aria-pressed`, choice sets use `role="radiogroup"` + `aria-checked`, and every control
   meets a 44px target on coarse pointers.
+- **Generated content:** games that build their own DOM must use `<style is:global>`
+  scoped by the game's root id — Astro's scoped styles never reach elements created in
+  JavaScript.
 - **Performance and motion:** canvas rendering runs only while the stage is near the
   viewport and the tab is visible, and loops stop themselves once a scene settles.
   Reduced-motion visitors get a still frame with immediate, non-animated feedback.
 - **Sound:** always off by default and only started from a user gesture.
+
+### Puzzles (Memory, Jigsaw, Queens)
+- **Fairness:** every board is generated in the browser and verified before it is shown.
+  Queens refines its colour regions until exactly one solution survives, so a puzzle can
+  always be reasoned out rather than guessed.
+- **Feedback:** state lives on the element (`data-state`, `data-conflict`) so the visual
+  language stays declarative; illegal placements are hatched rather than blocked, and the
+  status line is the single source of progress for screen readers.
+- **Difficulty:** offered as board size rather than timers or lives — the games have no
+  fail state, only a longer think.
 
 ### Koi Pond
 - **Placement:** `/games/koi-pond/`, the flagship zen entry in the arcade.
