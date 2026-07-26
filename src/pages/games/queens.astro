@@ -1,0 +1,801 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="queens" ratio="auto">
+  <span slot="status" id="queens-status" aria-live="polite">0 of 8 crowns</span>
+
+  <div class="wrap">
+    <div class="frame">
+      <div id="queens-board" class="board" role="grid" aria-label="Queens board" aria-describedby="game-instructions"></div>
+      <div id="queens-win" class="win" aria-hidden="true" hidden>
+        <div class="win-panel">
+          <p class="win-title">Solved</p>
+          <p class="win-note" id="queens-win-note">Every crown in the right place.</p>
+          <button id="queens-next" type="button">New puzzle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="queens-level-label">Size</span>
+      <div
+        class="control-group"
+        role="radiogroup"
+        aria-labelledby="queens-level-label"
+        style="--columns: 4;"
+      >
+        <button type="button" role="radio" aria-checked="false" data-level="6">6&times;6</button>
+        <button type="button" role="radio" aria-checked="true" data-level="8">8&times;8</button>
+        <button type="button" role="radio" aria-checked="false" data-level="9">9&times;9</button>
+        <button type="button" role="radio" aria-checked="false" data-level="10">10&times;10</button>
+      </div>
+    </div>
+
+    <div class="control-set">
+      <button id="queens-new" type="button">New puzzle</button>
+      <button id="queens-clear" type="button">Clear</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      One crown per row, one per column, one per colour &mdash; and no two crowns may
+      touch, not even at the corners. Tap a square once to cross it out, again for a
+      crown, again to clear it. Drag across the board to cross out a run of squares
+      in one go.
+    </p>
+    <p>
+      Every board is generated in your browser and checked to make sure it has
+      exactly one solution, so there is always a way through without guessing.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  .wrap {
+    display: grid;
+    place-items: center;
+    padding: clamp(0.6rem, 2vw, 1.1rem);
+  }
+
+  .frame {
+    position: relative;
+    width: min(100%, 30rem);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(var(--size, 8), 1fr);
+    /* Fixed rows, so a mark or a crown can never stretch a square. */
+    grid-template-rows: repeat(var(--size, 8), 1fr);
+    gap: 0;
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid var(--text);
+    border-radius: 0.25rem;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .win {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    border-radius: 0.25rem;
+    animation: queens-win-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .win[hidden] {
+    display: none;
+  }
+
+  .win-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 1.1rem 1.6rem 1.3rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  .win-title {
+    margin: 0;
+    font-size: clamp(1.3rem, 4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .win-note {
+    margin: 0 0 0.5rem;
+    max-width: 22ch;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  .win-panel button {
+    padding: 0.45rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .win-panel button:hover {
+    opacity: 0.85;
+  }
+
+  @keyframes queens-win-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .win {
+      animation: none;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Cells are generated in JS, so they never pick up the scoped-style hash. */
+  #queens-board {
+    --region-sat: 68%;
+    --region-light: 82%;
+    --grid-line: color-mix(in srgb, var(--text) 22%, transparent);
+  }
+
+  [data-theme="dark"] #queens-board {
+    --region-sat: 42%;
+    --region-light: 34%;
+  }
+
+  [data-theme="geocities"] #queens-board {
+    --region-sat: 100%;
+    --region-light: 62%;
+  }
+
+  #queens-board .cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    border-right: 1px solid var(--grid-line);
+    border-bottom: 1px solid var(--grid-line);
+    background: hsl(var(--hue) var(--region-sat) var(--region-light));
+    color: #1a1a1a;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: none;
+    transition: background 0.15s ease-out;
+  }
+
+  [data-theme="dark"] #queens-board .cell {
+    color: #f5f5f5;
+  }
+
+  /* Both glyphs share one grid slot, so neither can push the square around. */
+  #queens-board .cell .glyph {
+    grid-area: 1 / 1;
+    display: block;
+    pointer-events: none;
+  }
+
+  #queens-board .cell .mark {
+    width: 44%;
+    color: color-mix(in srgb, #1a1a1a 62%, transparent);
+  }
+
+  [data-theme="dark"] #queens-board .cell .mark {
+    color: color-mix(in srgb, #f5f5f5 66%, transparent);
+  }
+
+  #queens-board .cell .crown {
+    width: 76%;
+    color: #eab308;
+  }
+
+  #queens-board .cell .crown .crown-edge {
+    stroke: #5b3a06;
+  }
+
+  [data-theme="dark"] #queens-board .cell .crown {
+    color: #fbbf24;
+  }
+
+  #queens-board .cell:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+    z-index: 2;
+  }
+
+  /* Thicker rules where two colour regions meet, the way the paper version reads. */
+  #queens-board .cell[data-edge-right="true"] {
+    border-right: 2px solid var(--text);
+  }
+
+  #queens-board .cell[data-edge-bottom="true"] {
+    border-bottom: 2px solid var(--text);
+  }
+
+  #queens-board .cell[data-conflict="true"] {
+    background: repeating-linear-gradient(
+      -45deg,
+      hsl(var(--hue) var(--region-sat) var(--region-light)) 0 6px,
+      color-mix(in srgb, var(--text) 22%, hsl(var(--hue) var(--region-sat) var(--region-light))) 6px 12px
+    );
+  }
+
+  #queens-board .cell .crown {
+    animation: queens-drop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes queens-drop {
+    from {
+      transform: translateY(-22%) scale(0.7);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #queens-board .cell {
+      transition: none;
+    }
+
+    #queens-board .cell .crown {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  type CellState = "empty" | "mark" | "queen";
+
+  interface Puzzle {
+    size: number;
+    /** Region index per cell, row-major. */
+    regions: number[];
+  }
+
+  const board = document.getElementById("queens-board") as HTMLDivElement;
+  const status = document.getElementById("queens-status") as HTMLSpanElement;
+  const newButton = document.getElementById("queens-new") as HTMLButtonElement;
+  const clearButton = document.getElementById("queens-clear") as HTMLButtonElement;
+  const win = document.getElementById("queens-win") as HTMLDivElement;
+  const winNote = document.getElementById("queens-win-note") as HTMLParagraphElement;
+  const nextButton = document.getElementById("queens-next") as HTMLButtonElement;
+  const levelButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-level]")
+  );
+
+  const MARK_SVG =
+    '<svg class="glyph mark" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M5.6 5.6 18.4 18.4M18.4 5.6 5.6 18.4" fill="none" stroke="currentColor" ' +
+    'stroke-width="3.2" stroke-linecap="round" /></svg>';
+
+  const CROWN_SVG =
+    '<svg class="glyph crown" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<g class="crown-edge" fill="currentColor" stroke-width="1.5" stroke-linejoin="round">' +
+    '<path d="M1.8 6.4 6.6 10.7 12 2.8l5.4 7.9 4.8-4.3L20.3 16.6H3.7Z" />' +
+    '<rect x="3.2" y="18" width="17.6" height="3.4" rx="1.4" />' +
+    "</g></svg>";
+
+  let size = 8;
+  let regions: number[] = [];
+  let cells: CellState[] = [];
+  /** What each square currently shows, so paint only rebuilds what changed. */
+  let rendered: CellState[] = [];
+  let solved = false;
+
+  /**
+   * Hand-picked hues rather than an even sweep: evenly spaced hues put two
+   * greens next to each other, which is miserable on a colour-matching puzzle.
+   */
+  const HUES = [4, 32, 52, 96, 152, 190, 222, 262, 292, 328];
+
+  function hueFor(region: number, n: number): number {
+    const step = (HUES.length - 1) / Math.max(1, n - 1);
+    return HUES[Math.round(region * step)];
+  }
+
+  function shuffle<T>(items: T[]): T[] {
+    const copy = items.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  /**
+   * One queen per row and column, and never in a touching column on the next row
+   * down (that is the only way two of them can end up adjacent).
+   */
+  function randomSolution(n: number): number[] | null {
+    const columns: number[] = [];
+    const used = new Set<number>();
+
+    const place = (row: number): boolean => {
+      if (row === n) return true;
+      for (const column of shuffle([...Array(n).keys()])) {
+        if (used.has(column)) continue;
+        if (row > 0 && Math.abs(columns[row - 1] - column) < 2) continue;
+        columns[row] = column;
+        used.add(column);
+        if (place(row + 1)) return true;
+        used.delete(column);
+      }
+      return false;
+    };
+
+    return place(0) ? columns : null;
+  }
+
+  function neighbours(n: number, index: number): number[] {
+    const row = Math.floor(index / n);
+    const column = index % n;
+    const found: number[] = [];
+    if (row > 0) found.push(index - n);
+    if (row < n - 1) found.push(index + n);
+    if (column > 0) found.push(index - 1);
+    if (column < n - 1) found.push(index + 1);
+    return found;
+  }
+
+  /** Grows one blob per queen until every square belongs to somebody. */
+  function growRegions(n: number, solution: number[]): number[] {
+    const owner = new Array<number>(n * n).fill(-1);
+    const frontiers: number[][] = [];
+    let remaining = n * n;
+
+    solution.forEach((column, row) => {
+      const index = row * n + column;
+      owner[index] = row;
+      remaining -= 1;
+      frontiers.push(neighbours(n, index));
+    });
+
+    while (remaining > 0) {
+      const live = frontiers
+        .map((frontier, region) => ({ frontier, region }))
+        .filter((entry) => entry.frontier.length > 0);
+      if (live.length === 0) break;
+
+      const pick = live[Math.floor(Math.random() * live.length)];
+      const at = Math.floor(Math.random() * pick.frontier.length);
+      const index = pick.frontier.splice(at, 1)[0];
+      if (owner[index] !== -1) continue;
+
+      owner[index] = pick.region;
+      remaining -= 1;
+      for (const neighbour of neighbours(n, index)) {
+        if (owner[neighbour] === -1) pick.frontier.push(neighbour);
+      }
+    }
+
+    // Anything the blobs couldn't reach joins whichever neighbour it touches.
+    for (let index = 0; index < owner.length; index += 1) {
+      if (owner[index] !== -1) continue;
+      const taken = neighbours(n, index).find((other) => owner[other] !== -1);
+      owner[index] = taken === undefined ? 0 : owner[taken];
+    }
+
+    return owner;
+  }
+
+  /**
+   * Finds one solution that isn't the intended one, or null when the board is
+   * already unique. Columns are tried in a random order so repeated calls keep
+   * turning up different rivals instead of the same one forever.
+   */
+  function findRival(n: number, owner: number[], solution: number[]): number[] | null {
+    const usedColumns = new Set<number>();
+    const usedRegions = new Set<number>();
+    const order = shuffle([...Array(n).keys()]);
+    const current: number[] = [];
+    let previous = -5;
+    let rival: number[] | null = null;
+
+    const walk = (row: number) => {
+      if (rival) return;
+      if (row === n) {
+        if (current.some((column, index) => column !== solution[index])) {
+          rival = current.slice();
+        }
+        return;
+      }
+      for (const column of order) {
+        if (usedColumns.has(column)) continue;
+        if (row > 0 && Math.abs(previous - column) < 2) continue;
+        const region = owner[row * n + column];
+        if (usedRegions.has(region)) continue;
+
+        usedColumns.add(column);
+        usedRegions.add(region);
+        const parent = previous;
+        previous = column;
+        current[row] = column;
+        walk(row + 1);
+        previous = parent;
+        usedColumns.delete(column);
+        usedRegions.delete(region);
+        if (rival) return;
+      }
+    };
+
+    walk(0);
+    return rival;
+  }
+
+  /**
+   * Hands one square to a neighbouring region, then re-homes anything that got
+   * cut off from its own queen so every region stays a single connected shape.
+   */
+  function handOver(n: number, owner: number[], cell: number, to: number, queenCell: number[]) {
+    const from = owner[cell];
+    owner[cell] = to;
+
+    const members = new Set<number>();
+    for (let index = 0; index < owner.length; index += 1) {
+      if (owner[index] === from) members.add(index);
+    }
+
+    const attached = new Set<number>([queenCell[from]]);
+    const queue = [queenCell[from]];
+    while (queue.length) {
+      const current = queue.pop() as number;
+      for (const neighbour of neighbours(n, current)) {
+        if (members.has(neighbour) && !attached.has(neighbour)) {
+          attached.add(neighbour);
+          queue.push(neighbour);
+        }
+      }
+    }
+
+    let orphans = [...members].filter((index) => !attached.has(index));
+    let guard = 0;
+    while (orphans.length && guard < n * n) {
+      guard += 1;
+      const stuck: number[] = [];
+      for (const index of orphans) {
+        const options = [
+          ...new Set(neighbours(n, index).map((other) => owner[other]).filter((r) => r !== from)),
+        ];
+        if (options.length) {
+          owner[index] = options[Math.floor(Math.random() * options.length)];
+        } else {
+          stuck.push(index);
+        }
+      }
+      orphans = stuck;
+    }
+  }
+
+  /**
+   * Random blobs almost never land on a single-solution board, so instead of
+   * rerolling until one appears, each rival solution is broken on purpose: take
+   * a square that rival puts a queen on, give it to a neighbouring colour, and
+   * that rival now doubles up on a colour. Repeat until nothing else solves it.
+   */
+  function refine(n: number, owner: number[], solution: number[]): boolean {
+    const queenCell = solution.map((column, row) => row * n + column);
+    const queenCells = new Set(queenCell);
+
+    for (let guard = 0; guard < 600; guard += 1) {
+      const rival = findRival(n, owner, solution);
+      if (!rival) return true;
+
+      const candidates = shuffle(
+        rival.map((column, row) => row * n + column).filter((index) => !queenCells.has(index))
+      );
+
+      let moved = false;
+      for (const cell of candidates) {
+        const from = owner[cell];
+        const targets = shuffle([
+          ...new Set(neighbours(n, cell).map((other) => owner[other]).filter((r) => r !== from)),
+        ]);
+        if (!targets.length) continue;
+        handOver(n, owner, cell, targets[0], queenCell);
+        moved = true;
+        break;
+      }
+      if (!moved) return false;
+    }
+
+    return false;
+  }
+
+  function generate(n: number): Puzzle {
+    let loose: Puzzle | null = null;
+
+    for (let attempt = 0; attempt < 70; attempt += 1) {
+      const solution = randomSolution(n);
+      if (!solution) continue;
+      const owner = growRegions(n, solution);
+      if (!refine(n, owner, solution)) continue;
+
+      // Guaranteed single-solution from here; the rest is just shape taste.
+      if (!loose) loose = { size: n, regions: owner };
+
+      const sizes = new Array<number>(n).fill(0);
+      for (const region of owner) sizes[region] += 1;
+      if (Math.min(...sizes) < 2) continue;
+      if (Math.max(...sizes) > Math.ceil(n * 2.8)) continue;
+      return { size: n, regions: owner };
+    }
+
+    return loose ?? { size: n, regions: growRegions(n, randomSolution(n) ?? [...Array(n).keys()]) };
+  }
+
+  function describe(index: number): string {
+    const row = Math.floor(index / size) + 1;
+    const column = (index % size) + 1;
+    const region = regions[index] + 1;
+    const state =
+      cells[index] === "queen"
+        ? "crown"
+        : cells[index] === "mark"
+          ? "crossed out"
+          : "empty";
+    return `Row ${row}, column ${column}, colour ${region}, ${state}`;
+  }
+
+  /** Every queen that breaks a rule, so the board can hatch it. */
+  function conflicts(): Set<number> {
+    const bad = new Set<number>();
+    const queens: number[] = [];
+    cells.forEach((state, index) => {
+      if (state === "queen") queens.push(index);
+    });
+
+    for (let a = 0; a < queens.length; a += 1) {
+      for (let b = a + 1; b < queens.length; b += 1) {
+        const first = queens[a];
+        const second = queens[b];
+        const rowA = Math.floor(first / size);
+        const rowB = Math.floor(second / size);
+        const columnA = first % size;
+        const columnB = second % size;
+        const touching =
+          Math.abs(rowA - rowB) <= 1 && Math.abs(columnA - columnB) <= 1;
+
+        if (
+          rowA === rowB ||
+          columnA === columnB ||
+          regions[first] === regions[second] ||
+          touching
+        ) {
+          bad.add(first);
+          bad.add(second);
+        }
+      }
+    }
+
+    return bad;
+  }
+
+  function setStatus(message?: string) {
+    if (message) {
+      status.textContent = message;
+      return;
+    }
+    const placed = cells.filter((state) => state === "queen").length;
+    status.textContent = `${placed} of ${size} crowns`;
+  }
+
+  function paint() {
+    const bad = conflicts();
+
+    for (let index = 0; index < cells.length; index += 1) {
+      const button = board.children[index] as HTMLButtonElement;
+      const state = cells[index];
+      button.dataset.state = state;
+      button.setAttribute("aria-label", describe(index));
+
+      const isBad = state === "queen" && bad.has(index);
+      if (isBad) button.dataset.conflict = "true";
+      else delete button.dataset.conflict;
+
+      // Only touch the DOM when the square actually changed, otherwise every
+      // repaint would restart the crown drop on squares that never moved.
+      if (rendered[index] !== state) {
+        button.innerHTML =
+          state === "queen" ? CROWN_SVG : state === "mark" ? MARK_SVG : "";
+        rendered[index] = state;
+      }
+    }
+
+    const placed = cells.filter((state) => state === "queen").length;
+    if (placed === size && bad.size === 0) {
+      solved = true;
+      setStatus("Solved. Every crown in the right place.");
+      winNote.textContent = `One crown in every row, column and colour on the ${size}\u00d7${size} board.`;
+      win.hidden = false;
+      nextButton.focus();
+      return;
+    }
+
+    solved = false;
+    win.hidden = true;
+    setStatus();
+  }
+
+  function build() {
+    const puzzle = generate(size);
+    regions = puzzle.regions;
+    cells = new Array(size * size).fill("empty");
+    rendered = new Array(size * size).fill("empty");
+    solved = false;
+    win.hidden = true;
+
+    board.style.setProperty("--size", String(size));
+    board.replaceChildren();
+
+    for (let index = 0; index < size * size; index += 1) {
+      const row = Math.floor(index / size);
+      const column = index % size;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "cell";
+      button.dataset.index = String(index);
+      button.dataset.state = "empty";
+      button.dataset.region = String(regions[index]);
+      button.style.setProperty("--hue", String(hueFor(regions[index], size)));
+
+      if (column < size - 1 && regions[index] !== regions[index + 1]) {
+        button.dataset.edgeRight = "true";
+      }
+      if (row < size - 1 && regions[index] !== regions[index + size]) {
+        button.dataset.edgeBottom = "true";
+      }
+
+      board.append(button);
+    }
+
+    paint();
+  }
+
+  /**
+   * Pointer painting, the way the LinkedIn board works: a tap cycles one
+   * square, a drag crosses out (or clears) every square it passes over.
+   */
+  let startIndex = -1;
+  let dragging = false;
+  let paintMode: CellState = "mark";
+  let suppressClick = false;
+
+  function applyPaint(index: number) {
+    // A drag never disturbs a crown you already placed.
+    if (cells[index] === "queen" || cells[index] === paintMode) return;
+    cells[index] = paintMode;
+  }
+
+  /** Walks the straight line between two squares so fast drags leave no gaps. */
+  function paintLine(from: number, to: number) {
+    let row = Math.floor(from / size);
+    let column = from % size;
+    const endRow = Math.floor(to / size);
+    const endColumn = to % size;
+    const spanRow = Math.abs(endRow - row);
+    const spanColumn = Math.abs(endColumn - column);
+    const stepRow = row < endRow ? 1 : -1;
+    const stepColumn = column < endColumn ? 1 : -1;
+    let error = spanColumn - spanRow;
+    let guard = 0;
+
+    for (;;) {
+      applyPaint(row * size + column);
+      if ((row === endRow && column === endColumn) || (guard += 1) > 4 * size) break;
+      const doubled = 2 * error;
+      if (doubled > -spanRow) {
+        error -= spanRow;
+        column += stepColumn;
+      }
+      if (doubled < spanColumn) {
+        error += spanColumn;
+        row += stepRow;
+      }
+    }
+  }
+
+  function cellAt(x: number, y: number): number {
+    const element = document.elementFromPoint(x, y);
+    const button = element?.closest<HTMLButtonElement>(".cell");
+    if (!button?.dataset.index || !board.contains(button)) return -1;
+    return Number.parseInt(button.dataset.index, 10);
+  }
+
+  board.addEventListener("pointerdown", (event) => {
+    suppressClick = false;
+    if (solved || event.button !== 0) return;
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
+    if (!button?.dataset.index) return;
+
+    startIndex = Number.parseInt(button.dataset.index, 10);
+    dragging = false;
+    // Starting on a crossed-out square rubs out instead of drawing.
+    paintMode = cells[startIndex] === "mark" ? "empty" : "mark";
+  });
+
+  board.addEventListener("pointermove", (event) => {
+    if (solved || startIndex < 0 || event.buttons === 0) return;
+    const index = cellAt(event.clientX, event.clientY);
+    if (index < 0) return;
+
+    if (!dragging) {
+      if (index === startIndex) return; // still on the square you pressed
+      dragging = true;
+      applyPaint(startIndex);
+    }
+
+    paintLine(startIndex, index);
+    startIndex = index;
+    paint();
+  });
+
+  function endDrag() {
+    if (dragging) suppressClick = true;
+    startIndex = -1;
+    dragging = false;
+  }
+
+  board.addEventListener("pointerup", endDrag);
+  board.addEventListener("pointercancel", endDrag);
+
+  board.addEventListener("click", (event) => {
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
+    if (solved) return;
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
+    if (!button?.dataset.index) return;
+
+    const index = Number.parseInt(button.dataset.index, 10);
+    const next: Record<CellState, CellState> = {
+      empty: "mark",
+      mark: "queen",
+      queen: "empty",
+    };
+    cells[index] = next[cells[index]];
+    paint();
+  });
+
+  clearButton.addEventListener("click", () => {
+    cells = cells.map(() => "empty");
+    solved = false;
+    paint();
+  });
+
+  newButton.addEventListener("click", build);
+  nextButton.addEventListener("click", build);
+
+  for (const button of levelButtons) {
+    button.addEventListener("click", () => {
+      size = Number.parseInt(button.dataset.level ?? "8", 10);
+      for (const other of levelButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      build();
+    });
+  }
+
+  build();
+</script>

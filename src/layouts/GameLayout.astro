@@ -11,6 +11,11 @@ interface Props {
 const { slug, ratio = "16 / 9" } = Astro.props;
 const game = gameBySlug(slug);
 const base = import.meta.env.BASE_URL;
+// Phones normally squash the stage to 4/3, but content-sized stages (board
+// games) must keep growing or they get clipped.
+const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
+  ratio === "auto" ? "auto" : "4 / 3"
+};`;
 ---
 
 <BaseLayout
@@ -33,7 +38,7 @@ const base = import.meta.env.BASE_URL;
       <div class="game-status"><slot name="status" /></div>
     </div>
 
-    <div class="game-stage" style={`--stage-ratio: ${ratio};`} data-pagefind-ignore>
+    <div class="game-stage" style={stageStyle} data-pagefind-ignore>
       <slot />
     </div>
 
@@ -167,7 +172,7 @@ const base = import.meta.env.BASE_URL;
     }
 
     .game-stage {
-      aspect-ratio: 4 / 3;
+      aspect-ratio: var(--stage-ratio-narrow, 4 / 3);
       min-height: 260px;
     }
   }
@@ -288,9 +293,10 @@ const base = import.meta.env.BASE_URL;
     }
 
     .game-controls .control-group button {
-      /* Three even columns, so five materials land as a tidy 3 + 2 rather
-         than one orphan stretched across the whole width. */
-      flex: 1 1 calc(33.333% - 1px);
+      /* Even columns so a set never leaves one orphan stretched across the
+         whole width. Groups can override --columns for their own count;
+         five materials at 3-up land as a tidy 3 + 2. */
+      flex: 1 1 calc(100% / var(--columns, 3) - 1px);
       padding-inline: 0.4rem;
     }
   }

@@ -12,6 +12,9 @@ node_modules/
 *.swe
 .DS_Store
 
+# browser automation scratch output (screenshots, snapshots, console logs)
+.playwright-mcp/
+
 # env
 .env
 .env.*

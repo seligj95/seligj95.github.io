@@ -1,0 +1,455 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+
+const image = "/images/games/buddy-puzzle.jpg";
+---
+
+<GameLayout slug="jigsaw" ratio="auto">
+  <span slot="status" id="jigsaw-status" aria-live="polite">0 of 12 placed</span>
+
+  <div
+    id="jigsaw-table"
+    class="table"
+    data-image={image}
+    role="group"
+    aria-label="Jigsaw board and piece tray"
+    aria-describedby="game-instructions"
+  >
+    <div id="jigsaw-board" class="board">
+      <img
+        id="jigsaw-ghost"
+        class="ghost"
+        src={image}
+        alt="Buddy, an Australian shepherd puppy with one blue eye, sitting in the grass"
+      />
+    </div>
+    <div id="jigsaw-tray" class="tray" aria-hidden="true"></div>
+  </div>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="jigsaw-size-label">Pieces</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="jigsaw-size-label">
+        <button type="button" role="radio" aria-checked="true" data-size="12">12</button>
+        <button type="button" role="radio" aria-checked="false" data-size="24">24</button>
+        <button type="button" role="radio" aria-checked="false" data-size="40">40</button>
+      </div>
+    </div>
+
+    <div class="control-set">
+      <button id="jigsaw-preview" type="button" aria-pressed="false">Show picture</button>
+      <button id="jigsaw-shuffle" type="button">Shuffle</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      The picture is Buddy. Drag a piece onto its spot in the frame and it clicks into
+      place; drop it anywhere else and it just stays where you left it, so you can sort
+      the pile however you like.
+    </p>
+    <p>
+      Stuck? <em>Show picture</em> fades the finished image into the frame as a guide.
+      No timer, no score.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  .table {
+    position: relative;
+    display: flex;
+    gap: clamp(0.75rem, 2vw, 1.25rem);
+    align-items: flex-start;
+    padding: clamp(0.6rem, 2vw, 1rem);
+    touch-action: none;
+  }
+
+  .board {
+    position: relative;
+    flex: 0 0 auto;
+    width: min(42%, 22rem);
+    aspect-ratio: 724 / 1000;
+    border: 1px dashed var(--border);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+    overflow: hidden;
+  }
+
+  .ghost {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+  }
+
+  .board[data-preview="on"] .ghost {
+    opacity: 0.22;
+  }
+
+  .board[data-solved="true"] {
+    border-style: solid;
+    border-color: var(--accent);
+  }
+
+  .tray {
+    flex: 1 1 auto;
+    align-self: stretch;
+    min-height: 12rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--muted) 6%, transparent);
+  }
+
+  @media (max-width: 640px) {
+    .table {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .board {
+      width: min(58%, 13rem);
+    }
+
+    .tray {
+      width: 100%;
+      align-self: auto;
+      min-height: 17rem;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Pieces are created in JS, so they never pick up the scoped-style hash. */
+  #jigsaw-table .piece {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background-repeat: no-repeat;
+    background-color: transparent;
+    cursor: grab;
+    touch-action: none;
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--text) 22%, transparent);
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #jigsaw-table .piece:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    z-index: 40;
+  }
+
+  #jigsaw-table .piece[data-dragging="true"] {
+    cursor: grabbing;
+    z-index: 30;
+    transform: scale(1.06);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--text) 26%, transparent);
+  }
+
+  #jigsaw-table .piece[data-placed="true"] {
+    cursor: default;
+    z-index: 1;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #jigsaw-table .piece {
+      transition: none;
+    }
+
+    #jigsaw-table .piece[data-dragging="true"] {
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  interface Piece {
+    index: number;
+    col: number;
+    row: number;
+    /** Position while loose, as a fraction of the table box. */
+    fx: number;
+    fy: number;
+    placed: boolean;
+    element: HTMLButtonElement;
+  }
+
+  /** cols x rows per difficulty, keyed by total piece count. */
+  const GRIDS: Record<number, { cols: number; rows: number }> = {
+    12: { cols: 3, rows: 4 },
+    24: { cols: 4, rows: 6 },
+    40: { cols: 5, rows: 8 },
+  };
+
+  const table = document.getElementById("jigsaw-table") as HTMLDivElement;
+  const board = document.getElementById("jigsaw-board") as HTMLDivElement;
+  const tray = document.getElementById("jigsaw-tray") as HTMLDivElement;
+  const status = document.getElementById("jigsaw-status") as HTMLSpanElement;
+  const previewButton = document.getElementById("jigsaw-preview") as HTMLButtonElement;
+  const shuffleButton = document.getElementById("jigsaw-shuffle") as HTMLButtonElement;
+  const sizeButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-size]")
+  );
+
+  const image = table.dataset.image ?? "";
+
+  let total = 12;
+  let pieces: Piece[] = [];
+  let dragging: Piece | null = null;
+  let grabX = 0;
+  let grabY = 0;
+
+  function geometry() {
+    const tableBox = table.getBoundingClientRect();
+    const boardBox = board.getBoundingClientRect();
+    const trayBox = tray.getBoundingClientRect();
+    return {
+      table: tableBox,
+      boardLeft: boardBox.left - tableBox.left,
+      boardTop: boardBox.top - tableBox.top,
+      boardWidth: boardBox.width,
+      boardHeight: boardBox.height,
+      trayLeft: trayBox.left - tableBox.left,
+      trayTop: trayBox.top - tableBox.top,
+      trayWidth: trayBox.width,
+      trayHeight: trayBox.height,
+    };
+  }
+
+  function setStatus(message?: string) {
+    if (message) {
+      status.textContent = message;
+      return;
+    }
+    const placed = pieces.filter((piece) => piece.placed).length;
+    status.textContent = `${placed} of ${total} placed`;
+  }
+
+  function homePosition(piece: Piece) {
+    const box = geometry();
+    const { cols, rows } = GRIDS[total];
+    return {
+      x: box.boardLeft + (piece.col * box.boardWidth) / cols,
+      y: box.boardTop + (piece.row * box.boardHeight) / rows,
+    };
+  }
+
+  function layout() {
+    const box = geometry();
+    const { cols, rows } = GRIDS[total];
+    const pieceWidth = box.boardWidth / cols;
+    const pieceHeight = box.boardHeight / rows;
+
+    for (const piece of pieces) {
+      const element = piece.element;
+      // Placed pieces get a 1px bleed so fractional cell sizes don't leave
+      // hairline seams across the finished picture.
+      const bleed = piece.placed ? 1 : 0;
+      element.style.width = `${pieceWidth + bleed}px`;
+      element.style.height = `${pieceHeight + bleed}px`;
+      element.style.backgroundSize = `${box.boardWidth}px ${box.boardHeight}px`;
+      element.style.backgroundPosition = `${-piece.col * pieceWidth}px ${-piece.row * pieceHeight}px`;
+
+      const spot = piece.placed
+        ? homePosition(piece)
+        : { x: piece.fx * box.table.width, y: piece.fy * box.table.height };
+      element.style.transform = `translate(${spot.x}px, ${spot.y}px)`;
+    }
+  }
+
+  /** Scatters loose pieces across the tray, nudged so they don't stack perfectly. */
+  function scatter() {
+    const box = geometry();
+    const { cols, rows } = GRIDS[total];
+    const pieceWidth = box.boardWidth / cols;
+    const pieceHeight = box.boardHeight / rows;
+    const loose = pieces.filter((piece) => !piece.placed);
+
+    // Fit the pile without overlap when the tray allows it, then add columns
+    // (and accept a little overlap) only when the rows would spill out.
+    let perRow = Math.max(1, Math.min(loose.length, Math.floor(box.trayWidth / pieceWidth)));
+    while (
+      perRow < loose.length &&
+      Math.ceil(loose.length / perRow) * pieceHeight > box.trayHeight
+    ) {
+      perRow += 1;
+    }
+    const stackRows = Math.ceil(loose.length / perRow);
+    const stepX = (box.trayWidth - pieceWidth) / Math.max(1, perRow - 1);
+    const stepY =
+      (Math.max(box.trayHeight, pieceHeight * 2) - pieceHeight) /
+      Math.max(1, stackRows - 1);
+
+    loose.forEach((piece, index) => {
+      const column = index % perRow;
+      const row = Math.floor(index / perRow);
+      const jitterX = (Math.random() - 0.5) * pieceWidth * 0.16;
+      const jitterY = (Math.random() - 0.5) * pieceHeight * 0.16;
+      const x = clamp(
+        box.trayLeft + column * stepX + jitterX,
+        box.trayLeft,
+        box.trayLeft + box.trayWidth - pieceWidth
+      );
+      const y = clamp(
+        box.trayTop + row * stepY + jitterY,
+        box.trayTop,
+        Math.max(box.trayTop, box.table.height - pieceHeight)
+      );
+      piece.fx = x / box.table.width;
+      piece.fy = y / box.table.height;
+    });
+
+    layout();
+  }
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function build() {
+    const { cols, rows } = GRIDS[total];
+    for (const piece of pieces) piece.element.remove();
+    pieces = [];
+
+    for (let index = 0; index < total; index += 1) {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "piece";
+      element.style.backgroundImage = `url("${image}")`;
+      element.dataset.placed = "false";
+      element.setAttribute(
+        "aria-label",
+        `Puzzle piece, row ${row + 1}, column ${col + 1}`
+      );
+
+      const piece: Piece = { index, col, row, fx: 0, fy: 0, placed: false, element };
+      element.addEventListener("pointerdown", (event) => startDrag(event, piece));
+      pieces.push(piece);
+      table.append(element);
+    }
+
+    // Shuffle paint order so the pile doesn't read top-left to bottom-right.
+    for (let i = pieces.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+    }
+
+    board.dataset.solved = "false";
+    scatter();
+    setStatus();
+  }
+
+  function startDrag(event: PointerEvent, piece: Piece) {
+    if (piece.placed) return;
+    const box = geometry();
+    const rect = piece.element.getBoundingClientRect();
+
+    dragging = piece;
+    grabX = event.clientX - rect.left;
+    grabY = event.clientY - rect.top;
+    piece.element.dataset.dragging = "true";
+    piece.element.setPointerCapture(event.pointerId);
+    // Dragged piece goes on top of the pile.
+    table.append(piece.element);
+    void box;
+  }
+
+  function moveDrag(event: PointerEvent) {
+    if (!dragging) return;
+    const box = geometry();
+    const x = event.clientX - box.table.left - grabX;
+    const y = event.clientY - box.table.top - grabY;
+    dragging.fx = x / box.table.width;
+    dragging.fy = y / box.table.height;
+    dragging.element.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  function endDrag() {
+    if (!dragging) return;
+    const piece = dragging;
+    dragging = null;
+    delete piece.element.dataset.dragging;
+
+    const box = geometry();
+    const { cols, rows } = GRIDS[total];
+    const pieceWidth = box.boardWidth / cols;
+    const pieceHeight = box.boardHeight / rows;
+    const home = homePosition(piece);
+    const x = piece.fx * box.table.width;
+    const y = piece.fy * box.table.height;
+    const near = Math.hypot(x - home.x, y - home.y);
+
+    if (near < Math.min(pieceWidth, pieceHeight) * 0.5) {
+      piece.placed = true;
+      piece.element.dataset.placed = "true";
+      piece.element.disabled = true;
+      piece.element.setAttribute(
+        "aria-label",
+        `Placed piece, row ${piece.row + 1}, column ${piece.col + 1}`
+      );
+      layout();
+
+      if (pieces.every((entry) => entry.placed)) {
+        board.dataset.solved = "true";
+        setStatus("Finished. That's Buddy.");
+        return;
+      }
+    } else {
+      // Not close enough: leave it where it was dropped, just inside the table.
+      piece.fx = clamp(x, 0, box.table.width - pieceWidth) / box.table.width;
+      piece.fy = clamp(y, 0, box.table.height - pieceHeight) / box.table.height;
+      piece.element.style.transform = `translate(${piece.fx * box.table.width}px, ${piece.fy * box.table.height}px)`;
+    }
+
+    setStatus();
+  }
+
+  table.addEventListener("pointermove", moveDrag);
+  table.addEventListener("pointerup", endDrag);
+  table.addEventListener("pointercancel", endDrag);
+
+  previewButton.addEventListener("click", () => {
+    const on = board.dataset.preview === "on";
+    board.dataset.preview = on ? "off" : "on";
+    previewButton.setAttribute("aria-pressed", String(!on));
+    previewButton.textContent = on ? "Show picture" : "Hide picture";
+  });
+
+  shuffleButton.addEventListener("click", () => {
+    for (const piece of pieces) {
+      piece.placed = false;
+      piece.element.dataset.placed = "false";
+      piece.element.disabled = false;
+      piece.element.setAttribute(
+        "aria-label",
+        `Puzzle piece, row ${piece.row + 1}, column ${piece.col + 1}`
+      );
+    }
+    board.dataset.solved = "false";
+    scatter();
+    setStatus();
+  });
+
+  for (const button of sizeButtons) {
+    button.addEventListener("click", () => {
+      total = Number.parseInt(button.dataset.size ?? "12", 10);
+      for (const other of sizeButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      build();
+    });
+  }
+
+  const observer = new ResizeObserver(() => layout());
+  observer.observe(table);
+
+  build();
+</script>

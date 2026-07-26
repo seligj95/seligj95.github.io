@@ -38,24 +38,27 @@ describe("Build output", () => {
     }
   });
 
-  it("keeps every game canvas labelled and paired with instructions", () => {
+  it("keeps every game stage labelled and paired with instructions", () => {
     for (const slug of gameSlugs) {
       const html = readFileSync(join(dist, "games", slug, "index.html"), "utf8");
-      expect(html).toMatch(/<canvas[^>]*aria-label="/);
+      // Canvas games label the canvas; DOM-built boards label their container.
+      expect(html).toMatch(/(<canvas[^>]*aria-label=")|(aria-label="[^"]*board)/i);
       expect(html).toContain('id="game-instructions"');
       expect(html).toContain('href="/games/"');
     }
   });
 
-  it("assigns food drops to individual koi", () => {
+  it("sends each koi after its own pellet without discarding food", () => {
     const pondSource = readFileSync(
       join(process.cwd(), "src", "components", "KoiPond.astro"),
       "utf8"
     );
 
-    expect(pondSource).toContain("claimedBy");
-    expect(pondSource).toContain("claimedFish");
+    expect(pondSource).toContain("assignTargets");
     expect(pondSource).toContain("separationRadius");
+    // Pellets are never dropped to make room for new ones.
+    expect(pondSource).not.toContain("food.shift()");
+    expect(pondSource).toContain("MAX_FOOD");
   });
 
   it("generates the about page", () => {

@@ -18,9 +18,14 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   <div slot="notes">
     <p>
-      Each seed is a little recursive vine: it grows upward, wobbles, occasionally
-      forks, and when a branch runs out of energy it opens into a flower. Petal count,
-      hue and curl are all rolled per seed, so no two clicks give you the same plant.
+      Each seed is a little recursive vine: it climbs, wobbles, occasionally forks,
+      and when a branch runs out of energy it opens into a flower. Petal count, hue
+      and curl are all rolled per seed, so no two presses give you the same plant.
+    </p>
+    <p>
+      Growth only happens while you hold on. Let go early and the stem pauses with
+      a pale dot on the tip &mdash; press near that dot to pick the same plant back
+      up and carry on. The flowers are the reward for staying put.
     </p>
   </div>
 </GameLayout>
@@ -51,6 +56,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     curl: number;
     petals: number;
     generation: number;
+    plant: number;
   }
 
   interface Flower {
@@ -61,6 +67,15 @@ import GameLayout from "../../layouts/GameLayout.astro";
     petals: number;
     size: number;
     open: number;
+  }
+
+  interface Seed {
+    x: number;
+    y: number;
+    hue: number;
+    curl: number;
+    petals: number;
+    plant: number;
   }
 
   const canvas = document.getElementById("bloom-canvas") as HTMLCanvasElement;
@@ -84,8 +99,17 @@ import GameLayout from "../../layouts/GameLayout.astro";
   let isVisible = false;
   let reducedMotion = motionQuery.matches;
   let seeded = 0;
+  let holding = false; // stems only climb while a pointer is held down
+  let autoGrow = false; // the button grows a plant without a held pointer
+  let origin: Seed | null = null; // where the held plant is rooted
+  let dormant: Branch[] = []; // stems you let go of, waiting to be picked back up
+  let plantId = 0;
 
   function setStatus() {
+    if (holding || autoGrow) {
+      status.textContent = "Growing…";
+      return;
+    }
     status.textContent = `${seeded} ${seeded === 1 ? "seed" : "seeds"} planted`;
   }
 
@@ -113,25 +137,30 @@ import GameLayout from "../../layouts/GameLayout.astro";
     render();
   }
 
+  function sprout(seed: Seed): Branch {
+    return {
+      x: seed.x,
+      y: seed.y,
+      angle: -Math.PI / 2 + (Math.random() - 0.5) * 0.7,
+      width: 2.6 + Math.random() * 1.4,
+      energy: 45 + Math.random() * 45,
+      hue: seed.hue,
+      curl: seed.curl,
+      petals: seed.petals,
+      generation: 0,
+      plant: seed.plant,
+    };
+  }
+
   function plant(x: number, y: number) {
     const hue = Math.random() * 360;
     const curl = (Math.random() - 0.5) * 0.06;
     const petals = 5 + Math.floor(Math.random() * 4);
     const stems = 1 + Math.floor(Math.random() * 2);
 
-    for (let i = 0; i < stems; i += 1) {
-      branches.push({
-        x,
-        y,
-        angle: -Math.PI / 2 + (Math.random() - 0.5) * 0.7,
-        width: 2.6 + Math.random() * 1.4,
-        energy: 45 + Math.random() * 45,
-        hue,
-        curl,
-        petals,
-        generation: 0,
-      });
-    }
+    plantId += 1;
+    origin = { x, y, hue, curl, petals, plant: plantId };
+    for (let i = 0; i < stems; i += 1) branches.push(sprout(origin));
 
     if (branches.length > MAX_BRANCHES) branches = branches.slice(-MAX_BRANCHES);
     seeded += 1;
@@ -144,7 +173,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
         grow();
         guard += 1;
       }
-      for (const flower of flowers) flower.open = 1;
+      for (const flower of flowers) {
+        flower.open = 1;
+        if (growthContext) drawFlower(growthContext, flower);
+      }
+      if (growthContext) flowers = [];
       render();
       return;
     }
@@ -215,28 +248,41 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (flowers.length > MAX_FLOWERS) flowers = flowers.slice(-MAX_FLOWERS);
   }
 
-  function drawFlower(flower: Flower) {
+  function drawFlower(target: CanvasRenderingContext2D, flower: Flower) {
     const scale = flower.size * flower.open;
     if (scale <= 0.2) return;
 
-    context.save();
-    context.translate(flower.x, flower.y);
-    context.rotate(flower.angle);
+    target.save();
+    target.translate(flower.x, flower.y);
+    target.rotate(flower.angle);
 
     for (let i = 0; i < flower.petals; i += 1) {
-      context.save();
-      context.rotate((i / flower.petals) * Math.PI * 2);
-      context.fillStyle = `hsl(${flower.hue} 72% ${64 + (i % 2) * 6}%)`;
-      context.beginPath();
-      context.ellipse(scale * 0.72, 0, scale * 0.72, scale * 0.34, 0, 0, Math.PI * 2);
-      context.fill();
-      context.restore();
+      target.save();
+      target.rotate((i / flower.petals) * Math.PI * 2);
+      target.fillStyle = `hsl(${flower.hue} 72% ${64 + (i % 2) * 6}%)`;
+      target.beginPath();
+      target.ellipse(scale * 0.72, 0, scale * 0.72, scale * 0.34, 0, 0, Math.PI * 2);
+      target.fill();
+      target.restore();
     }
 
-    context.fillStyle = `hsl(${(flower.hue + 42) % 360} 78% 62%)`;
+    target.fillStyle = `hsl(${(flower.hue + 42) % 360} 78% 62%)`;
+    target.beginPath();
+    target.arc(0, 0, scale * 0.34, 0, Math.PI * 2);
+    target.fill();
+    target.restore();
+  }
+
+  function drawTip(branch: Branch) {
+    // A soft dot marks a stem you walked away from, so you can find it again.
+    context.save();
     context.beginPath();
-    context.arc(0, 0, scale * 0.34, 0, Math.PI * 2);
+    context.arc(branch.x, branch.y, 4.5, 0, Math.PI * 2);
+    context.fillStyle = "rgba(255, 255, 255, 0.72)";
     context.fill();
+    context.lineWidth = 1.5;
+    context.strokeStyle = `hsl(${branch.hue} 62% 46%)`;
+    context.stroke();
     context.restore();
   }
 
@@ -248,7 +294,8 @@ import GameLayout from "../../layouts/GameLayout.astro";
       context.drawImage(growth, 0, 0);
       context.restore();
     }
-    for (const flower of flowers) drawFlower(flower);
+    for (const flower of flowers) drawFlower(context, flower);
+    for (const branch of dormant) drawTip(branch);
   }
 
   function frame() {
@@ -264,11 +311,37 @@ import GameLayout from "../../layouts/GameLayout.astro";
       opening = true;
     }
 
-    if (branches.length > 0) grow();
+    // Once a flower is fully open it gets baked into the growth layer, the same
+    // way stems are. Keeping them in the live list would eventually push older
+    // flowers past the cap and make them vanish from a garden you were building.
+    if (growthContext) {
+      const stillOpening: Flower[] = [];
+      for (const flower of flowers) {
+        if (flower.open >= 1) drawFlower(growthContext, flower);
+        else stillOpening.push(flower);
+      }
+      flowers = stillOpening;
+    }
+
+    // The whole point of the toy: stems only climb while you hold on.
+    const growing = holding || autoGrow;
+    if (growing) {
+      // Keep holding and the plant keeps putting out shoots, so a long press
+      // grows something far bushier than a quick tap. Auto-grown plants are
+      // left to finish on their own so the button always terminates.
+      if (holding && origin && branches.length < 14 && Math.random() < 0.09) {
+        branches.push(sprout(origin));
+      }
+      if (branches.length > 0) grow();
+    }
+    if (autoGrow && branches.length === 0) {
+      autoGrow = false;
+      setStatus();
+    }
     render();
 
-    if (branches.length === 0 && !opening) {
-      frameId = null; // garden is settled; stop burning frames
+    if (!growing && !opening) {
+      frameId = null; // nothing left to move; stop burning frames
       return;
     }
     frameId = requestAnimationFrame(frame);
@@ -285,23 +358,91 @@ import GameLayout from "../../layouts/GameLayout.astro";
     frameId = null;
   }
 
+  function releaseHold() {
+    if (!holding) return;
+    holding = false;
+    // Let go and the stem simply pauses. It is parked, not killed: press near
+    // the tip again and it carries on from where it stopped.
+    dormant.push(...branches);
+    branches = [];
+    origin = null;
+    render();
+    setStatus();
+  }
+
+  /** Picks up an abandoned plant if the press lands near one of its tips. */
+  function resumeNear(x: number, y: number): boolean {
+    let closest: Branch | null = null;
+    let closestDistance = Infinity;
+
+    for (const branch of dormant) {
+      const distance = Math.hypot(branch.x - x, branch.y - y);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = branch;
+      }
+    }
+
+    if (!closest || closestDistance > 48) return false;
+
+    const target = closest.plant;
+    const staying: Branch[] = [];
+    for (const branch of dormant) {
+      if (branch.plant === target) branches.push(branch);
+      else staying.push(branch);
+    }
+    dormant = staying;
+
+    // Re-root the shoot generator at the tip so a long hold still bushes out.
+    origin = {
+      x: closest.x,
+      y: closest.y,
+      hue: closest.hue,
+      curl: closest.curl,
+      petals: closest.petals,
+      plant: target,
+    };
+    start();
+    return true;
+  }
+
   canvas.addEventListener("pointerdown", (event) => {
     const rect = canvas.getBoundingClientRect();
-    plant(
-      ((event.clientX - rect.left) / rect.width) * width,
-      ((event.clientY - rect.top) / rect.height) * height
-    );
+    const x = ((event.clientX - rect.left) / rect.width) * width;
+    const y = ((event.clientY - rect.top) / rect.height) * height;
+
+    holding = true;
+    canvas.setPointerCapture(event.pointerId);
+    if (!resumeNear(x, y)) plant(x, y);
+    setStatus();
   });
 
+  canvas.addEventListener("pointerup", releaseHold);
+  canvas.addEventListener("pointercancel", releaseHold);
+  window.addEventListener("blur", releaseHold);
+
   seedButton.addEventListener("click", () => {
-    plant(width * (0.12 + Math.random() * 0.76), height * (0.72 + Math.random() * 0.24));
+    autoGrow = true;
+    const x = width * (0.12 + Math.random() * 0.76);
+    const y = height * (0.72 + Math.random() * 0.24);
+    plant(x, y);
+    // The button stands in for a held press, so give it a few extra shoots.
+    if (origin) {
+      for (let i = 0; i < 3; i += 1) branches.push(sprout(origin));
+    }
+    setStatus();
   });
 
   clearButton.addEventListener("click", () => {
+    holding = false;
+    autoGrow = false;
     branches = [];
+    dormant = [];
     flowers = [];
+    origin = null;
     growthContext?.clearRect(0, 0, width, height);
     render();
+    setStatus();
   });
 
   const resizeObserver = new ResizeObserver(resize);

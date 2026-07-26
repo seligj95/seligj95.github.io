@@ -1,0 +1,336 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="memory" ratio="auto">
+  <span slot="status" id="memory-status" aria-live="polite">0 moves</span>
+
+  <div id="memory-board" class="board" role="grid" aria-label="Memory board" aria-describedby="game-instructions"></div>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="memory-size-label">Board</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="memory-size-label">
+        <button type="button" role="radio" aria-checked="true" data-size="6">6 pairs</button>
+        <button type="button" role="radio" aria-checked="false" data-size="8">8 pairs</button>
+        <button type="button" role="radio" aria-checked="false" data-size="12">12 pairs</button>
+      </div>
+    </div>
+
+    <div class="control-set">
+      <button id="memory-new" type="button">New game</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      The classic: every picture appears twice, and a pair only stays up if you find
+      both halves in the same turn. A mismatch flips back after a beat, which is just
+      long enough to regret not paying attention.
+    </p>
+    <p>
+      Your best score for each board size is kept in this browser. Beat it and it
+      quietly updates &mdash; nothing is sent anywhere.
+    </p>
+  </div>
+</GameLayout>
+
+<!-- Cards are built in JS, so they never get the scoped-style hash: these have to be global. -->
+<style is:global>
+  #memory-board {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 4), 1fr);
+    gap: clamp(0.4rem, 1.4vw, 0.7rem);
+    padding: clamp(0.6rem, 2vw, 1.1rem);
+    width: 100%;
+    max-width: calc(var(--cols, 4) * 8.5rem);
+    margin-inline: auto;
+  }
+
+  #memory-board .card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    perspective: 700px;
+    border-radius: 0.5rem;
+  }
+
+  #memory-board .card:disabled {
+    cursor: default;
+  }
+
+  #memory-board .card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  #memory-board .face {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    backface-visibility: hidden;
+    transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #memory-board .face-down {
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, var(--accent) 30%, transparent) 0 21%,
+      transparent 21%
+    );
+    transform: rotateY(0deg);
+  }
+
+  #memory-board .face-up {
+    background: var(--surface);
+    font-size: clamp(1.5rem, 5vw, 2.4rem);
+    line-height: 1;
+    transform: rotateY(180deg);
+  }
+
+  #memory-board .card[data-state="up"] .face-down,
+  #memory-board .card[data-state="matched"] .face-down {
+    transform: rotateY(-180deg);
+  }
+
+  #memory-board .card[data-state="up"] .face-up,
+  #memory-board .card[data-state="matched"] .face-up {
+    transform: rotateY(0deg);
+  }
+
+  #memory-board .card[data-state="matched"] .face-up {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  }
+
+  #memory-board .card[data-state="matched"] {
+    animation: memory-settle 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes memory-settle {
+    50% {
+      transform: scale(1.06);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #memory-board .face {
+      transition: none;
+    }
+
+    #memory-board .card[data-state="matched"] {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  interface Card {
+    id: number;
+    symbol: string;
+    name: string;
+    state: "down" | "up" | "matched";
+  }
+
+  const DECK = [
+    { symbol: "\u{1F41F}", name: "fish" },
+    { symbol: "\u{1F338}", name: "blossom" },
+    { symbol: "\u{1F344}", name: "mushroom" },
+    { symbol: "\u{1F319}", name: "moon" },
+    { symbol: "\u2B50", name: "star" },
+    { symbol: "\u{1F30A}", name: "wave" },
+    { symbol: "\u{1F98B}", name: "butterfly" },
+    { symbol: "\u{1F40C}", name: "snail" },
+    { symbol: "\u{1F341}", name: "maple leaf" },
+    { symbol: "\u{1F525}", name: "flame" },
+    { symbol: "\u{1F335}", name: "cactus" },
+    { symbol: "\u{1F419}", name: "octopus" },
+  ];
+
+  const COLUMNS: Record<number, number> = { 6: 4, 8: 4, 12: 6 };
+  const FLIP_BACK_MS = 900;
+
+  const board = document.getElementById("memory-board") as HTMLDivElement;
+  const status = document.getElementById("memory-status") as HTMLSpanElement;
+  const newButton = document.getElementById("memory-new") as HTMLButtonElement;
+  const sizeButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-size]")
+  );
+
+  let pairs = 6;
+  let cards: Card[] = [];
+  let picked: number[] = [];
+  let moves = 0;
+  let matched = 0;
+  let locked = false;
+  let flipTimer: number | null = null;
+
+  const bestKey = () => `memory-best-${pairs}`;
+
+  function readBest(): number | null {
+    const raw = Number.parseInt(localStorage.getItem(bestKey()) ?? "", 10);
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  function setStatus(message?: string) {
+    if (message) {
+      status.textContent = message;
+      return;
+    }
+    const best = readBest();
+    const label = `${moves} ${moves === 1 ? "move" : "moves"}`;
+    status.textContent = best === null ? label : `${label} · best ${best}`;
+  }
+
+  function shuffle<T>(items: T[]): T[] {
+    const copy = items.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function label(card: Card): string {
+    if (card.state === "matched") return `${card.name}, matched`;
+    if (card.state === "up") return card.name;
+    return "Face down card";
+  }
+
+  function render() {
+    board.style.setProperty("--cols", String(COLUMNS[pairs] ?? 4));
+    board.replaceChildren();
+
+    for (const card of cards) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "card";
+      button.dataset.state = card.state;
+      button.dataset.index = String(cards.indexOf(card));
+      button.setAttribute("aria-label", label(card));
+      button.disabled = card.state === "matched";
+
+      const down = document.createElement("span");
+      down.className = "face face-down";
+      down.setAttribute("aria-hidden", "true");
+
+      const up = document.createElement("span");
+      up.className = "face face-up";
+      up.setAttribute("aria-hidden", "true");
+      up.textContent = card.symbol;
+
+      button.append(down, up);
+      board.append(button);
+    }
+  }
+
+  function paint(index: number) {
+    const card = cards[index];
+    const button = board.children[index] as HTMLButtonElement | undefined;
+    if (!button) return;
+    button.dataset.state = card.state;
+    button.setAttribute("aria-label", label(card));
+    button.disabled = card.state === "matched";
+  }
+
+  function deal() {
+    if (flipTimer !== null) {
+      clearTimeout(flipTimer);
+      flipTimer = null;
+    }
+
+    const chosen = shuffle(DECK).slice(0, pairs);
+    cards = shuffle(
+      chosen.flatMap((entry, index) => [
+        { id: index, symbol: entry.symbol, name: entry.name, state: "down" as const },
+        { id: index, symbol: entry.symbol, name: entry.name, state: "down" as const },
+      ])
+    );
+
+    picked = [];
+    moves = 0;
+    matched = 0;
+    locked = false;
+    render();
+    setStatus();
+  }
+
+  function win() {
+    const best = readBest();
+    if (best === null || moves < best) {
+      localStorage.setItem(bestKey(), String(moves));
+      setStatus(`Solved in ${moves} moves — new best!`);
+      return;
+    }
+    setStatus(`Solved in ${moves} moves · best ${best}`);
+  }
+
+  function choose(index: number) {
+    const card = cards[index];
+    if (locked || !card || card.state !== "down") return;
+
+    card.state = "up";
+    paint(index);
+    picked.push(index);
+
+    if (picked.length < 2) return;
+
+    moves += 1;
+    const [first, second] = picked;
+
+    if (cards[first].id === cards[second].id) {
+      cards[first].state = "matched";
+      cards[second].state = "matched";
+      paint(first);
+      paint(second);
+      picked = [];
+      matched += 1;
+      if (matched === pairs) {
+        win();
+        return;
+      }
+      setStatus();
+      return;
+    }
+
+    // Leave the mismatch visible just long enough to memorise it.
+    locked = true;
+    setStatus();
+    flipTimer = window.setTimeout(() => {
+      for (const at of picked) {
+        cards[at].state = "down";
+        paint(at);
+      }
+      picked = [];
+      locked = false;
+      flipTimer = null;
+    }, FLIP_BACK_MS);
+  }
+
+  board.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".card");
+    if (!button?.dataset.index) return;
+    choose(Number.parseInt(button.dataset.index, 10));
+  });
+
+  for (const button of sizeButtons) {
+    button.addEventListener("click", () => {
+      pairs = Number.parseInt(button.dataset.size ?? "6", 10);
+      for (const other of sizeButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      deal();
+    });
+  }
+
+  newButton.addEventListener("click", deal);
+
+  deal();
+</script>
