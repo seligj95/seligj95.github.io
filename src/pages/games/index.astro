@@ -265,6 +265,20 @@ const toys = games.filter((game) => game.tag === "zen");
     border-color: transparent;
   }
 
+  /*
+   * The geocities palette makes accent pure red and surface pure blue, so the
+   * koi tile came out maroon beside four blue ones and the marks vibrated on
+   * top of them. Same loudness, one coherent shelf.
+   */
+  :global([data-theme="geocities"]) .shelf li:first-child a {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  :global([data-theme="geocities"]) .shelf .mark {
+    color: var(--border);
+  }
+
   @media (min-width: 48rem) {
     .shelf li:first-child {
       grid-column: span 2;
