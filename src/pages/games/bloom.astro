@@ -36,7 +36,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
     width: 100%;
     height: 100%;
     cursor: crosshair;
-    touch-action: manipulation;
+    /* A press-and-hold on a phone is the browser's "select text" gesture, and
+       `manipulation` doesn't stop it; `none` also keeps a slight finger drift
+       from turning the hold into a page scroll. */
+    touch-action: none;
     background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--accent) 8%, var(--surface)),
@@ -407,6 +410,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   canvas.addEventListener("pointerdown", (event) => {
+    // Stops the long-press selection/callout that Safari and Chrome start on
+    // touch, which otherwise steals the hold half a second in.
+    event.preventDefault();
+
     const rect = canvas.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * width;
     const y = ((event.clientY - rect.top) / rect.height) * height;

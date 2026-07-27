@@ -35,6 +35,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
     </div>
 
     <div class="control-set">
+      <button id="queens-hint" type="button">Hint</button>
+      <button id="queens-undo" type="button" disabled>Undo</button>
+    </div>
+
+    <div class="control-set">
       <button id="queens-new" type="button">New puzzle</button>
       <button id="queens-clear" type="button">Clear</button>
     </div>
@@ -50,6 +55,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
     <p>
       Every board is generated in your browser and checked to make sure it has
       exactly one solution, so there is always a way through without guessing.
+    </p>
+    <p>
+      Undo walks back one move at a time. Hint takes back a crown that can&rsquo;t
+      be right, or, if everything on the board holds up, places the next correct
+      one with a ring around it.
     </p>
   </div>
 </GameLayout>
@@ -219,6 +229,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
     color: #fbbf24;
   }
 
+  /* A crown you were given rather than worked out. */
+  #queens-board .cell[data-hint="true"] {
+    box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--text) 40%, transparent);
+  }
+
   #queens-board .cell:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: -3px;
@@ -271,12 +286,16 @@ import GameLayout from "../../layouts/GameLayout.astro";
     size: number;
     /** Region index per cell, row-major. */
     regions: number[];
+    /** The one legal arrangement, as a column index per row. */
+    solution: number[];
   }
 
   const board = document.getElementById("queens-board") as HTMLDivElement;
   const status = document.getElementById("queens-status") as HTMLSpanElement;
   const newButton = document.getElementById("queens-new") as HTMLButtonElement;
   const clearButton = document.getElementById("queens-clear") as HTMLButtonElement;
+  const hintButton = document.getElementById("queens-hint") as HTMLButtonElement;
+  const undoButton = document.getElementById("queens-undo") as HTMLButtonElement;
   const win = document.getElementById("queens-win") as HTMLDivElement;
   const winNote = document.getElementById("queens-win-note") as HTMLParagraphElement;
   const nextButton = document.getElementById("queens-next") as HTMLButtonElement;
@@ -299,6 +318,13 @@ import GameLayout from "../../layouts/GameLayout.astro";
   let size = 8;
   let regions: number[] = [];
   let cells: CellState[] = [];
+  /** The board's one legal answer, kept so Hint has something to be sure about. */
+  let solution: number[] = [];
+  /** Board snapshots, oldest first, so Undo can walk back a move at a time. */
+  let history: CellState[][] = [];
+  /** Crowns that came from a hint rather than from you. */
+  const hinted = new Set<number>();
+  let hintsUsed = 0;
   /** What each square currently shows, so paint only rebuilds what changed. */
   let rendered: CellState[] = [];
   let solved = false;
@@ -532,16 +558,19 @@ import GameLayout from "../../layouts/GameLayout.astro";
       if (!refine(n, owner, solution)) continue;
 
       // Guaranteed single-solution from here; the rest is just shape taste.
-      if (!loose) loose = { size: n, regions: owner };
+      if (!loose) loose = { size: n, regions: owner, solution };
 
       const sizes = new Array<number>(n).fill(0);
       for (const region of owner) sizes[region] += 1;
       if (Math.min(...sizes) < 2) continue;
       if (Math.max(...sizes) > Math.ceil(n * 2.8)) continue;
-      return { size: n, regions: owner };
+      return { size: n, regions: owner, solution };
     }
 
-    return loose ?? { size: n, regions: growRegions(n, randomSolution(n) ?? [...Array(n).keys()]) };
+    if (loose) return loose;
+
+    const fallback = randomSolution(n) ?? [...Array(n).keys()];
+    return { size: n, regions: growRegions(n, fallback), solution: fallback };
   }
 
   function describe(index: number): string {
@@ -613,6 +642,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
       if (isBad) button.dataset.conflict = "true";
       else delete button.dataset.conflict;
 
+      if (state === "queen" && hinted.has(index)) button.dataset.hint = "true";
+      else delete button.dataset.hint;
+
       // Only touch the DOM when the square actually changed, otherwise every
       // repaint would restart the crown drop on squares that never moved.
       if (rendered[index] !== state) {
@@ -625,23 +657,89 @@ import GameLayout from "../../layouts/GameLayout.astro";
     const placed = cells.filter((state) => state === "queen").length;
     if (placed === size && bad.size === 0) {
       solved = true;
+      hintButton.disabled = true;
       setStatus("Solved. Every crown in the right place.");
-      winNote.textContent = `One crown in every row, column and colour on the ${size}\u00d7${size} board.`;
+      winNote.textContent = hintsUsed
+        ? `Solved the ${size}\u00d7${size} board with ${hintsUsed} hint${hintsUsed === 1 ? "" : "s"}.`
+        : `One crown in every row, column and colour on the ${size}\u00d7${size} board.`;
       win.hidden = false;
       nextButton.focus();
       return;
     }
 
     solved = false;
+    hintButton.disabled = false;
     win.hidden = true;
     setStatus();
+  }
+
+  /**
+   * Undo works off whole-board snapshots rather than a move log: a drag can
+   * touch a dozen squares, and one press should take all of them back.
+   */
+  function remember() {
+    history.push([...cells]);
+    if (history.length > 150) history.shift();
+    undoButton.disabled = false;
+  }
+
+  function undo() {
+    const previous = history.pop();
+    if (!previous) return;
+    cells = previous;
+    undoButton.disabled = history.length === 0;
+    paint();
+  }
+
+  /**
+   * The generator already knows the one legal answer, so a hint is free: no
+   * server, no solver at press time. It corrects before it gives, which is the
+   * more useful order — a wrong crown makes the rest of the board unsolvable.
+   */
+  function hint() {
+    if (solved) return;
+
+    const wanted = solution.map((column, row) => row * size + column);
+    const wrong = cells.findIndex(
+      (state, index) => state === "queen" && !wanted.includes(index)
+    );
+
+    remember();
+    hintsUsed += 1;
+
+    if (wrong >= 0) {
+      cells[wrong] = "empty";
+      hinted.delete(wrong);
+      paint();
+      setStatus(`No crown can sit in row ${Math.floor(wrong / size) + 1}, column ${(wrong % size) + 1}. Taken back.`);
+      return;
+    }
+
+    const missing = wanted.filter((index) => cells[index] !== "queen");
+    if (!missing.length) {
+      paint();
+      return;
+    }
+
+    const pick = missing[Math.floor(Math.random() * missing.length)];
+    cells[pick] = "queen";
+    hinted.add(pick);
+    paint();
+    if (!solved) {
+      setStatus(`Crown placed in row ${Math.floor(pick / size) + 1}, column ${(pick % size) + 1}.`);
+    }
   }
 
   function build() {
     const puzzle = generate(size);
     regions = puzzle.regions;
+    solution = puzzle.solution;
     cells = new Array(size * size).fill("empty");
     rendered = new Array(size * size).fill("empty");
+    history = [];
+    hinted.clear();
+    hintsUsed = 0;
+    undoButton.disabled = true;
     solved = false;
     win.hidden = true;
 
@@ -742,6 +840,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (!dragging) {
       if (index === startIndex) return; // still on the square you pressed
       dragging = true;
+      remember();
       applyPaint(startIndex);
     }
 
@@ -774,15 +873,22 @@ import GameLayout from "../../layouts/GameLayout.astro";
       mark: "queen",
       queen: "empty",
     };
+    remember();
+    hinted.delete(index);
     cells[index] = next[cells[index]];
     paint();
   });
 
   clearButton.addEventListener("click", () => {
+    if (cells.some((state) => state !== "empty")) remember();
     cells = cells.map(() => "empty");
+    hinted.clear();
     solved = false;
     paint();
   });
+
+  hintButton.addEventListener("click", hint);
+  undoButton.addEventListener("click", undo);
 
   newButton.addEventListener("click", build);
   nextButton.addEventListener("click", build);

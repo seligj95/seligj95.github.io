@@ -126,6 +126,12 @@ const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     background: var(--surface);
+    /* Nothing in a play area is text you'd want to copy, and on phones a
+       press-and-hold otherwise trips the browser's select-and-highlight
+       gesture in the middle of a game. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .game-controls:empty,
@@ -235,6 +241,14 @@ const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
   .game-controls .swatch:hover {
     color: var(--text);
     border-color: var(--accent);
+  }
+
+  .game-controls button:disabled,
+  .game-controls button:disabled:hover {
+    opacity: 0.45;
+    cursor: not-allowed;
+    color: var(--text-muted);
+    border-color: var(--border);
   }
 
   .game-controls .control-group button:hover {
