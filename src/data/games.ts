@@ -68,7 +68,7 @@ export const games: Game[] = [
   {
     slug: "queens",
     title: "Queens",
-    tagline: "One crown per row, column, and colour.",
+    tagline: "One crown per row, column, and color.",
     blurb: "A logic puzzle with a fresh board every time, generated and checked for a single solution in your browser.",
     tag: "puzzle",
     instructions: "Tap once to cross a square out, twice to place a crown. Drag to cross out a run. Crowns can't touch, even diagonally.",
