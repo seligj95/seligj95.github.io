@@ -38,7 +38,7 @@ describe("Build output", () => {
     }
   });
 
-  it("keeps every game stage labelled and paired with instructions", () => {
+  it("keeps every game stage labeled and paired with instructions", () => {
     for (const slug of gameSlugs) {
       const html = readFileSync(join(dist, "games", slug, "index.html"), "utf8");
       // Canvas games label the canvas; DOM-built boards label their container.
