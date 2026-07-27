@@ -57,9 +57,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
       exactly one solution, so there is always a way through without guessing.
     </p>
     <p>
-      Undo walks back one move at a time. Hint takes back a crown that can&rsquo;t
-      be right, or, if everything on the board holds up, places the next correct
-      one with a ring around it.
+      Stuck? Hint spotlights the row, column or colour where something can still
+      be worked out and tells you what holds there &mdash; press it a second time
+      and it plays that move for you. Undo walks back a move at a time, and a
+      whole drag counts as one.
     </p>
   </div>
 </GameLayout>
@@ -229,6 +230,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
     color: #fbbf24;
   }
 
+  /* Spotlight: while a hint is up, everything it isn't talking about recedes. */
+  #queens-board .cell[data-dim="true"] {
+    filter: saturate(0.25) opacity(0.55);
+  }
+
   /* A crown you were given rather than worked out. */
   #queens-board .cell[data-hint="true"] {
     box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--text) 40%, transparent);
@@ -324,6 +330,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
   let history: CellState[][] = [];
   /** Crowns that came from a hint rather than from you. */
   const hinted = new Set<number>();
+  /** Squares the current hint is spotlighting. */
+  const focus = new Set<number>();
+  /** The advice showing right now, so pressing hint twice plays it. */
+  let lastHint = "";
   let hintsUsed = 0;
   /** What each square currently shows, so paint only rebuilds what changed. */
   let rendered: CellState[] = [];
@@ -645,6 +655,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
       if (state === "queen" && hinted.has(index)) button.dataset.hint = "true";
       else delete button.dataset.hint;
 
+      // Spotlight: the squares a hint is talking about stay lit, the rest dim.
+      if (focus.size && !focus.has(index)) button.dataset.dim = "true";
+      else delete button.dataset.dim;
+
       // Only touch the DOM when the square actually changed, otherwise every
       // repaint would restart the crown drop on squares that never moved.
       if (rendered[index] !== state) {
@@ -688,46 +702,382 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (!previous) return;
     cells = previous;
     undoButton.disabled = history.length === 0;
+    moveOn();
     paint();
   }
 
+  /** Any move of your own retires the advice currently on screen. */
+  function moveOn() {
+    focus.clear();
+    lastHint = "";
+  }
+
   /**
-   * The generator already knows the one legal answer, so a hint is free: no
-   * server, no solver at press time. It corrects before it gives, which is the
-   * more useful order — a wrong crown makes the rest of the board unsolvable.
+   * A hint should teach the move, not make it. Everything below looks for a
+   * step you could have found yourself, spotlights the row, column or colour it
+   * lives in, and says what holds there. Press again and it plays that step.
+   */
+  interface Deduction {
+    /** Identity of this step, so a second press knows it's the same advice. */
+    key: string;
+    /** Squares to spotlight. Whole units, never the answer square alone. */
+    focus: number[];
+    message: string;
+    /** Plays the step; returns what to say afterwards. */
+    act: () => string;
+  }
+
+  /**
+   * Squares that could still hold a crown, going by the crowns on the board and
+   * by your own crossings-out. Trusting your X marks is what lets one hint build
+   * on the last one, and the wrong-mark check in hint() is what makes trusting
+   * them safe.
+   */
+  function openSquares(): number[] {
+    const queens: number[] = [];
+    cells.forEach((state, index) => {
+      if (state === "queen") queens.push(index);
+    });
+
+    const rowsTaken = new Set(queens.map((index) => Math.floor(index / size)));
+    const columnsTaken = new Set(queens.map((index) => index % size));
+    const regionsTaken = new Set(queens.map((index) => regions[index]));
+    const open: number[] = [];
+
+    for (let index = 0; index < cells.length; index += 1) {
+      if (cells[index] !== "empty") continue;
+      const row = Math.floor(index / size);
+      const column = index % size;
+      if (rowsTaken.has(row) || columnsTaken.has(column)) continue;
+      if (regionsTaken.has(regions[index])) continue;
+      const touches = queens.some(
+        (queen) =>
+          Math.abs(Math.floor(queen / size) - row) <= 1 &&
+          Math.abs((queen % size) - column) <= 1
+      );
+      if (touches) continue;
+      open.push(index);
+    }
+
+    return open;
+  }
+
+  function group(open: number[], of: (index: number) => number): Map<number, number[]> {
+    const map = new Map<number, number[]>();
+    for (const index of open) {
+      const key = of(index);
+      const bucket = map.get(key);
+      if (bucket) bucket.push(index);
+      else map.set(key, [index]);
+    }
+    return map;
+  }
+
+  function placeStep(index: number, unit: string, focus: number[]): Deduction {
+    return {
+      key: `place:${index}`,
+      focus,
+      message: `Only one square in ${unit} can still take a crown.`,
+      act: () => {
+        cells[index] = "queen";
+        hinted.add(index);
+        return `Crown placed in row ${Math.floor(index / size) + 1}, column ${(index % size) + 1}.`;
+      },
+    };
+  }
+
+  function crossStep(victims: number[], reason: string, focus: number[]): Deduction {
+    return {
+      key: `cross:${victims.join(",")}`,
+      focus,
+      message: reason,
+      act: () => {
+        for (const index of victims) cells[index] = "mark";
+        return `${victims.length} square${victims.length === 1 ? "" : "s"} crossed out.`;
+      },
+    };
+  }
+
+  interface Axis {
+    key: (index: number) => number;
+    /** "This colour" / "Row 4" — the thing doing the deducing. */
+    subject: (id: number) => string;
+    /** "one colour" / "row 4" — the thing it is pinned to. */
+    object: (id: number) => string;
+    /** "that colour" / "row 4" — the same thing referred to again. */
+    rest: (id: number) => string;
+    plural: string;
+  }
+
+  const AXES: Record<string, Axis> = {
+    colour: {
+      key: (index) => regions[index],
+      subject: () => "This colour",
+      object: () => "one colour",
+      rest: () => "that colour",
+      plural: "colours",
+    },
+    row: {
+      key: (index) => Math.floor(index / size),
+      subject: (id) => `Row ${id + 1}`,
+      object: (id) => `row ${id + 1}`,
+      rest: (id) => `row ${id + 1}`,
+      plural: "rows",
+    },
+    column: {
+      key: (index) => index % size,
+      subject: (id) => `Column ${id + 1}`,
+      object: (id) => `column ${id + 1}`,
+      rest: (id) => `column ${id + 1}`,
+      plural: "columns",
+    },
+  };
+
+  const AXIS_PAIRS: [string, string][] = [
+    ["colour", "row"],
+    ["colour", "column"],
+    ["row", "colour"],
+    ["column", "colour"],
+    ["row", "column"],
+    ["column", "row"],
+  ];
+
+  const COUNT_WORDS = ["", "one", "Two", "Three"];
+
+  function combinations(ids: number[], k: number): number[][] {
+    if (k === 1) return ids.map((id) => [id]);
+    const out: number[][] = [];
+    const walk = (start: number, picked: number[]) => {
+      if (picked.length === k) {
+        out.push([...picked]);
+        return;
+      }
+      for (let i = start; i < ids.length; i += 1) {
+        picked.push(ids[i]);
+        walk(i + 1, picked);
+        picked.pop();
+      }
+    };
+    walk(0, []);
+    return out;
+  }
+
+  /**
+   * Pigeonhole: if k units of one kind can only reach k units of another, they
+   * own those between them, so every other square there is out.
+   */
+  function lockedSet(open: number[], a: Axis, b: Axis, k: number): Deduction | null {
+    const buckets = group(open, a.key);
+    const ids = [...buckets.keys()];
+    if (ids.length < k) return null;
+
+    for (const combo of combinations(ids, k)) {
+      const reach = new Set<number>();
+      for (const id of combo) {
+        for (const index of buckets.get(id) ?? []) reach.add(b.key(index));
+      }
+      if (reach.size !== k) continue;
+
+      const victims = open.filter(
+        (index) => reach.has(b.key(index)) && !combo.includes(a.key(index))
+      );
+      if (!victims.length) continue;
+
+      const target = [...reach];
+      const message =
+        k === 1
+          ? `${a.subject(combo[0])} can only put its crown in ${b.object(target[0])}, so the rest of ${b.rest(target[0])} is out.`
+          : `${COUNT_WORDS[k]} ${a.plural} only fit in ${COUNT_WORDS[k].toLowerCase()} ${b.plural} between them, so everything else in those ${b.plural} is out.`;
+
+      const focus = cells
+        .map((_, index) => index)
+        .filter((index) => combo.includes(a.key(index)) || reach.has(b.key(index)));
+
+      return crossStep(victims, message, focus);
+    }
+
+    return null;
+  }
+
+  /**
+   * If every square a unit has left would attack some square, that square is
+   * out: crowning it would leave the unit nowhere to go. This is the rule that
+   * reads the touching constraint, which nothing else here does.
+   */
+  function findCrossfire(open: number[]): Deduction | null {
+    const attacks = (a: number, b: number) => {
+      if (a === b) return true;
+      const rowA = Math.floor(a / size);
+      const rowB = Math.floor(b / size);
+      const columnA = a % size;
+      const columnB = b % size;
+      if (rowA === rowB || columnA === columnB) return true;
+      if (regions[a] === regions[b]) return true;
+      return Math.abs(rowA - rowB) <= 1 && Math.abs(columnA - columnB) <= 1;
+    };
+
+    for (const [name, axis] of Object.entries(AXES)) {
+      const buckets = group(open, axis.key);
+      for (const [id, spots] of buckets) {
+        if (spots.length < 2) continue;
+        const victims = open.filter(
+          (index) => axis.key(index) !== id && spots.every((spot) => attacks(spot, index))
+        );
+        if (!victims.length) continue;
+        const focus = cells
+          .map((_, index) => index)
+          .filter((index) => axis.key(index) === id || victims.includes(index));
+        const subject = name === "colour" ? "this colour" : axis.object(id).toLowerCase();
+        return crossStep(
+          victims,
+          victims.length === 1
+            ? `Every square ${subject} has left attacks the other square lit here, so it can't hold a crown.`
+            : `Every square ${subject} has left attacks the other squares lit here, so none of them can hold a crown.`,
+          focus
+        );
+      }
+    }
+
+    return null;
+  }
+
+  function findDeduction(): Deduction | null {
+    const open = openSquares();
+    const rows = group(open, (index) => Math.floor(index / size));
+    const columns = group(open, (index) => index % size);
+    const colours = group(open, (index) => regions[index]);
+    const cellsOf = (test: (index: number) => boolean) =>
+      cells.map((_, index) => index).filter(test);
+
+    // The nicest step first: a unit with one square left in it.
+    for (const [colour, open1] of colours) {
+      if (open1.length !== 1) continue;
+      return placeStep(open1[0], "this colour", cellsOf((index) => regions[index] === colour));
+    }
+    for (const [row, open1] of rows) {
+      if (open1.length !== 1) continue;
+      return placeStep(open1[0], `row ${row + 1}`, cellsOf((index) => Math.floor(index / size) === row));
+    }
+    for (const [column, open1] of columns) {
+      if (open1.length !== 1) continue;
+      return placeStep(open1[0], `column ${column + 1}`, cellsOf((index) => index % size === column));
+    }
+
+    // Then the squeeze. If k units between them can only reach k lines, those
+    // lines are spoken for and everything else in them is out. k = 1 is the
+    // everyday "this colour only fits in row 4"; k = 2 and 3 are the pigeonhole
+    // steps that carry a board when nothing simpler is left.
+    for (let k = 1; k <= 3; k += 1) {
+      for (const [a, b] of AXIS_PAIRS) {
+        const step = lockedSet(open, AXES[a], AXES[b], k);
+        if (step) return step;
+      }
+    }
+
+    // Last: the crossfire. If every square a unit has left would attack some
+    // square, that square can't hold a crown — the unit would have nowhere
+    // left to go. This is the one that reads the touching rule.
+    const crossfire = findCrossfire(open);
+    if (crossfire) return crossfire;
+
+    return null;
+  }
+
+  /**
+   * Something on the board contradicts the one legal answer. Corrections come
+   * before advice, because a wrong crown or a wrongly crossed-out square makes
+   * every deduction after it nonsense — and it's what lets the rest of the
+   * engine take your X marks at their word.
+   */
+  function findCorrection(): Deduction | null {
+    const wanted = solution.map((column, row) => row * size + column);
+    const rowOf = (index: number) => Math.floor(index / size) + 1;
+    const columnOf = (index: number) => (index % size) + 1;
+
+    const crown = cells.findIndex(
+      (state, index) => state === "queen" && !wanted.includes(index)
+    );
+    if (crown >= 0) {
+      return {
+        key: `uncrown:${crown}`,
+        focus: [crown],
+        message: "This crown can't be part of the answer.",
+        act: () => {
+          cells[crown] = "empty";
+          hinted.delete(crown);
+          return `Crown in row ${rowOf(crown)}, column ${columnOf(crown)} taken back.`;
+        },
+      };
+    }
+
+    const mark = cells.findIndex(
+      (state, index) => state === "mark" && wanted.includes(index)
+    );
+    if (mark >= 0) {
+      const row = Math.floor(mark / size);
+      return {
+        key: `uncross:${mark}`,
+        focus: cells.map((_, index) => index).filter((index) => Math.floor(index / size) === row),
+        message: `Row ${row + 1} has a square crossed out that has to hold a crown.`,
+        act: () => {
+          cells[mark] = "empty";
+          return `Cross taken off row ${rowOf(mark)}, column ${columnOf(mark)}.`;
+        },
+      };
+    }
+
+    return null;
+  }
+
+  /** When nothing follows from the board, fall back to the answer sheet. */
+  function findGift(): Deduction | null {
+    const missing = solution
+      .map((column, row) => row * size + column)
+      .filter((index) => cells[index] !== "queen");
+    if (!missing.length) return null;
+
+    const pick = missing[Math.floor(Math.random() * missing.length)];
+    return {
+      key: "gift",
+      focus: [],
+      message: "Nothing follows from the board on its own.",
+      act: () => {
+        cells[pick] = "queen";
+        hinted.add(pick);
+        return `Crown placed in row ${Math.floor(pick / size) + 1}, column ${(pick % size) + 1}.`;
+      },
+    };
+  }
+
+  /**
+   * One press points at the step and says what holds there; a second press on
+   * the same advice plays it. Pointing is the whole idea — the board should
+   * still be yours to solve.
    */
   function hint() {
     if (solved) return;
 
-    const wanted = solution.map((column, row) => row * size + column);
-    const wrong = cells.findIndex(
-      (state, index) => state === "queen" && !wanted.includes(index)
-    );
+    focus.clear();
+    const step = findCorrection() ?? findDeduction() ?? findGift();
+    if (!step) {
+      paint();
+      return;
+    }
+
+    if (lastHint !== step.key) {
+      lastHint = step.key;
+      for (const index of step.focus) focus.add(index);
+      paint();
+      setStatus(`${step.message} Press hint again to play it.`);
+      return;
+    }
 
     remember();
     hintsUsed += 1;
-
-    if (wrong >= 0) {
-      cells[wrong] = "empty";
-      hinted.delete(wrong);
-      paint();
-      setStatus(`No crown can sit in row ${Math.floor(wrong / size) + 1}, column ${(wrong % size) + 1}. Taken back.`);
-      return;
-    }
-
-    const missing = wanted.filter((index) => cells[index] !== "queen");
-    if (!missing.length) {
-      paint();
-      return;
-    }
-
-    const pick = missing[Math.floor(Math.random() * missing.length)];
-    cells[pick] = "queen";
-    hinted.add(pick);
+    lastHint = "";
+    const said = step.act();
     paint();
-    if (!solved) {
-      setStatus(`Crown placed in row ${Math.floor(pick / size) + 1}, column ${(pick % size) + 1}.`);
-    }
+    if (!solved) setStatus(said);
   }
 
   function build() {
@@ -738,6 +1088,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     rendered = new Array(size * size).fill("empty");
     history = [];
     hinted.clear();
+    moveOn();
     hintsUsed = 0;
     undoButton.disabled = true;
     solved = false;
@@ -841,6 +1192,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
       if (index === startIndex) return; // still on the square you pressed
       dragging = true;
       remember();
+      moveOn();
       applyPaint(startIndex);
     }
 
@@ -876,6 +1228,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     remember();
     hinted.delete(index);
     cells[index] = next[cells[index]];
+    moveOn();
     paint();
   });
 
@@ -883,6 +1236,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (cells.some((state) => state !== "empty")) remember();
     cells = cells.map(() => "empty");
     hinted.clear();
+    moveOn();
     solved = false;
     paint();
   });
