@@ -38,6 +38,21 @@ describe("Build output", () => {
     }
   });
 
+  it("gives every registry tag a section on the games index", () => {
+    const index = readFileSync(join(dist, "games", "index.html"), "utf8");
+    const headings = new Map([
+      ["puzzle", "Puzzles"],
+      ["arcade", "Arcade"],
+      ["zen", "Zen toys"],
+    ]);
+
+    for (const [tag, heading] of headings) {
+      const tagged = games.filter((game) => game.tag === tag);
+      expect(tagged.length, `no games tagged ${tag}`).toBeGreaterThan(0);
+      expect(index).toContain(heading);
+    }
+  });
+
   it("keeps every game stage labeled and paired with instructions", () => {
     for (const slug of gameSlugs) {
       const html = readFileSync(join(dist, "games", slug, "index.html"), "utf8");
