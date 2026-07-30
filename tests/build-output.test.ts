@@ -2,9 +2,49 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { games } from "../src/data/games";
+import { dailies, dailySlugs } from "../src/data/dailies";
 
 const dist = join(process.cwd(), "dist");
 const gameSlugs = games.map((game) => game.slug);
+
+/**
+ * Every stylesheet a page actually applies. Astro inlines small ones and links
+ * the rest, so a rule you are looking for may be in either place.
+ */
+function cssFor(page: string): string {
+  const inline = [...page.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((match) => match[1]!);
+  const linked = [...page.matchAll(/<link[^>]+href="(\/_astro\/[^"]+\.css)"/g)].map((match) =>
+    readFileSync(join(dist, match[1]!), "utf8")
+  );
+  return [...inline, ...linked].join("\n");
+}
+
+/**
+ * Every script a page actually runs, chunks included. A page script is bundled
+ * out to /_astro/ and its shared imports to further chunks, so anything worth
+ * asserting on tends to sit an import or two away from the page itself.
+ */
+function scriptsFor(page: string): string {
+  const queue = [...page.matchAll(/<script[^>]+src="([^"]+)"/g)]
+    .map((match) => match[1]!)
+    .filter((src) => src.startsWith("/_astro/"));
+  const seen = new Set<string>();
+  const code: string[] = [];
+
+  while (queue.length) {
+    const src = queue.shift()!;
+    if (seen.has(src)) continue;
+    seen.add(src);
+
+    const source = readFileSync(join(dist, src), "utf8");
+    code.push(source);
+    for (const match of source.matchAll(/["'](\.\/[^"']+\.js)["']/g)) {
+      queue.push(`/_astro/${match[1]!.slice(2)}`);
+    }
+  }
+
+  return code.join("\n");
+}
 
 describe("Build output", () => {
   it("produces a dist/ directory", () => {
@@ -225,7 +265,37 @@ describe("Build output", () => {
     expect(queens).toContain('id="scores-list"');
     // Same trap as the board cells: the rows are created in JS, so without a
     // global rule they render as unstyled run-on text.
-    expect(queens).toContain("#scores-list li");
+    expect(queens).toContain(".score-rows li");
+  });
+
+  it("offers a remembered name and a way out of it", () => {
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    expect(queens).toContain('id="scores-known"');
+    expect(queens).toContain('id="scores-rename"');
+    expect(queens).toContain("Not you?");
+  });
+
+  it("lists every daily on the daily tab, with somewhere to see the full times", () => {
+    const index = readFileSync(join(dist, "daily", "index.html"), "utf8");
+
+    expect(dailySlugs.length).toBeGreaterThan(0);
+    for (const daily of dailies) {
+      expect(index).toContain(`href="/daily/${daily.slug}/"`);
+      expect(index).toContain(daily.title);
+      expect(index).toContain(daily.ranking);
+      // The preview only shows the first few, so the way to the rest has to be
+      // on the row rather than implied by it.
+      expect(index).toContain(`href="/daily/${daily.slug}/#daily-scores"`);
+    }
+  });
+
+  it("styles the daily tab's JS-built preview rows and played badge", () => {
+    const css = cssFor(readFileSync(join(dist, "daily", "index.html"), "utf8"));
+
+    // Both are built by the script, so both need global rules to land.
+    expect(css).toContain(".score-rows li");
+    expect(css).toContain("[data-played] .badge");
   });
 
   it("keeps the leaderboard off free play, which has no shared board", () => {
@@ -235,15 +305,7 @@ describe("Build output", () => {
   });
 
   it("points the daily at the real API, not a local override", () => {
-    const page = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
-
-    // The page's own script is bundled out to a chunk, so the API base is never
-    // in the HTML itself. Follow the script tags the page actually loads.
-    const sources = [...page.matchAll(/<script[^>]+src="([^"]+)"/g)].map((match) => match[1]!);
-    const scripts = sources
-      .filter((src) => src.startsWith("/_astro/"))
-      .map((src) => readFileSync(join(dist, src), "utf8"))
-      .join("\n");
+    const scripts = scriptsFor(readFileSync(join(dist, "daily", "queens", "index.html"), "utf8"));
 
     expect(scripts).toContain("https://api.jordanselig.com");
     expect(scripts).not.toContain("localhost");

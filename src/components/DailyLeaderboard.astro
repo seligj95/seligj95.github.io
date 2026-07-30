@@ -1,17 +1,33 @@
 ---
 /**
- * The shared board for a daily game. Hidden until there is something to show:
- * either you have finished and can add your time, or there are already scores
- * up. If the API cannot be reached it stays hidden entirely.
+ * The shared board for a daily game, and the offer to add your own time.
+ *
+ * Hidden until there is something to show: either you have finished and can
+ * post, or there are already times up. If the API cannot be reached it stays
+ * hidden entirely — the game is complete without it.
+ *
+ * The form is authored here but does not necessarily stay here. On a fresh
+ * solve the page moves the node into the win panel, so the offer arrives with
+ * the congratulations rather than somewhere below the fold. It is moved rather
+ * than copied so there is only ever one form, one set of listeners and one
+ * place for its styles.
  */
+import ScoreRows from "./ScoreRows.astro";
 ---
 
 <section id="daily-scores" class="scores" hidden data-pagefind-ignore>
-  <h2>Today&rsquo;s board</h2>
+  <h2>Today&rsquo;s times</h2>
 
   <form id="scores-form" class="scores-form" hidden>
-    <label for="scores-name">Add your time</label>
-    <div class="scores-row">
+    <p class="scores-prompt" id="scores-prompt">Add your time</p>
+
+    <!-- Shown to anyone who has posted before, here or on another daily. -->
+    <div class="scores-known" id="scores-known" hidden>
+      <button type="submit" id="scores-post-known"></button>
+      <button type="button" class="scores-link" id="scores-rename">Not you?</button>
+    </div>
+
+    <div class="scores-row" id="scores-ask">
       <input
         id="scores-name"
         name="name"
@@ -23,7 +39,8 @@
       />
       <button type="submit">Post it</button>
     </div>
-    <p class="scores-small">
+
+    <p class="scores-small" id="scores-fineprint">
       No account, no email. Just a name so you can spot yourself in the list.
     </p>
     <p class="scores-error" id="scores-error" role="alert" hidden></p>
@@ -33,7 +50,7 @@
     Nobody has posted a time today. Be the first.
   </p>
 
-  <ol class="scores-list" id="scores-list"></ol>
+  <ScoreRows id="scores-list" />
 
   <p class="scores-small" id="scores-count" hidden></p>
 </section>
@@ -44,6 +61,9 @@
     padding: 1.25rem 1.4rem 1.4rem;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
+    /* Arrived at by #daily-scores from the daily index; the site header is
+       sticky, so leave it room rather than landing underneath it. */
+    scroll-margin-top: 5.5rem;
   }
 
   .scores[hidden] {
@@ -58,6 +78,9 @@
 
   .scores-form {
     display: grid;
+    /* The name field's natural width is wider than a phone-sized panel, and an
+       auto grid column would let it push out rather than shrink. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.4rem;
     margin: 0 0 1rem;
   }
@@ -66,14 +89,26 @@
     display: none;
   }
 
-  .scores-form label {
+  .scores-prompt {
+    margin: 0;
     font-size: 0.85rem;
     font-weight: 600;
   }
 
-  .scores-row {
+  .scores-row,
+  .scores-known {
     display: flex;
     gap: 0.5rem;
+  }
+
+  .scores-row[hidden],
+  .scores-known[hidden] {
+    display: none;
+  }
+
+  .scores-known {
+    align-items: center;
+    flex-wrap: wrap;
   }
 
   .scores-row input {
@@ -87,12 +122,14 @@
     border-radius: 0.5rem;
   }
 
-  .scores-row input:focus-visible {
+  .scores-row input:focus-visible,
+  .scores-form button:focus-visible {
     outline: 2px solid var(--link);
     outline-offset: 1px;
   }
 
-  .scores-row button {
+  .scores-row button,
+  .scores-known button[type="submit"] {
     flex: 0 0 auto;
     padding: 0.45rem 1.1rem;
     font: inherit;
@@ -104,9 +141,25 @@
     cursor: pointer;
   }
 
-  .scores-row button:disabled {
+  .scores-form button:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+
+  /* A button that reads as a link: changing your name is a side road. */
+  .scores-link {
+    padding: 0;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    background: none;
+    border: 0;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .scores-link:hover {
+    color: var(--text);
   }
 
   .scores-small {
@@ -134,66 +187,11 @@
     display: none;
   }
 
-  .scores-list {
-    display: grid;
-    gap: 0.15rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .scores-list:empty {
-    display: none;
-  }
-
   #scores-count {
     margin-top: 0.6rem;
   }
 
   #scores-count[hidden] {
     display: none;
-  }
-</style>
-
-<!--
-  The rows are built in JavaScript, so they never pick up the scoping attribute
-  that Astro adds to markup written here. These rules have to be global or they
-  simply do not apply, and the list renders as unstyled run-on text.
--->
-<style is:global>
-  #scores-list li {
-    display: grid;
-    grid-template-columns: 2.5rem 1fr auto;
-    align-items: baseline;
-    gap: 0.6rem;
-    padding: 0.3rem 0.5rem;
-    border-radius: 0.25rem;
-  }
-
-  /* Your own row, so you can find yourself without counting down the list. */
-  #scores-list li[data-you] {
-    background: var(--accent-subtle);
-    font-weight: 600;
-  }
-
-  #scores-list .scores-place {
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  #scores-list .scores-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  #scores-list .scores-time {
-    font-variant-numeric: tabular-nums;
-  }
-
-  #scores-list .scores-hints {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-weight: 400;
   }
 </style>

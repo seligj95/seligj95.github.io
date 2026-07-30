@@ -1,23 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import GameMark from "../../components/GameMark.astro";
+import ScoreRows from "../../components/ScoreRows.astro";
+import { dailies } from "../../data/dailies";
 
 const base = import.meta.env.BASE_URL;
-
-/**
- * Queens is the only daily to start with. The list is written out rather than
- * filtered from the games registry because a daily is not the same thing as the
- * game it is built on: it has its own page, its own rules and its own blurb.
- */
-const dailies = [
-  {
-    slug: "queens",
-    title: "Queens",
-    tagline: "One board, one go, one clock.",
-    blurb:
-      "Today’s board is the same for everyone. Crowns go one per row, one per column and one per color, and none may touch. Hints cost 30 seconds.",
-  },
-];
 ---
 
 <BaseLayout
@@ -32,15 +19,17 @@ const dailies = [
         you solve it. No account, no email, nothing to sign up for &mdash; come
         back tomorrow and there is a new one.
       </p>
+      <p class="today" id="daily-today"></p>
     </header>
 
     <ul class="rows">
       {
         dailies.map((game) => (
-          <li>
-            <a href={`${base}daily/${game.slug}/`}>
+          <li class="row" data-daily={game.slug}>
+            <a class="head" href={`${base}daily/${game.slug}/`}>
               <span class="mark">
                 <GameMark slug={game.slug} />
+                <span class="tick" aria-hidden="true">&#10003;</span>
               </span>
               <span class="text">
                 <span class="name">
@@ -54,6 +43,17 @@ const dailies = [
                 &rarr;
               </span>
             </a>
+
+            {/* Both of these need to know what today is, so the script fills them. */}
+            <p class="played" data-played hidden />
+
+            <div class="board" data-board hidden>
+              <p class="board-head">{game.ranking}</p>
+              <ScoreRows id={`board-${game.slug}`} compact />
+              <a class="board-all" data-all href={`${base}daily/${game.slug}/#daily-scores`} hidden
+                >See the full list &rarr;</a
+              >
+            </div>
           </li>
         ))
       }
@@ -93,6 +93,17 @@ const dailies = [
     text-wrap: pretty;
   }
 
+  .today {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .today:empty {
+    display: none;
+  }
+
   ul {
     list-style: none;
     padding: 0;
@@ -103,12 +114,16 @@ const dailies = [
     border-top: 1px solid var(--border);
   }
 
-  .rows a {
+  .rows .row {
+    padding: 0.55rem 0;
+  }
+
+  .rows .head {
     display: grid;
     grid-template-columns: 2.75rem 1fr auto;
     align-items: center;
     gap: 0 1.1rem;
-    padding: 1.15rem 0.6rem;
+    padding: 0.6rem;
     margin-inline: -0.6rem;
     border-radius: 0.5rem;
     text-decoration: none;
@@ -116,18 +131,43 @@ const dailies = [
     transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .rows a:hover {
+  .rows .head:hover {
     background: var(--surface);
   }
 
   .rows .mark {
+    position: relative;
     color: var(--accent);
     width: 2.75rem;
     height: 2.75rem;
     transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .rows a:hover .mark {
+  /*
+    A finished game should be obvious from across the room, so the mark itself
+    gets the tick rather than only the line of text underneath.
+  */
+  .tick {
+    display: none;
+    position: absolute;
+    right: -0.3rem;
+    bottom: -0.3rem;
+    width: 1.15rem;
+    height: 1.15rem;
+    place-items: center;
+    font-size: 0.85rem;
+    line-height: 1;
+    color: var(--bg);
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    border-radius: 999px;
+  }
+
+  .row[data-done] .tick {
+    display: grid;
+  }
+
+  .rows .head:hover .mark {
     transform: translateY(-2px);
   }
 
@@ -160,8 +200,59 @@ const dailies = [
     transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .rows a:hover .go {
+  .rows .head:hover .go {
     transform: translateX(3px);
+  }
+
+  /*
+    Everything under the link lines up with the title rather than the mark, so
+    a row reads as one thing with its detail hanging off it.
+  */
+  .played,
+  .board {
+    margin: 0.35rem 0 0 3.85rem;
+  }
+
+  .played {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .played[hidden],
+  .board[hidden],
+  .board-all[hidden] {
+    display: none;
+  }
+
+  .board {
+    padding-top: 0.5rem;
+    /* Narrow, so a name and its time stay visually paired rather than being
+       flung to opposite ends of a wide row. */
+    max-width: 24rem;
+  }
+
+  .board-head {
+    margin: 0 0 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .board-all {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .board-all:hover {
+    text-decoration: underline;
   }
 
   .aside {
@@ -176,7 +267,7 @@ const dailies = [
       padding: 1.5rem 1.1rem;
     }
 
-    .rows a {
+    .rows .head {
       grid-template-columns: 2.25rem 1fr;
     }
 
@@ -188,18 +279,124 @@ const dailies = [
     .go {
       display: none;
     }
+
+    .played,
+    .board {
+      margin-left: 0;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .rows a,
+    .rows .head,
     .rows .mark,
     .go {
       transition: none;
     }
 
-    .rows a:hover .mark,
-    .rows a:hover .go {
+    .rows .head:hover .mark,
+    .rows .head:hover .go {
       transform: none;
     }
   }
 </style>
+
+<!--
+  The played line is filled in by the script, and Astro only scopes markup it
+  can see, so these two live here rather than in the block above.
+-->
+<style is:global>
+  /* A solid badge, not a line of colored text — this is a status, not a note. */
+  [data-played] .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--accent);
+    border-radius: 999px;
+  }
+
+  [data-played] .played-time {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<script>
+  import { dailies } from "../../data/dailies";
+  import { dayFor, formatDay } from "../../lib/daily";
+  import { readDone } from "../../lib/daily-progress";
+  import {
+    clockText,
+    drawScoreRows,
+    fetchScores,
+    hintText,
+  } from "../../lib/daily-scores";
+
+  /**
+   * This page is built once and then served for months, so today cannot be
+   * baked in. Everything dated here is worked out in the browser.
+   */
+  const day = dayFor();
+
+  const todayLine = document.getElementById("daily-today");
+  if (todayLine) todayLine.textContent = formatDay(day);
+
+  /** How many times a row shows before deferring to the game's own page. */
+  const PREVIEW = 3;
+
+  for (const game of dailies) {
+    const row = document.querySelector(`[data-daily="${game.slug}"]`);
+    if (!row) continue;
+
+    const played = row.querySelector("[data-played]") as HTMLElement | null;
+    const board = row.querySelector("[data-board]") as HTMLElement | null;
+    const all = row.querySelector("[data-all]") as HTMLElement | null;
+    const list = document.getElementById(`board-${game.slug}`) as HTMLOListElement | null;
+
+    // Have you played it? Answered from this browser alone, and answered at
+    // once: it must not wait on a request that may never come back.
+    const done = readDone(game.slug, day);
+    if (done && played) {
+      const hints = hintText(done.hints);
+
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "\u2713 Played";
+
+      const time = document.createElement("span");
+      time.className = "played-time";
+      time.textContent = hints
+        ? `${clockText(done.seconds)} with ${hints}`
+        : clockText(done.seconds);
+
+      played.replaceChildren(badge, time);
+      played.hidden = false;
+      (row as HTMLElement).dataset.done = "true";
+    }
+
+    // The times are a nicety on top. A board that never answers simply stays
+    // hidden, the same as on the game's own page.
+    if (!board || !list) continue;
+
+    void fetchScores(game.slug, day).then((result) => {
+      if (!result || result.count === 0) return;
+
+      drawScoreRows(list, result.scores.slice(0, PREVIEW), done?.posted ?? null);
+      board.hidden = false;
+
+      // Always offered, even when every time already fits above, so the way to
+      // the full list is somewhere obvious rather than implied by the row.
+      if (all) {
+        all.textContent =
+          result.count === 1
+            ? "See the full list \u2192"
+            : `See all ${result.count} times \u2192`;
+        all.hidden = false;
+      }
+    });
+  }
+</script>

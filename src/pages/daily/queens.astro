@@ -34,6 +34,10 @@ const crown = "/images/games/queens-crown.png";
     </div>
 
     <p class="win-time" id="daily-result" slot="win-extra"></p>
+    <p class="win-posted" id="daily-posted" slot="win-extra" hidden></p>
+    <button id="daily-see-board" type="button" slot="win-extra" hidden>
+      See today&rsquo;s times
+    </button>
   </QueensBoard>
 
   <div slot="controls">
@@ -168,6 +172,92 @@ const crown = "/images/games/queens-crown.png";
   #daily-result:empty {
     display: none;
   }
+
+  /*
+    The win panel with the post form in it.
+    
+    The panel is authored in QueensBoard and the form in DailyLeaderboard, so
+    neither carries this page's scoping attribute and these rules have to be
+    global. Widths are set here because the panel was built to hold two short
+    lines and now holds a form as well.
+  */
+  #queens-win .win-panel {
+    width: min(100%, 21rem);
+    /*
+      The panel is an auto-sized grid, so without this the name field and its
+      button size the column by their natural width and push their way out of
+      the panel's own border.
+    */
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #queens-win #scores-form {
+    justify-items: center;
+    width: 100%;
+    margin: 0.35rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  #queens-win #scores-form .scores-row,
+  #queens-win #scores-form .scores-known {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #queens-win #scores-prompt {
+    font-size: 1rem;
+  }
+
+  /*
+    The panel is a moment, not a page: it has to fit over the board it covers.
+    The reassurance about accounts still belongs on the page, so it is hidden
+    only while the form is up here — moving the form back down restores it.
+  */
+  #queens-win #scores-fineprint {
+    display: none;
+  }
+
+  /*
+    On a phone the board is barely 300px square and the panel has to live
+    inside it. The note is the one line that can go: the result underneath it
+    already carries the time and the hint cost, and the day's size and
+    difficulty are printed above the board.
+  */
+  @media (max-width: 30rem) {
+    #queens-win .win-note {
+      display: none;
+    }
+  }
+
+  #daily-posted {
+    margin: 0.35rem 0 0;
+    font-weight: 600;
+  }
+
+  #daily-posted[hidden],
+  #daily-see-board[hidden] {
+    display: none;
+  }
+
+  /* Quieter than the panel's primary button: the board is not the prize. */
+  #daily-see-board {
+    margin-top: 0.5rem;
+    padding: 0.4rem 1.1rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  #daily-see-board:hover {
+    background: var(--surface);
+  }
 </style>
 
 <script>
@@ -179,8 +269,17 @@ const crown = "/images/games/queens-crown.png";
   } from "../../lib/queens-daily";
   import { dayFor, formatDay } from "../../lib/daily";
   import {
+    readDone,
+    writeDone,
+    readName,
+    writeName,
+    type Done,
+  } from "../../lib/daily-progress";
+  import {
     clockText as formatClock,
+    drawScoreRows,
     fetchScores,
+    hintText,
     ordinal,
     submitScore,
     type Score,
@@ -199,7 +298,6 @@ const crown = "/images/games/queens-crown.png";
   const HINT_PENALTY = 30;
 
   const day = dayFor();
-  const doneKey = `daily-queens-${day}`;
 
   /** Wall-clock start of the run, or 0 when the clock is not running. */
   let startedAt = 0;
@@ -220,36 +318,8 @@ const crown = "/images/games/queens-crown.png";
     requestAnimationFrame(tick);
   }
 
-  interface Done {
-    seconds: number;
-    hints: number;
-    /** Set once this time has gone onto the shared board. */
-    /**
-     * The timestamp the API gave your entry. Kept rather than a plain flag so a
-     * reload can still pick your row out of the list and highlight it.
-     */
-    posted?: string;
-  }
-
-  function readDone(): Done | null {
-    try {
-      const raw = window.localStorage.getItem(doneKey);
-      return raw ? (JSON.parse(raw) as Done) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function writeDone(done: Done) {
-    try {
-      window.localStorage.setItem(doneKey, JSON.stringify(done));
-    } catch {
-      // A browser with storage switched off just loses the one-attempt lock.
-    }
-  }
-
   dateLine.textContent = formatDay(day);
-  const already = readDone();
+  const already = readDone("queens", day);
 
   // ---------------------------------------------------------------------------
   // The shared board
@@ -265,42 +335,24 @@ const crown = "/images/games/queens-crown.png";
   const scoresEmpty = document.getElementById("scores-empty") as HTMLParagraphElement;
   const scoresError = document.getElementById("scores-error") as HTMLParagraphElement;
   const scoresCount = document.getElementById("scores-count") as HTMLParagraphElement;
+  const scoresKnown = document.getElementById("scores-known") as HTMLDivElement;
+  const scoresAsk = document.getElementById("scores-ask") as HTMLDivElement;
+  const postKnown = document.getElementById("scores-post-known") as HTMLButtonElement;
+  const renameButton = document.getElementById("scores-rename") as HTMLButtonElement;
 
-  const NAME_KEY = "daily-name";
+  const winOverlay = document.getElementById("queens-win") as HTMLDivElement;
+  const winPanel = winOverlay.querySelector(".win-panel") as HTMLDivElement;
+  const postedLine = document.getElementById("daily-posted") as HTMLParagraphElement;
+  const seeBoard = document.getElementById("daily-see-board") as HTMLButtonElement;
+
   /** Identifies your own row, so it can be highlighted after a reload. */
   let mine: string | null = null;
   /** Your place, for the rare day busy enough to push you off the first page. */
   let minePlace: number | null = null;
 
   function drawScores(scores: Score[], total: number) {
-    scoresList.replaceChildren();
     scoresEmpty.hidden = scores.length > 0;
-
-    scores.forEach((score, index) => {
-      const row = document.createElement("li");
-      if (score.at === mine) row.dataset.you = "";
-
-      const place = document.createElement("span");
-      place.className = "scores-place";
-      place.textContent = `${index + 1}.`;
-
-      const name = document.createElement("span");
-      name.className = "scores-name";
-      name.textContent = score.name;
-
-      const time = document.createElement("span");
-      time.className = "scores-time";
-      time.textContent = clockText(score.seconds);
-      if (score.hints) {
-        const hints = document.createElement("span");
-        hints.className = "scores-hints";
-        hints.textContent = ` (${score.hints} hint${score.hints === 1 ? "" : "s"})`;
-        time.append(hints);
-      }
-
-      row.append(place, name, time);
-      scoresList.append(row);
-    });
+    drawScoreRows(scoresList, scores, mine);
 
     // Where you stand is more useful than how much of the board is showing, so
     // it wins the one line under the list when both could be said.
@@ -324,60 +376,131 @@ const crown = "/images/games/queens-crown.png";
     return true;
   }
 
-  async function offerToPost(done: Done) {
+  /**
+   * Puts the name controls into one of two states: a single button for anyone
+   * who has posted before, on this game or any other daily, and a box for
+   * everyone else. The stored name lives in the input either way, so submitting
+   * reads one field whichever state is showing.
+   */
+  function fillName() {
+    const stored = readName();
+    scoresName.value = stored;
+    scoresKnown.hidden = !stored;
+    scoresAsk.hidden = Boolean(stored);
+    if (stored) postKnown.textContent = `Post as ${stored}`;
+  }
+
+  renameButton.addEventListener("click", () => {
+    scoresKnown.hidden = true;
+    scoresAsk.hidden = false;
+    scoresName.value = "";
+    scoresName.focus();
+  });
+
+  /** Sends the overlay away and leaves you looking at the board it covered. */
+  function dismissWin() {
+    winOverlay.hidden = true;
+    // The offer follows you down rather than leaving with the overlay, so
+    // dismissing without posting does not cost you the chance.
+    if (!scoresForm.hidden && scoresForm.parentElement === winPanel) {
+      scoresPanel.insertBefore(scoresForm, scoresEmpty);
+    }
+    if (!scoresPanel.hidden) {
+      scoresPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  seeBoard.addEventListener("click", dismissWin);
+
+  /**
+   * Offers to put a finished time on the board.
+   *
+   * `inWin` moves the form into the win panel so the offer arrives with the
+   * congratulations. The node is moved, not copied: there is one form on the
+   * page and it goes where it is most useful.
+   */
+  async function offerToPost(done: Done, inWin: boolean) {
     // Fetch first. If the API is unreachable there is no point offering a form
     // that cannot submit, so the whole section simply never appears.
     if (!(await showScores())) return;
+
+    if (inWin && !winOverlay.hidden) {
+      winPanel.insertBefore(scoresForm, postedLine);
+    }
     scoresForm.hidden = false;
-    try {
-      scoresName.value = window.localStorage.getItem(NAME_KEY) ?? "";
-    } catch {
-      // No stored name is no loss; it is a convenience, not state.
+    fillName();
+  }
+
+  scoresForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const name = scoresName.value.trim();
+    if (!name) {
+      // Only reachable if a stored name was whitespace. Ask properly.
+      scoresKnown.hidden = true;
+      scoresAsk.hidden = false;
+      scoresName.focus();
+      return;
     }
 
-    scoresForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const name = scoresName.value.trim();
-      if (!name) return;
+    const done = readDone("queens", day);
+    if (!done) return;
 
-      const submit = scoresForm.querySelector("button") as HTMLButtonElement;
-      submit.disabled = true;
-      scoresError.hidden = true;
+    const buttons = Array.from(scoresForm.querySelectorAll("button"));
+    buttons.forEach((button) => (button.disabled = true));
+    scoresError.hidden = true;
 
-      try {
-        const posted = await submitScore("queens", day, {
-          name,
-          seconds: done.seconds,
-          hints: done.hints,
-        });
-        mine = posted.entry.at;
-        minePlace = posted.place;
-        try {
-          window.localStorage.setItem(NAME_KEY, name);
-        } catch {
-          // Same as above: remembering the name is a nicety.
-        }
-        writeDone({ ...done, posted: posted.entry.at });
+    try {
+      const posted = await submitScore("queens", day, {
+        name,
+        seconds: done.seconds,
+        hints: done.hints,
+      });
+      mine = posted.entry.at;
+      minePlace = posted.place;
+      writeName(name);
+      writeDone("queens", { ...done, posted: posted.entry.at }, day);
 
-        scoresForm.hidden = true;
-        drawScores(posted.scores, posted.count);
-      } catch (error) {
-        scoresError.textContent =
-          error instanceof Error ? error.message : "That did not go through.";
-        scoresError.hidden = false;
-        submit.disabled = false;
+      const inWin = scoresForm.parentElement === winPanel;
+      scoresForm.hidden = true;
+      drawScores(posted.scores, posted.count);
+
+      if (inWin) {
+        // The panel has just lost the form, so it needs to say what happened.
+        postedLine.textContent = `You are ${ordinal(posted.place)} of ${posted.count} today.`;
+        postedLine.hidden = false;
       }
-    });
+    } catch (error) {
+      scoresError.textContent =
+        error instanceof Error ? error.message : "That did not go through.";
+      scoresError.hidden = false;
+      buttons.forEach((button) => (button.disabled = false));
+    }
+  });
+
+  /**
+   * Arriving from the daily index, which links straight at the times. The panel
+   * is hidden until it has something in it, so the browser cannot honor the
+   * hash on its own: fetch first, then go there.
+   */
+  const wantsScores = location.hash === "#daily-scores";
+
+  function revealScores(shown: boolean) {
+    if (shown && wantsScores) scoresPanel.scrollIntoView({ block: "start" });
   }
 
   // A day already finished either shows the board, or still offers to post.
+  // Either way the offer stays below: the win panel belongs to the moment you
+  // solved it, not to a later visit.
   if (already) {
     if (already.posted) {
       mine = already.posted;
-      void showScores();
+      void showScores().then(revealScores);
     } else {
-      void offerToPost(already);
+      void offerToPost(already, false).then(() => revealScores(!scoresPanel.hidden));
     }
+  } else if (wantsScores) {
+    void showScores().then(revealScores);
   }
 
   /**
@@ -416,14 +539,18 @@ const crown = "/images/games/queens-crown.png";
           // Only the first finish counts, so a replay after clearing the lock
           // cannot overwrite a time you already put up.
           const done = { seconds, hints: hintsUsed };
-          if (!readDone()) writeDone(done);
+          if (!readDone("queens", day)) writeDone("queens", done, day);
 
           const charged = hintsUsed * HINT_PENALTY;
           result.textContent = charged
             ? `${clockText(seconds)}, including ${clockText(charged)} of hints`
             : clockText(seconds);
 
-          if (!already) void offerToPost(done);
+          // The overlay covers the board and has nothing to dismiss it on the
+          // daily, where there is no next puzzle to move on to.
+          seeBoard.hidden = false;
+
+          if (!already) void offerToPost(done, true);
         },
       });
 
@@ -440,21 +567,22 @@ const crown = "/images/games/queens-crown.png";
         // The lock is advisory: it lives in localStorage, so clearing your
         // browser gets you another go. It keeps the day honest, it does not
         // police it.
+        const hints = hintText(already.hints);
         doneLine.hidden = false;
         doneLine.textContent = `You finished today in ${clockText(already.seconds)}${
-          already.hints
-            ? ` with ${already.hints} hint${already.hints === 1 ? "" : "s"}`
-            : ""
+          hints ? ` with ${hints}` : ""
         }. A new board arrives tomorrow.`;
-        startButton.textContent = "See the board";
+        startButton.textContent = "See your board";
       }
 
       startButton.addEventListener("click", () => {
         gate.hidden = true;
-        // Coming back to a day you already finished shows the board but leaves
-        // it locked, so there is nothing to gain from a second look.
+        // Coming back to a day you already finished lays the answer back out
+        // and leaves it locked, so there is something to look at and nothing
+        // to gain from a second attempt.
         if (already) {
           clock.textContent = clockText(already.seconds);
+          board.reveal();
           return;
         }
         board.thaw();

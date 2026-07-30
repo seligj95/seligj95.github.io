@@ -821,6 +821,27 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
   return {
     build,
     current: () => current,
+    /**
+     * Fills the board in with the answer.
+     *
+     * For coming back to a puzzle already finished: the position is not stored
+     * anywhere, but the solution is deterministic, so it can simply be laid out
+     * again. It deliberately does not announce a win — you are looking at your
+     * finished board, not solving it a second time.
+     */
+    reveal: () => {
+      cells = new Array(size * size).fill("empty");
+      solution.forEach((column, row) => {
+        cells[row * size + column] = "queen";
+      });
+      history = [];
+      undoButton.disabled = true;
+      // Set before painting so the paint treats this as an already-won board
+      // and leaves onSolved alone.
+      solved = true;
+      paint();
+      win.hidden = true;
+    },
     freeze: () => {
       frozen = true;
       hintButton.disabled = true;

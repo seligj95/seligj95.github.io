@@ -77,6 +77,56 @@ export function clockText(seconds: number): string {
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/** "2 hints", "1 hint", or nothing at all when none were taken. */
+export function hintText(hints: number): string {
+  if (!hints) return "";
+  return `${hints} hint${hints === 1 ? "" : "s"}`;
+}
+
+/**
+ * Draws a list of times into an `<ol>`.
+ *
+ * Shared by the game page and the daily tab so the two never drift apart. The
+ * rows are built here rather than in markup, which is why their styles have to
+ * be global — see ScoreRows.astro.
+ */
+export function drawScoreRows(
+  list: HTMLOListElement,
+  scores: Score[],
+  /** The `at` of your own entry, so your row can be picked out of the list. */
+  mine: string | null = null
+): void {
+  list.replaceChildren();
+
+  scores.forEach((score, index) => {
+    const row = document.createElement("li");
+    if (mine && score.at === mine) row.dataset.you = "";
+
+    const place = document.createElement("span");
+    place.className = "scores-place";
+    place.textContent = `${index + 1}.`;
+
+    const name = document.createElement("span");
+    name.className = "scores-name";
+    name.textContent = score.name;
+
+    const time = document.createElement("span");
+    time.className = "scores-time";
+    time.textContent = clockText(score.seconds);
+
+    const hints = hintText(score.hints);
+    if (hints) {
+      const note = document.createElement("span");
+      note.className = "scores-hints";
+      note.textContent = ` (${hints})`;
+      time.append(note);
+    }
+
+    row.append(place, name, time);
+    list.append(row);
+  });
+}
+
 /** 1st, 2nd, 3rd, 4th... including the teens, which break the pattern. */
 export function ordinal(place: number): string {
   const tens = place % 100;
