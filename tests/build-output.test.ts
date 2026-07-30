@@ -216,4 +216,21 @@ describe("Build output", () => {
       expect(readFileSync(page, "utf8")).toContain("region-sat");
     }
   });
+
+  it("ships the leaderboard panel, and styles for its JS-built rows", () => {
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    expect(queens).toContain('id="daily-scores"');
+    expect(queens).toContain('id="scores-form"');
+    expect(queens).toContain('id="scores-list"');
+    // Same trap as the board cells: the rows are created in JS, so without a
+    // global rule they render as unstyled run-on text.
+    expect(queens).toContain("#scores-list li");
+  });
+
+  it("keeps the leaderboard off free play, which has no shared board", () => {
+    const free = readFileSync(join(dist, "games", "queens", "index.html"), "utf8");
+
+    expect(free).not.toContain('id="daily-scores"');
+  });
 });

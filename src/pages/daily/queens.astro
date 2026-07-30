@@ -1,6 +1,7 @@
 ---
 import GameLayout from "../../layouts/GameLayout.astro";
 import QueensBoard from "../../components/QueensBoard.astro";
+import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
 
 // The site's own mascot stands in for the crown, same as free play.
 const crown = "/images/games/queens-crown.png";
@@ -45,6 +46,10 @@ const crown = "/images/games/queens-crown.png";
       <button id="queens-hint" type="button" disabled>Hint &plus;30s</button>
       <button id="queens-undo" type="button" disabled>Undo</button>
     </div>
+  </div>
+
+  <div slot="extras">
+    <DailyLeaderboard />
   </div>
 
   <div slot="notes">
@@ -173,6 +178,13 @@ const crown = "/images/games/queens-crown.png";
     DIFFICULTY_BLURB,
   } from "../../lib/queens-daily";
   import { dayFor, formatDay } from "../../lib/daily";
+  import {
+    clockText as formatClock,
+    fetchScores,
+    ordinal,
+    submitScore,
+    type Score,
+  } from "../../lib/daily-scores";
 
   const gate = document.getElementById("daily-gate") as HTMLDivElement;
   const startButton = document.getElementById("daily-start") as HTMLButtonElement;
@@ -199,10 +211,8 @@ const crown = "/images/games/queens-crown.png";
     return Math.floor((Date.now() - startedAt) / 1000) + penalty;
   }
 
-  function clockText(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
-  }
+  // The leaderboard formats times the same way, so both sides share one.
+  const clockText = formatClock;
 
   function tick() {
     if (!ticking) return;
@@ -213,6 +223,12 @@ const crown = "/images/games/queens-crown.png";
   interface Done {
     seconds: number;
     hints: number;
+    /** Set once this time has gone onto the shared board. */
+    /**
+     * The timestamp the API gave your entry. Kept rather than a plain flag so a
+     * reload can still pick your row out of the list and highlight it.
+     */
+    posted?: string;
   }
 
   function readDone(): Done | null {
@@ -234,6 +250,135 @@ const crown = "/images/games/queens-crown.png";
 
   dateLine.textContent = formatDay(day);
   const already = readDone();
+
+  // ---------------------------------------------------------------------------
+  // The shared board
+  //
+  // Everything below is optional. The game is complete without it, so a slow or
+  // unreachable API only means the section stays hidden.
+  // ---------------------------------------------------------------------------
+
+  const scoresPanel = document.getElementById("daily-scores") as HTMLElement;
+  const scoresForm = document.getElementById("scores-form") as HTMLFormElement;
+  const scoresName = document.getElementById("scores-name") as HTMLInputElement;
+  const scoresList = document.getElementById("scores-list") as HTMLOListElement;
+  const scoresEmpty = document.getElementById("scores-empty") as HTMLParagraphElement;
+  const scoresError = document.getElementById("scores-error") as HTMLParagraphElement;
+  const scoresCount = document.getElementById("scores-count") as HTMLParagraphElement;
+
+  const NAME_KEY = "daily-name";
+  /** Identifies your own row, so it can be highlighted after a reload. */
+  let mine: string | null = null;
+  /** Your place, for the rare day busy enough to push you off the first page. */
+  let minePlace: number | null = null;
+
+  function drawScores(scores: Score[], total: number) {
+    scoresList.replaceChildren();
+    scoresEmpty.hidden = scores.length > 0;
+
+    scores.forEach((score, index) => {
+      const row = document.createElement("li");
+      if (score.at === mine) row.dataset.you = "";
+
+      const place = document.createElement("span");
+      place.className = "scores-place";
+      place.textContent = `${index + 1}.`;
+
+      const name = document.createElement("span");
+      name.className = "scores-name";
+      name.textContent = score.name;
+
+      const time = document.createElement("span");
+      time.className = "scores-time";
+      time.textContent = clockText(score.seconds);
+      if (score.hints) {
+        const hints = document.createElement("span");
+        hints.className = "scores-hints";
+        hints.textContent = ` (${score.hints} hint${score.hints === 1 ? "" : "s"})`;
+        time.append(hints);
+      }
+
+      row.append(place, name, time);
+      scoresList.append(row);
+    });
+
+    // Where you stand is more useful than how much of the board is showing, so
+    // it wins the one line under the list when both could be said.
+    const youIndex = scores.findIndex((score) => score.at === mine);
+    const yourPlace = youIndex >= 0 ? youIndex + 1 : minePlace;
+    if (yourPlace) {
+      scoresCount.hidden = false;
+      scoresCount.textContent = `You are ${ordinal(yourPlace)} of ${total} today.`;
+    } else {
+      scoresCount.hidden = total <= scores.length;
+      scoresCount.textContent = `Showing the fastest ${scores.length} of ${total} today.`;
+    }
+  }
+
+  /** Shows the panel with whatever the API has. False means it never answered. */
+  async function showScores(): Promise<boolean> {
+    const board = await fetchScores("queens", day);
+    if (!board) return false;
+    drawScores(board.scores, board.count);
+    scoresPanel.hidden = false;
+    return true;
+  }
+
+  async function offerToPost(done: Done) {
+    // Fetch first. If the API is unreachable there is no point offering a form
+    // that cannot submit, so the whole section simply never appears.
+    if (!(await showScores())) return;
+    scoresForm.hidden = false;
+    try {
+      scoresName.value = window.localStorage.getItem(NAME_KEY) ?? "";
+    } catch {
+      // No stored name is no loss; it is a convenience, not state.
+    }
+
+    scoresForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = scoresName.value.trim();
+      if (!name) return;
+
+      const submit = scoresForm.querySelector("button") as HTMLButtonElement;
+      submit.disabled = true;
+      scoresError.hidden = true;
+
+      try {
+        const posted = await submitScore("queens", day, {
+          name,
+          seconds: done.seconds,
+          hints: done.hints,
+        });
+        mine = posted.entry.at;
+        minePlace = posted.place;
+        try {
+          window.localStorage.setItem(NAME_KEY, name);
+        } catch {
+          // Same as above: remembering the name is a nicety.
+        }
+        writeDone({ ...done, posted: posted.entry.at });
+
+        scoresForm.hidden = true;
+        drawScores(posted.scores, posted.count);
+      } catch (error) {
+        scoresError.textContent =
+          error instanceof Error ? error.message : "That did not go through.";
+        scoresError.hidden = false;
+        submit.disabled = false;
+      }
+    });
+  }
+
+  // A day already finished either shows the board, or still offers to post.
+  if (already) {
+    if (already.posted) {
+      mine = already.posted;
+      void showScores();
+    } else {
+      void offerToPost(already);
+    }
+  }
 
   /**
    * Building the board costs a few hundred milliseconds on the harder days, so
@@ -270,12 +415,15 @@ const crown = "/images/games/queens-crown.png";
 
           // Only the first finish counts, so a replay after clearing the lock
           // cannot overwrite a time you already put up.
-          if (!readDone()) writeDone({ seconds, hints: hintsUsed });
+          const done = { seconds, hints: hintsUsed };
+          if (!readDone()) writeDone(done);
 
           const charged = hintsUsed * HINT_PENALTY;
           result.textContent = charged
             ? `${clockText(seconds)}, including ${clockText(charged)} of hints`
             : clockText(seconds);
+
+          if (!already) void offerToPost(done);
         },
       });
 

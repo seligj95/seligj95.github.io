@@ -69,6 +69,10 @@ const description = title ? subtitle : game.blurb;
 
     <div class="game-controls" data-pagefind-ignore><slot name="controls" /></div>
 
+    <!-- Anything that belongs to the game but is not a control: the daily
+         leaderboard sits here, below the buttons and above the prose. -->
+    <slot name="extras" />
+
     <div class="game-notes"><slot name="notes" /></div>
   </article>
 </BaseLayout>

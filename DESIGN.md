@@ -9,6 +9,7 @@ colors:
   bg: "#ffffff"
   surface: "#f9fafb"
   border: "#e5e7eb"
+  danger: "#b3261e"
 typography:
   display:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
@@ -106,8 +107,9 @@ making the default reading experience harder.
 
 A restrained, ink-on-white base with one blue accent. The identity is carried by the
 swappable theme layer, not by a busy default palette. Every theme is one set of the same
-seven semantic tokens (`--bg`, `--text`, `--text-muted`, `--border`, `--accent`,
-`--accent-hover`, `--surface`, `--accent-subtle`); components never hard-code color.
+nine semantic tokens (`--bg`, `--text`, `--text-muted`, `--border`, `--accent`,
+`--accent-hover`, `--surface`, `--accent-subtle`, `--danger`); components never hard-code
+color.
 
 ### Primary
 - **Signal Blue** (#2563eb): Links, primary actions, active nav state, focus and hover

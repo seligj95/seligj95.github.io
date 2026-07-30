@@ -1,0 +1,199 @@
+---
+/**
+ * The shared board for a daily game. Hidden until there is something to show:
+ * either you have finished and can add your time, or there are already scores
+ * up. If the API cannot be reached it stays hidden entirely.
+ */
+---
+
+<section id="daily-scores" class="scores" hidden data-pagefind-ignore>
+  <h2>Today&rsquo;s board</h2>
+
+  <form id="scores-form" class="scores-form" hidden>
+    <label for="scores-name">Add your time</label>
+    <div class="scores-row">
+      <input
+        id="scores-name"
+        name="name"
+        type="text"
+        maxlength="20"
+        autocomplete="nickname"
+        placeholder="Your name"
+        required
+      />
+      <button type="submit">Post it</button>
+    </div>
+    <p class="scores-small">
+      No account, no email. Just a name so you can spot yourself in the list.
+    </p>
+    <p class="scores-error" id="scores-error" role="alert" hidden></p>
+  </form>
+
+  <p class="scores-empty" id="scores-empty" hidden>
+    Nobody has posted a time today. Be the first.
+  </p>
+
+  <ol class="scores-list" id="scores-list"></ol>
+
+  <p class="scores-small" id="scores-count" hidden></p>
+</section>
+
+<style>
+  .scores {
+    margin: 1.5rem 0 0;
+    padding: 1.25rem 1.4rem 1.4rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+
+  .scores[hidden] {
+    display: none;
+  }
+
+  .scores h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+  }
+
+  .scores-form {
+    display: grid;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
+  }
+
+  .scores-form[hidden] {
+    display: none;
+  }
+
+  .scores-form label {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .scores-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .scores-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.45rem 0.7rem;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+
+  .scores-row input:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 1px;
+  }
+
+  .scores-row button {
+    flex: 0 0 auto;
+    padding: 0.45rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .scores-row button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .scores-small {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .scores-error {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.85rem;
+  }
+
+  .scores-error[hidden] {
+    display: none;
+  }
+
+  .scores-empty {
+    margin: 0;
+    color: var(--text-muted);
+  }
+
+  .scores-empty[hidden] {
+    display: none;
+  }
+
+  .scores-list {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .scores-list:empty {
+    display: none;
+  }
+
+  #scores-count {
+    margin-top: 0.6rem;
+  }
+
+  #scores-count[hidden] {
+    display: none;
+  }
+</style>
+
+<!--
+  The rows are built in JavaScript, so they never pick up the scoping attribute
+  that Astro adds to markup written here. These rules have to be global or they
+  simply do not apply, and the list renders as unstyled run-on text.
+-->
+<style is:global>
+  #scores-list li {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr auto;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  /* Your own row, so you can find yourself without counting down the list. */
+  #scores-list li[data-you] {
+    background: var(--accent-subtle);
+    font-weight: 600;
+  }
+
+  #scores-list .scores-place {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  #scores-list .scores-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #scores-list .scores-time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  #scores-list .scores-hints {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 400;
+  }
+</style>
