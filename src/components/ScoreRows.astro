@@ -1,0 +1,78 @@
+---
+/**
+ * An empty list of times, waiting to be filled in by `drawScoreRows`.
+ *
+ * The rows are built in JavaScript, so they never pick up the scoping attribute
+ * Astro adds to markup written in a component. Their styles have to be global
+ * or they simply do not apply, and the list renders as unstyled run-on text.
+ * Keeping the list and those styles together in one component means anywhere
+ * that shows times gets the right ones, and there is only one copy of them.
+ */
+interface Props {
+  id: string;
+  /** Tighter rows, for the previews on the daily tab. */
+  compact?: boolean;
+}
+
+const { id, compact = false } = Astro.props;
+---
+
+<ol id={id} class:list={["score-rows", { compact }]}></ol>
+
+<style is:global>
+  .score-rows {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .score-rows:empty {
+    display: none;
+  }
+
+  .score-rows li {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr auto;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  .score-rows.compact li {
+    grid-template-columns: 1.6rem 1fr auto;
+    gap: 0.5rem;
+    padding: 0.2rem 0.4rem;
+    /* The Label step. A preview of three times is metadata, not body copy. */
+    font-size: 0.85rem;
+  }
+
+  /* Your own row, so you can find yourself without counting down the list. */
+  .score-rows li[data-you] {
+    background: var(--accent-subtle);
+    font-weight: 600;
+  }
+
+  .score-rows .scores-place {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score-rows .scores-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .score-rows .scores-time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score-rows .scores-hints {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 400;
+  }
+</style>

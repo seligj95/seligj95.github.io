@@ -128,6 +128,29 @@ const { label = "Queens board", crown, showNext = true } = Astro.props;
     opacity: 0.85;
   }
 
+  /*
+    On a phone the board is only around 300px square, so a panel built for two
+    short lines has to earn its space once it also holds a form. It must never
+    end up taller than the thing it is covering.
+  */
+  @media (max-width: 30rem) {
+    .win-panel {
+      gap: 0.25rem;
+      padding: 0.85rem 1rem 1rem;
+      /*
+        A last-resort guarantee. On the narrowest phones the buttons wrap and
+        the panel grows past the board; scrolling inside it keeps everything
+        reachable, where spilling over the edge just looked broken.
+      */
+      max-height: 100%;
+      overflow-y: auto;
+    }
+
+    .win-note {
+      margin-bottom: 0.25rem;
+    }
+  }
+
   @keyframes queens-win-in {
     from {
       opacity: 0;
