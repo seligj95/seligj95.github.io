@@ -1,0 +1,1083 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="chain" ratio="auto">
+  <span slot="status" id="chain-status" aria-live="polite">0 points</span>
+
+  <div class="wrap">
+    <div class="frame">
+      <canvas
+        id="chain-board"
+        tabindex="0"
+        aria-label="Chain board"
+        aria-describedby="game-instructions"
+      >
+        Your browser does not support the board.
+      </canvas>
+
+      <div id="chain-over" class="over" hidden>
+        <div class="over-panel">
+          <p class="over-title">Stacked out</p>
+          <p class="over-note" id="chain-over-note">The column filled up.</p>
+          <button id="chain-again" type="button">New game</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <span class="side-label" id="chain-next-label">Next</span>
+      <canvas id="chain-next" role="img" aria-label="Next piece"></canvas>
+    </aside>
+  </div>
+
+  <div slot="controls">
+    <div class="control-set">
+      <button id="chain-left" type="button" aria-label="Move left">&larr;</button>
+      <button id="chain-spin" type="button">Spin</button>
+      <button id="chain-right" type="button" aria-label="Move right">&rarr;</button>
+      <button id="chain-drop" type="button">Drop</button>
+    </div>
+
+    <div class="control-set">
+      <span class="control-label" id="chain-colors-label">Colors</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="chain-colors-label">
+        <button type="button" role="radio" aria-checked="false" data-colors="3">3 easy</button>
+        <button type="button" role="radio" aria-checked="true" data-colors="4">4 normal</button>
+        <button type="button" role="radio" aria-checked="false" data-colors="5">5 hard</button>
+      </div>
+    </div>
+
+    <div class="control-set">
+      <button id="chain-pause" type="button" aria-pressed="false">Pause</button>
+      <button id="chain-new" type="button">New game</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      Orbs fall in small pieces &mdash; two of them, sometimes three in a line or an
+      elbow. Four or more of the same color touching side to side or top to bottom
+      pop, everything above them falls into the gap &mdash; and if that landing makes
+      another four, it pops too. Each link in a chain is worth double the last one, so
+      the big scores come from building a stack that collapses on itself rather than
+      clearing as you go.
+    </p>
+    <p>
+      On a computer the arrow keys work as soon as the board is on screen: left and
+      right slide, up spins, down hurries the piece along and space drops it. On a
+      touchscreen, drag left and right to slide, tap to spin, swipe down to drop
+      &mdash; or use the buttons. Nothing shows you where a piece will land, so spin
+      it into shape on the way down. The board pauses itself while it is off screen,
+      and while it is paused the arrow keys go back to scrolling the page.
+    </p>
+    <p>
+      Fewer colors means clumps form on their own; five means you have to plan for them.
+      Every color also carries its own small mark, so the board is readable without
+      relying on hue. Your best score for each setting is kept in this browser.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  .wrap {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: clamp(0.5rem, 2.5vw, 1rem);
+    padding: clamp(0.6rem, 2vw, 1.1rem);
+  }
+
+  .frame {
+    position: relative;
+    height: clamp(340px, 62vh, 32rem);
+    /* One extra row of headroom above the well, so the incoming piece is fully
+       visible as it drops in rather than sliced off at the ceiling. */
+    aspect-ratio: 6 / 13;
+  }
+
+  #chain-board {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    touch-action: none;
+  }
+
+  #chain-board:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .side-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  #chain-next {
+    display: block;
+    width: clamp(2.4rem, 8vw, 3rem);
+    height: clamp(4rem, 14vw, 5rem);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--bg);
+  }
+
+  /* Game over sits over the board the way Queens' win panel sits over its grid. */
+  .over {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0.75rem;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    border-radius: 0.5rem;
+    animation: chain-over-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .over[hidden] {
+    display: none;
+  }
+
+  .over-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 1rem 1.1rem 1.15rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  .over-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .over-note {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-wrap: pretty;
+  }
+
+  .over-panel button {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    min-height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--surface);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .over-panel button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  @media (pointer: coarse) {
+    .over-panel button {
+      min-height: 44px;
+    }
+  }
+
+  @keyframes chain-over-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .over {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  type Phase = "falling" | "resolving" | "over";
+  type Settling = "settle" | "pop";
+
+  const COLS = 6;
+  const ROWS = 12;
+  const EMPTY = -1;
+  /** Orbs of one color that have to touch before the clump pops. */
+  const GROUP = 4;
+  const SPAWN_COL = 2;
+  /** Rows of open air drawn above the well for the incoming piece. */
+  const HEADROOM = 1;
+  const POP_MS = 220;
+  /** Cells per second that loose orbs fall once a clump underneath them goes. */
+  const SETTLE_SPEED = 24;
+  /** Grace period after a piece lands, so a last-moment slide still counts. */
+  const LOCK_DELAY_MS = 200;
+
+  // Orb colors are illustration, not UI: they stay put across themes. Each one
+  // also carries a mark so the board reads without relying on hue alone.
+  const PALETTE = [
+    { body: "#e05a4f", glow: "#ff9c90", rim: "#8d2f27", mark: "dot" },
+    { body: "#e0a92f", glow: "#ffd884", rim: "#8a6410", mark: "ring" },
+    { body: "#46a262", glow: "#93dfa8", rim: "#256239", mark: "bar" },
+    { body: "#4589cf", glow: "#98c8f4", rim: "#245685", mark: "square" },
+    { body: "#9367cf", glow: "#c9a6f2", rim: "#573a86", mark: "cross" },
+  ] as const;
+  const COLOR_NAMES = ["red", "amber", "green", "blue", "violet"] as const;
+
+  /** Piece shapes as cell offsets from the pivot, in their upright orientation.
+      Two orbs or three, so what lands is never quite the same problem. */
+  const SHAPES = [
+    [
+      [0, 0],
+      [0, -1],
+    ],
+    [
+      [0, -1],
+      [0, 0],
+      [0, 1],
+    ],
+    [
+      [0, 0],
+      [0, -1],
+      [1, 0],
+    ],
+  ] as const;
+
+  /** Every shape pre-rotated a quarter turn at a time, clockwise. */
+  const SHAPE_ROTATIONS = SHAPES.map((shape) => {
+    const turns: number[][][] = [];
+    let cells = shape.map(([dx, dy]) => [dx, dy]);
+    for (let rot = 0; rot < 4; rot += 1) {
+      turns.push(cells);
+      cells = cells.map(([dx, dy]) => [-dy, dx]);
+    }
+    return turns;
+  });
+
+  /** Draw order: pairs stay the staple, trios are the complication. */
+  const SHAPE_BAG = [0, 0, 1, 2] as const;
+
+  const NEIGHBORS = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const;
+
+  const canvas = document.getElementById("chain-board") as HTMLCanvasElement;
+  const context = canvas.getContext("2d") as CanvasRenderingContext2D;
+  const nextCanvas = document.getElementById("chain-next") as HTMLCanvasElement;
+  const nextContext = nextCanvas.getContext("2d") as CanvasRenderingContext2D;
+  const status = document.getElementById("chain-status") as HTMLSpanElement;
+  const overPanel = document.getElementById("chain-over") as HTMLDivElement;
+  const overNote = document.getElementById("chain-over-note") as HTMLParagraphElement;
+  const pauseButton = document.getElementById("chain-pause") as HTMLButtonElement;
+  const colorButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-colors]")
+  );
+
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reducedMotion = motionQuery.matches;
+
+  const board = new Int8Array(COLS * ROWS).fill(EMPTY);
+  /** How far above its resting place each orb still is, in cells. */
+  const drop = new Float32Array(COLS * ROWS);
+
+  interface Piece {
+    x: number;
+    y: number;
+    rot: number;
+    shape: number;
+    colors: number[];
+  }
+
+  let colorCount = 4;
+  let phase: Phase = "falling";
+  let settling: Settling = "settle";
+  let piece: Piece | null = null;
+  let queued: Piece = spawnPiece();
+  let fallOffset = 0;
+  let lockTimer = 0;
+  let popTimer = 0;
+  let popping: number[] = [];
+  let softDrop = false;
+  let lockResets = 0;
+  let paused = false;
+  let onScreen = true;
+  let score = 0;
+  let chain = 0;
+  let bestChain = 0;
+  let clearedTotal = 0;
+  let frameId: number | null = null;
+  let lastFrame = 0;
+  let cell = 0;
+  let originX = 0;
+  let originY = 0;
+
+  const tokens = { surface: "#f9fafb", border: "#e5e7eb", text: "#1a1a1a", bg: "#ffffff" };
+
+  function readTokens() {
+    const style = getComputedStyle(canvas);
+    tokens.surface = style.getPropertyValue("--surface").trim() || tokens.surface;
+    tokens.border = style.getPropertyValue("--border").trim() || tokens.border;
+    tokens.text = style.getPropertyValue("--text").trim() || tokens.text;
+    tokens.bg = style.getPropertyValue("--bg").trim() || tokens.bg;
+  }
+
+  const bestKey = () => `chain-best-${colorCount}`;
+
+  function readBest(): number {
+    const raw = Number.parseInt(localStorage.getItem(bestKey()) ?? "", 10);
+    return Number.isFinite(raw) ? raw : 0;
+  }
+
+  function setStatus(message?: string) {
+    const text = message ?? `${score} points · best ${readBest()}`;
+    if (status.textContent !== text) status.textContent = text;
+  }
+
+  function randomColor(): number {
+    return Math.floor(Math.random() * colorCount);
+  }
+
+  function spawnPiece(): Piece {
+    const shape = SHAPE_BAG[Math.floor(Math.random() * SHAPE_BAG.length)];
+    return {
+      x: SPAWN_COL,
+      y: 0,
+      rot: 0,
+      shape,
+      colors: SHAPES[shape].map(() => randomColor()),
+    };
+  }
+
+  const cellsOf = (shape: number, rot: number) => SHAPE_ROTATIONS[shape][rot];
+
+  function free(x: number, y: number): boolean {
+    if (x < 0 || x >= COLS || y >= ROWS) return false;
+    // Above the ceiling is open air: a piece can spawn half off the board.
+    if (y < 0) return true;
+    return board[y * COLS + x] === EMPTY;
+  }
+
+  function fits(x: number, y: number, shape: number, rot: number): boolean {
+    for (const [dx, dy] of cellsOf(shape, rot)) {
+      if (!free(x + dx, y + dy)) return false;
+    }
+    return true;
+  }
+
+  function landingRow(item: Piece): number {
+    let y = item.y;
+    while (fits(item.x, y + 1, item.shape, item.rot)) y += 1;
+    return y;
+  }
+
+  /** Fall speed ramps with how much has been cleared, never past a playable floor. */
+  function fallInterval(): number {
+    const level = Math.floor(clearedTotal / 24);
+    return Math.max(140, 720 - level * 55);
+  }
+
+  function newGame() {
+    board.fill(EMPTY);
+    drop.fill(0);
+    popping = [];
+    popTimer = 0;
+    lockTimer = 0;
+    lockResets = 0;
+    fallOffset = 0;
+    score = 0;
+    chain = 0;
+    bestChain = 0;
+    clearedTotal = 0;
+    softDrop = false;
+    paused = false;
+    pauseButton.setAttribute("aria-pressed", "false");
+    pauseButton.textContent = "Pause";
+    pauseButton.disabled = false;
+    overPanel.hidden = true;
+    phase = "falling";
+    queued = spawnPiece();
+    spawn();
+    setStatus();
+    drawNext();
+    draw();
+    start();
+  }
+
+  function spawn() {
+    const next = queued;
+    queued = spawnPiece();
+    drawNext();
+
+    if (!fits(next.x, next.y, next.shape, next.rot)) {
+      piece = null;
+      gameOver();
+      return;
+    }
+
+    piece = next;
+    fallOffset = 0;
+    lockTimer = 0;
+    lockResets = 0;
+    phase = "falling";
+  }
+
+  function gameOver() {
+    phase = "over";
+    stop();
+    const best = readBest();
+    if (score > best) {
+      localStorage.setItem(bestKey(), String(score));
+      overNote.textContent = `${score} points — a new best.`;
+    } else {
+      overNote.textContent = `${score} points · best ${best}`;
+    }
+    overPanel.hidden = false;
+    pauseButton.disabled = true;
+    setStatus(`Stacked out at ${score} points`);
+    draw();
+  }
+
+  /** Sliding along a landing re-arms the lock, but only a few times: the piece
+      has to come to rest eventually. */
+  function nudgeLock() {
+    if (lockResets >= 6) return;
+    lockResets += 1;
+    lockTimer = 0;
+  }
+
+  function move(direction: number) {
+    if (phase !== "falling" || !piece || paused) return;
+    if (!fits(piece.x + direction, piece.y, piece.shape, piece.rot)) return;
+    piece.x += direction;
+    if (!fits(piece.x, piece.y + 1, piece.shape, piece.rot)) nudgeLock();
+    if (reducedMotion) draw();
+  }
+
+  function spin(direction: number) {
+    if (phase !== "falling" || !piece || paused) return;
+    const rot = (piece.rot + direction + 4) % 4;
+    // Kick off a wall or a neighboring stack, then upward as a last resort.
+    for (const [dx, dy] of [
+      [0, 0],
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+    ] as const) {
+      if (!fits(piece.x + dx, piece.y + dy, piece.shape, rot)) continue;
+      piece.x += dx;
+      piece.y += dy;
+      piece.rot = rot;
+      nudgeLock();
+      if (reducedMotion) draw();
+      return;
+    }
+  }
+
+  function hardDrop() {
+    if (phase !== "falling" || !piece || paused) return;
+    piece.y = landingRow(piece);
+    fallOffset = 0;
+    lock();
+  }
+
+  function place(x: number, y: number, color: number) {
+    // An orb pushed above the ceiling is simply lost; the next spawn ends the game.
+    if (y < 0) return;
+    board[y * COLS + x] = color;
+  }
+
+  function lock() {
+    if (!piece) return;
+    cellsOf(piece.shape, piece.rot).forEach(([dx, dy], index) => {
+      place(piece!.x + dx, piece!.y + dy, piece!.colors[index]);
+    });
+    piece = null;
+    chain = 0;
+    phase = "resolving";
+    settling = "settle";
+    resolveStep();
+  }
+
+  /** Compact every column downward, remembering how far each orb has to fall. */
+  function applyGravity(): boolean {
+    let moved = false;
+    for (let x = 0; x < COLS; x += 1) {
+      let write = ROWS - 1;
+      for (let y = ROWS - 1; y >= 0; y -= 1) {
+        const from = y * COLS + x;
+        if (board[from] === EMPTY) continue;
+        const to = write * COLS + x;
+        if (to !== from) {
+          board[to] = board[from];
+          drop[to] = drop[from] + (write - y);
+          board[from] = EMPTY;
+          drop[from] = 0;
+          moved = true;
+        }
+        write -= 1;
+      }
+    }
+    if (reducedMotion) drop.fill(0);
+    return moved;
+  }
+
+  function findGroups(): number[][] {
+    const seen = new Uint8Array(COLS * ROWS);
+    const groups: number[][] = [];
+    const stack: number[] = [];
+
+    for (let start = 0; start < board.length; start += 1) {
+      if (board[start] === EMPTY || seen[start]) continue;
+      const color = board[start];
+      const group: number[] = [];
+      stack.length = 0;
+      stack.push(start);
+      seen[start] = 1;
+
+      while (stack.length > 0) {
+        const at = stack.pop() as number;
+        group.push(at);
+        const x = at % COLS;
+        const y = (at - x) / COLS;
+        for (const [dx, dy] of NEIGHBORS) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+          const near = ny * COLS + nx;
+          if (seen[near] || board[near] !== color) continue;
+          seen[near] = 1;
+          stack.push(near);
+        }
+      }
+
+      if (group.length >= GROUP) groups.push(group);
+    }
+
+    return groups;
+  }
+
+  /** One pass of the settle → pop cycle. Runs again after each animation finishes. */
+  function resolveStep() {
+    if (applyGravity()) {
+      settling = "settle";
+      if (!reducedMotion) return;
+    }
+
+    const groups = findGroups();
+    if (groups.length === 0) {
+      if (chain > 1) {
+        bestChain = Math.max(bestChain, chain);
+        setStatus(`${score} points · chain of ${chain}`);
+      } else {
+        setStatus();
+      }
+      spawn();
+      return;
+    }
+
+    chain += 1;
+    popping = groups.flat();
+    clearedTotal += popping.length;
+    // Every link doubles, so a stack that collapses on itself is worth far more
+    // than the same orbs cleared one clump at a time.
+    const multiplier = 1 << Math.min(chain - 1, 6);
+    score += popping.length * 10 * multiplier + (groups.length - 1) * 50;
+    popTimer = 0;
+    settling = "pop";
+    setStatus(chain > 1 ? `${score} points · chain of ${chain}` : `${score} points`);
+  }
+
+  function stepFalling(dt: number) {
+    if (!piece) return;
+
+    if (!fits(piece.x, piece.y + 1, piece.shape, piece.rot)) {
+      fallOffset = 0;
+      lockTimer += dt;
+      if (lockTimer >= LOCK_DELAY_MS) lock();
+      return;
+    }
+
+    lockTimer = 0;
+    const interval = softDrop ? Math.min(60, fallInterval() / 8) : fallInterval();
+    fallOffset += dt / interval;
+
+    while (fallOffset >= 1) {
+      if (!fits(piece.x, piece.y + 1, piece.shape, piece.rot)) {
+        fallOffset = 0;
+        return;
+      }
+      piece.y += 1;
+      fallOffset -= 1;
+    }
+
+    if (reducedMotion) fallOffset = 0;
+  }
+
+  function stepResolving(dt: number) {
+    if (settling === "pop") {
+      popTimer += dt;
+      if (popTimer < (reducedMotion ? 60 : POP_MS)) return;
+      for (const at of popping) board[at] = EMPTY;
+      popping = [];
+      resolveStep();
+      return;
+    }
+
+    let moving = false;
+    const step = (SETTLE_SPEED * dt) / 1000;
+    for (let at = 0; at < drop.length; at += 1) {
+      if (drop[at] <= 0) continue;
+      drop[at] = Math.max(0, drop[at] - step);
+      if (drop[at] > 0) moving = true;
+    }
+    if (!moving) resolveStep();
+  }
+
+  function orbMark(x: number, y: number, radius: number, color: number) {
+    const { rim, mark } = PALETTE[color];
+    context.save();
+    context.globalAlpha = 0.55;
+    context.strokeStyle = rim;
+    context.fillStyle = rim;
+    context.lineWidth = Math.max(1.2, radius * 0.16);
+    context.lineCap = "round";
+    const size = radius * 0.34;
+
+    if (mark === "dot") {
+      context.beginPath();
+      context.arc(x, y, size * 0.62, 0, Math.PI * 2);
+      context.fill();
+    } else if (mark === "ring") {
+      context.beginPath();
+      context.arc(x, y, size, 0, Math.PI * 2);
+      context.stroke();
+    } else if (mark === "bar") {
+      context.beginPath();
+      context.moveTo(x - size, y);
+      context.lineTo(x + size, y);
+      context.stroke();
+    } else if (mark === "square") {
+      context.strokeRect(x - size * 0.8, y - size * 0.8, size * 1.6, size * 1.6);
+    } else {
+      context.beginPath();
+      context.moveTo(x - size * 0.8, y - size * 0.8);
+      context.lineTo(x + size * 0.8, y + size * 0.8);
+      context.moveTo(x + size * 0.8, y - size * 0.8);
+      context.lineTo(x - size * 0.8, y + size * 0.8);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  function drawOrb(
+    target: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number,
+    color: number,
+    scale = 1,
+    alpha = 1
+  ) {
+    const radius = size * 0.44 * scale;
+    if (radius <= 0) return;
+    const { body, glow, rim } = PALETTE[color];
+
+    target.save();
+    target.globalAlpha = alpha;
+    const gradient = target.createRadialGradient(
+      cx - radius * 0.35,
+      cy - radius * 0.4,
+      radius * 0.15,
+      cx,
+      cy,
+      radius
+    );
+    gradient.addColorStop(0, glow);
+    gradient.addColorStop(1, body);
+    target.fillStyle = gradient;
+    target.beginPath();
+    target.arc(cx, cy, radius, 0, Math.PI * 2);
+    target.fill();
+    target.lineWidth = Math.max(1, radius * 0.12);
+    target.strokeStyle = rim;
+    target.stroke();
+    target.restore();
+
+    if (target === context && scale > 0.6) orbMark(cx, cy, radius, color);
+  }
+
+  /** Same-color neighbors grow into each other, so a clump reads as one blob. */
+  function drawWeld(x: number, y: number, dx: number, dy: number) {
+    const color = board[y * COLS + x];
+    const thickness = cell * 0.4;
+    const cx = originX + (x + 0.5 + dx * 0.5) * cell;
+    const cy = originY + (y + 0.5 + dy * 0.5) * cell;
+    const w = dx ? cell * 0.5 : thickness;
+    const h = dy ? cell * 0.5 : thickness;
+    context.fillStyle = PALETTE[color].body;
+    context.fillRect(cx - w / 2, cy - h / 2, w, h);
+  }
+
+  function draw() {
+    const width = COLS * cell;
+    const height = ROWS * cell;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.save();
+
+    // The well is a drawn object rather than the canvas box, so a piece can
+    // sit in open air above it.
+    const radius = Math.min(8, cell * 0.35);
+    context.beginPath();
+    if (typeof context.roundRect === "function") {
+      context.roundRect(originX, originY, width, height, radius);
+    } else {
+      context.rect(originX, originY, width, height);
+    }
+    context.fillStyle = tokens.bg;
+    context.fill();
+    context.strokeStyle = tokens.border;
+    context.lineWidth = 1;
+    context.stroke();
+
+    context.save();
+    context.globalAlpha = 0.45;
+    context.strokeStyle = tokens.border;
+    context.lineWidth = 1;
+    context.beginPath();
+    for (let x = 1; x < COLS; x += 1) {
+      context.moveTo(Math.round(originX + x * cell) + 0.5, originY);
+      context.lineTo(Math.round(originX + x * cell) + 0.5, originY + height);
+    }
+    for (let y = 1; y < ROWS; y += 1) {
+      context.moveTo(originX, Math.round(originY + y * cell) + 0.5);
+      context.lineTo(originX + width, Math.round(originY + y * cell) + 0.5);
+    }
+    context.stroke();
+    context.restore();
+
+    // Clip to the well plus its headroom: a piece can hang above the ceiling.
+    context.beginPath();
+    context.rect(originX, originY - cell * HEADROOM, width, height + cell * HEADROOM);
+    context.clip();
+
+    const poppingSet = new Set(popping);
+
+    for (let y = 0; y < ROWS; y += 1) {
+      for (let x = 0; x < COLS; x += 1) {
+        const at = y * COLS + x;
+        if (board[at] === EMPTY || drop[at] > 0 || poppingSet.has(at)) continue;
+        for (const [dx, dy] of [
+          [1, 0],
+          [0, 1],
+        ] as const) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= COLS || ny >= ROWS) continue;
+          const near = ny * COLS + nx;
+          if (board[near] !== board[at] || drop[near] > 0 || poppingSet.has(near)) continue;
+          drawWeld(x, y, dx, dy);
+        }
+      }
+    }
+
+    for (let at = 0; at < board.length; at += 1) {
+      if (board[at] === EMPTY) continue;
+      const x = at % COLS;
+      const y = (at - x) / COLS;
+      const cx = originX + (x + 0.5) * cell;
+      const cy = originY + (y + 0.5 - drop[at]) * cell;
+
+      if (poppingSet.has(at)) {
+        const t = Math.min(1, popTimer / (reducedMotion ? 60 : POP_MS));
+        const scale = t < 0.35 ? 1 + (t / 0.35) * 0.22 : 1.22 * (1 - (t - 0.35) / 0.65);
+        drawOrb(context, cx, cy, cell, board[at], Math.max(0, scale), 1 - t * 0.5);
+        continue;
+      }
+
+      drawOrb(context, cx, cy, cell, board[at]);
+    }
+
+    if (piece && phase === "falling") {
+      // No landing preview: where a piece will come down is something to judge,
+      // not something the board answers for you.
+      const y = piece.y + fallOffset;
+      cellsOf(piece.shape, piece.rot).forEach(([dx, dy], index) => {
+        drawOrb(
+          context,
+          originX + (piece!.x + dx + 0.5) * cell,
+          originY + (y + dy + 0.5) * cell,
+          cell,
+          piece!.colors[index]
+        );
+      });
+    }
+
+    context.restore();
+  }
+
+  function drawNext() {
+    const rect = nextCanvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    nextCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+    nextCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+    nextContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+    nextContext.clearRect(0, 0, rect.width, rect.height);
+
+    const cells = cellsOf(queued.shape, queued.rot);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const [dx, dy] of cells) {
+      minX = Math.min(minX, dx);
+      maxX = Math.max(maxX, dx);
+      minY = Math.min(minY, dy);
+      maxY = Math.max(maxY, dy);
+    }
+    const wide = maxX - minX + 1;
+    const tall = maxY - minY + 1;
+    const size = Math.min((rect.width * 0.92) / wide, (rect.height * 0.92) / tall);
+    const left = rect.width / 2 - (wide * size) / 2;
+    const top = rect.height / 2 - (tall * size) / 2;
+
+    cells.forEach(([dx, dy], index) => {
+      drawOrb(
+        nextContext,
+        left + (dx - minX + 0.5) * size,
+        top + (dy - minY + 0.5) * size,
+        size,
+        queued.colors[index]
+      );
+    });
+
+    nextCanvas.setAttribute(
+      "aria-label",
+      `Next piece: ${queued.colors.map((color) => COLOR_NAMES[color]).join(", ")}`
+    );
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    cell = Math.min(rect.width / COLS, rect.height / (ROWS + HEADROOM));
+    originX = (rect.width - cell * COLS) / 2;
+    // The well hangs below the headroom row the incoming piece drops through.
+    originY = (rect.height - cell * (ROWS + HEADROOM)) / 2 + cell * HEADROOM;
+    draw();
+    drawNext();
+  }
+
+  const running = () =>
+    phase !== "over" && !paused && onScreen && !document.hidden;
+
+  function frame(now: number) {
+    frameId = null;
+    if (!running()) return;
+
+    const dt = Math.min(now - lastFrame, 100);
+    lastFrame = now;
+
+    if (phase === "falling") stepFalling(dt);
+    else if (phase === "resolving") stepResolving(dt);
+
+    draw();
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (frameId !== null || !running()) return;
+    lastFrame = performance.now();
+    frameId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    if (frameId === null) return;
+    cancelAnimationFrame(frameId);
+    frameId = null;
+  }
+
+  function setPaused(value: boolean) {
+    if (phase === "over") return;
+    paused = value;
+    pauseButton.setAttribute("aria-pressed", String(paused));
+    pauseButton.textContent = paused ? "Resume" : "Pause";
+    if (paused) {
+      stop();
+      setStatus(`Paused · ${score} points`);
+      draw();
+    } else {
+      setStatus();
+      start();
+    }
+  }
+
+  const HANDLED = new Set([
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "Space",
+    "KeyZ",
+    "KeyX",
+    "KeyP",
+  ]);
+
+  /** Somewhere the keys belong to the visitor rather than the game. */
+  function typing(element: Element | null): boolean {
+    if (!(element instanceof HTMLElement)) return false;
+    if (element.isContentEditable) return true;
+    return ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName);
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (!onScreen || !HANDLED.has(event.code)) return;
+    if (typing(document.activeElement)) return;
+    // Space belongs to whatever button is focused, not to the board.
+    if (event.code === "Space" && document.activeElement instanceof HTMLButtonElement) return;
+
+    if (event.code === "KeyP") {
+      event.preventDefault();
+      setPaused(!paused);
+      return;
+    }
+
+    // While the board is stopped the page keeps its own scrolling keys; the
+    // game only takes them over once something is actually falling.
+    if (paused || phase === "over") return;
+    event.preventDefault();
+
+    if (event.code === "ArrowLeft") move(-1);
+    else if (event.code === "ArrowRight") move(1);
+    else if (event.code === "ArrowUp" || event.code === "KeyX") spin(1);
+    else if (event.code === "KeyZ") spin(-1);
+    else if (event.code === "ArrowDown") softDrop = true;
+    else if (event.code === "Space") hardDrop();
+  });
+
+  window.addEventListener("keyup", (event) => {
+    if (event.code === "ArrowDown") softDrop = false;
+  });
+
+  window.addEventListener("blur", () => {
+    softDrop = false;
+  });
+
+  let gesture: { x: number; y: number; startY: number; time: number; slid: boolean } | null = null;
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    canvas.focus({ preventScroll: true });
+    canvas.setPointerCapture(event.pointerId);
+    gesture = {
+      x: event.clientX,
+      y: event.clientY,
+      startY: event.clientY,
+      time: performance.now(),
+      slid: false,
+    };
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!gesture) return;
+    const rect = canvas.getBoundingClientRect();
+    const step = (rect.width / COLS) * 0.75;
+    let dx = event.clientX - gesture.x;
+    while (Math.abs(dx) >= step) {
+      const direction = dx > 0 ? 1 : -1;
+      move(direction);
+      gesture.x += direction * step;
+      gesture.slid = true;
+      dx = event.clientX - gesture.x;
+    }
+  });
+
+  for (const type of ["pointerup", "pointercancel"] as const) {
+    canvas.addEventListener(type, (event) => {
+      if (!gesture) return;
+      const dy = event.clientY - gesture.startY;
+      const rect = canvas.getBoundingClientRect();
+      const cellSize = rect.height / ROWS;
+      const held = performance.now() - gesture.time;
+      if (!gesture.slid && dy > cellSize * 2) hardDrop();
+      else if (!gesture.slid && held < 400 && Math.abs(dy) < cellSize) spin(1);
+      gesture = null;
+    });
+  }
+
+  document.getElementById("chain-left")?.addEventListener("click", () => move(-1));
+  document.getElementById("chain-right")?.addEventListener("click", () => move(1));
+  document.getElementById("chain-spin")?.addEventListener("click", () => spin(1));
+  document.getElementById("chain-drop")?.addEventListener("click", hardDrop);
+  document.getElementById("chain-new")?.addEventListener("click", newGame);
+  document.getElementById("chain-again")?.addEventListener("click", newGame);
+  pauseButton.addEventListener("click", () => setPaused(!paused));
+
+  for (const button of colorButtons) {
+    button.addEventListener("click", () => {
+      colorCount = Number.parseInt(button.dataset.colors ?? "4", 10);
+      for (const other of colorButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      newGame();
+    });
+  }
+
+  const resizeObserver = new ResizeObserver(resize);
+  resizeObserver.observe(canvas);
+
+  // Nothing collapses while the board is scrolled away or the tab is in the
+  // background: the clock simply stops until it is back on screen.
+  const visibilityObserver = new IntersectionObserver(
+    ([entry]) => {
+      onScreen = entry.isIntersecting;
+      if (onScreen) start();
+      else stop();
+    },
+    { rootMargin: "80px" }
+  );
+  visibilityObserver.observe(canvas);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+    else start();
+  });
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+    if (reducedMotion) drop.fill(0);
+    draw();
+  });
+
+  new MutationObserver(() => {
+    readTokens();
+    draw();
+  }).observe(document.documentElement, { attributeFilter: ["data-theme"] });
+
+  readTokens();
+  resize();
+  newGame();
+</script>

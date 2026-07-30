@@ -50,6 +50,14 @@ export const games: Game[] = [
     instructions: "Click the water to drop a note. Higher in the pond means a higher pitch.",
   },
   {
+    slug: "chain",
+    title: "Chain",
+    tagline: "Four in a clump and the whole stack goes.",
+    blurb: "Drop pieces of two or three orbs, group four of a color to pop them, and stack the board so one pop sets off the next.",
+    tag: "arcade",
+    instructions: "Arrow keys move and spin, space drops. On a phone: drag to slide, tap to spin, swipe down to drop.",
+  },
+  {
     slug: "memory",
     title: "Memory",
     tagline: "Two of everything, hidden.",

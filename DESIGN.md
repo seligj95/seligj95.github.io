@@ -208,8 +208,8 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
 
 ### Games (arcade pages)
 - **Placement:** every game lives at `/games/<slug>/`. The `/games/` index splits them
-  into two sections with different shapes: puzzles are an index of rows (mark, name,
-  tagline, blurb, arrow on hover), zen toys are a mark-led shelf of tiles with the
+  into sections with different shapes: puzzles and arcade games are indexes of rows (mark,
+  name, tagline, blurb, arrow on hover), zen toys are a mark-led shelf of tiles with the
   flagship toy given a larger 2x2 tile. No uniform card wall, no uppercase eyebrow tags.
   The homepage carries only a single accent-washed callout linking to the arcade, so play
   never interrupts the site's primary reading flow.
@@ -246,6 +246,29 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   status line is the single source of progress for screen readers.
 - **Difficulty:** offered as board size rather than timers or lives — the games have no
   fail state, only a longer think.
+
+### Chain (arcade)
+- **Placement:** `/games/chain/`, the first entry in the arcade section — the games here
+  can be lost, which is what separates them from the puzzles and the zen toys.
+- **Board:** the well is drawn *inside* the canvas rather than being the canvas box, so a
+  falling piece can sit in a row of open air above the ceiling instead of being sliced off.
+- **Pieces:** two orbs half the time, otherwise three in a line or an elbow, each with its
+  own color. Rotation is table-driven (four quarter-turns per shape, precomputed) with a
+  small wall-kick list so a long piece can still spin flush against a wall. There is no
+  landing preview — the drop is the part you are supposed to be reading.
+- **Readability:** each orb color also carries its own small mark (dot, ring, bar, square,
+  cross) so the board never depends on hue alone, and touching orbs of one color are
+  welded into a single blob so a clump reads as one object.
+- **Difficulty:** offered as the number of colors (3/4/5) rather than speed presets,
+  matching the puzzles' "size, not timers" habit. Each setting keeps its own best score.
+- **Input:** the arrow keys work whenever the board is on screen and something is actually
+  falling, so a desktop visitor never has to click first; while the game is paused, over,
+  or a form field or button holds focus, the keys go back to the page. Touch gets drag to
+  slide, tap to spin, swipe down to drop, and every action also has a button for people
+  using neither.
+- **Motion:** the loop stops whenever the board leaves the viewport or the tab is hidden,
+  so nothing collapses while it is being read about. Reduced-motion visitors get instant
+  settles and pops rather than animated ones.
 
 ### Koi Pond
 - **Placement:** `/games/koi-pond/`, the flagship zen entry in the arcade.
