@@ -5,8 +5,10 @@ import type { Entry, Store } from "./store.ts";
 /**
  * One partition per board, so a day's leaderboard is a single partition scan
  * and never touches another day's rows.
+ *
+ * Exported because the moderation script has to address the same rows by hand.
  */
-function partition(game: string, day: string): string {
+export function partition(game: string, day: string): string {
   return `${game}|${day}`;
 }
 

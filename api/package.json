@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --experimental-strip-types src/index.ts",
     "start": "node --experimental-strip-types src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "scores": "node --experimental-strip-types scripts/scores.ts"
   },
   "dependencies": {
     "@azure/data-tables": "^13.3.0",
