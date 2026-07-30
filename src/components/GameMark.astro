@@ -101,6 +101,18 @@ const { slug } = Astro.props;
     )
   }
   {
+    slug === "twins" && (
+      <>
+        <rect x="4" y="10" width="14" height="20" rx="2" stroke-opacity="0.45" />
+        <rect x="22" y="10" width="14" height="20" rx="2" stroke-opacity="0.45" />
+        <path d="M7 26l4.5-6.5L15 24.5" />
+        <path d="M25 26l4.5-6.5L33 24.5" />
+        <circle cx="14" cy="15" r="2" fill="currentColor" stroke="none" />
+        <circle cx="32" cy="15" r="2" stroke-dasharray="2 2.4" stroke-opacity="0.5" />
+      </>
+    )
+  }
+  {
     slug === "queens" && (
       <>
         <rect x="7" y="7" width="26" height="26" rx="2" stroke-opacity="0.4" />

@@ -1,0 +1,946 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="twins" ratio="auto">
+  <span slot="status" id="twins-status" aria-live="polite">0 of 5 found</span>
+
+  <div
+    id="twins-scene"
+    class="scene"
+    tabindex="0"
+    role="group"
+    aria-label="Two pictures to compare"
+    aria-describedby="game-instructions"
+  >
+    <figure class="picture">
+      <canvas id="twins-left" aria-label="First picture"></canvas>
+      <figcaption>First</figcaption>
+    </figure>
+
+    <figure class="picture">
+      <canvas id="twins-right" aria-label="Second picture"></canvas>
+      <figcaption>Second</figcaption>
+    </figure>
+  </div>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="twins-count-label">Differences</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="twins-count-label">
+        <button type="button" role="radio" aria-checked="false" data-count="3">3</button>
+        <button type="button" role="radio" aria-checked="true" data-count="5">5</button>
+        <button type="button" role="radio" aria-checked="false" data-count="7">7</button>
+      </div>
+    </div>
+
+    <div class="control-set">
+      <button id="twins-hint" type="button">Give me one</button>
+      <button id="twins-new" type="button">New pictures</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      Both pictures are drawn from the same list of little shapes, and then one of them
+      is quietly edited: something changes color, grows, shrinks, shuffles sideways,
+      turns around, becomes something else, or leaves entirely. Nothing is a photograph
+      and nothing is stored &mdash; every pair is invented in your browser the moment you
+      ask for it, so you will never see the same one twice.
+    </p>
+    <p>
+      Click either picture where you think a difference is. You have as long as you like;
+      the only thing counted against you is a wrong guess. More differences also means a
+      busier scene to hunt through, and each setting keeps its own best score in this
+      browser. <em>Give me one</em> hands over a difference you have not found, which
+      finishes the round but takes it out of the running for a best score.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  .scene {
+    display: flex;
+    gap: clamp(0.6rem, 2vw, 1rem);
+    align-items: flex-start;
+    padding: clamp(0.6rem, 2vw, 1rem);
+    /* Tap-only, so the page still scrolls when a finger starts on a picture;
+       this only stops a quick double tap from zooming instead of guessing. */
+    touch-action: manipulation;
+  }
+
+  .scene:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: 0.5rem;
+  }
+
+  .picture {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    cursor: crosshair;
+    /* Not inherited from .scene, and guesses come in quick pairs: a second tap
+       is another look, not a request to zoom. */
+    touch-action: manipulation;
+  }
+
+  .scene[data-solved="true"] canvas {
+    border-color: var(--accent);
+  }
+
+  figcaption {
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    .scene {
+      flex-direction: column;
+    }
+
+    .picture {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  interface Motif {
+    /** Whether mirroring the shape actually shows, i.e. it isn't symmetric. */
+    flippable: boolean;
+    draw: (ctx: CanvasRenderingContext2D, s: number, ink: Ink) => void;
+  }
+
+  interface Ink {
+    body: string;
+    dark: string;
+  }
+
+  interface Prop {
+    cell: number;
+    motif: number;
+    ink: number;
+    scale: number;
+    /** Offset from the cell centre, as a fraction of the cell. */
+    dx: number;
+    dy: number;
+    flip: boolean;
+  }
+
+  type Change = "color" | "moved" | "size" | "flip" | "swap" | "gone" | "added";
+
+  interface Flash {
+    x: number;
+    y: number;
+    born: number;
+    side: "left" | "right";
+  }
+
+  /** Illustration colors, not UI: they stay put across themes. Ordered so
+      neighbours are the pairs that read alike, which is what lets a recolor
+      skip them and stay findable. */
+  const INKS: Ink[] = [
+    { body: "#e0574c", dark: "#993229" },
+    { body: "#e39a2a", dark: "#96600f" },
+    { body: "#4aa563", dark: "#256239" },
+    { body: "#3fa8a0", dark: "#1f6a64" },
+    { body: "#4189cf", dark: "#245685" },
+    { body: "#9367cf", dark: "#573a86" },
+  ];
+
+  const MOTIFS: Motif[] = [
+    // Tree
+    {
+      flippable: false,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.dark;
+        ctx.fillRect(-0.07 * s, 0.04 * s, 0.14 * s, 0.44 * s);
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.moveTo(0, -0.48 * s);
+        ctx.lineTo(0.31 * s, -0.06 * s);
+        ctx.lineTo(-0.31 * s, -0.06 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, -0.26 * s);
+        ctx.lineTo(0.39 * s, 0.16 * s);
+        ctx.lineTo(-0.39 * s, 0.16 * s);
+        ctx.closePath();
+        ctx.fill();
+      },
+    },
+    // House
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.body;
+        ctx.fillRect(-0.34 * s, -0.1 * s, 0.68 * s, 0.55 * s);
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.moveTo(-0.44 * s, -0.08 * s);
+        ctx.lineTo(0, -0.46 * s);
+        ctx.lineTo(0.44 * s, -0.08 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillRect(0.06 * s, 0.14 * s, 0.17 * s, 0.31 * s);
+        ctx.fillRect(-0.25 * s, 0.02 * s, 0.16 * s, 0.16 * s);
+      },
+    },
+    // Balloon
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.strokeStyle = ink.dark;
+        ctx.lineWidth = 0.04 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.24 * s);
+        ctx.bezierCurveTo(0.14 * s, 0.32 * s, -0.1 * s, 0.4 * s, 0.05 * s, 0.5 * s);
+        ctx.stroke();
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.ellipse(0, -0.12 * s, 0.27 * s, 0.33 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.moveTo(-0.06 * s, 0.26 * s);
+        ctx.lineTo(0.06 * s, 0.26 * s);
+        ctx.lineTo(0, 0.16 * s);
+        ctx.closePath();
+        ctx.fill();
+      },
+    },
+    // Flower
+    {
+      flippable: false,
+      draw(ctx, s, ink) {
+        ctx.strokeStyle = ink.dark;
+        ctx.lineWidth = 0.05 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.04 * s);
+        ctx.lineTo(0, 0.48 * s);
+        ctx.stroke();
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.ellipse(0.14 * s, 0.28 * s, 0.13 * s, 0.06 * s, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = ink.body;
+        for (let i = 0; i < 6; i += 1) {
+          const angle = (i / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(
+            Math.cos(angle) * 0.19 * s,
+            -0.14 * s + Math.sin(angle) * 0.19 * s,
+            0.13 * s,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.arc(0, -0.14 * s, 0.1 * s, 0, Math.PI * 2);
+        ctx.fill();
+      },
+    },
+    // Cloud
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.arc(-0.21 * s, 0.03 * s, 0.18 * s, 0, Math.PI * 2);
+        ctx.arc(0.01 * s, -0.13 * s, 0.24 * s, 0, Math.PI * 2);
+        ctx.arc(0.25 * s, 0.04 * s, 0.16 * s, 0, Math.PI * 2);
+        ctx.rect(-0.21 * s, 0.01 * s, 0.46 * s, 0.19 * s);
+        ctx.fill();
+      },
+    },
+    // Star
+    {
+      flippable: false,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i += 1) {
+          const radius = (i % 2 === 0 ? 0.47 : 0.2) * s;
+          const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+      },
+    },
+    // Fish
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.ellipse(0.05 * s, 0, 0.31 * s, 0.2 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.moveTo(-0.22 * s, 0);
+        ctx.lineTo(-0.47 * s, -0.19 * s);
+        ctx.lineTo(-0.47 * s, 0.19 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0.2 * s, -0.05 * s, 0.045 * s, 0, Math.PI * 2);
+        ctx.fill();
+      },
+    },
+    // Boat
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.moveTo(-0.42 * s, 0.18 * s);
+        ctx.lineTo(0.42 * s, 0.18 * s);
+        ctx.lineTo(0.3 * s, 0.43 * s);
+        ctx.lineTo(-0.3 * s, 0.43 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = ink.dark;
+        ctx.lineWidth = 0.05 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.18 * s);
+        ctx.lineTo(0, -0.45 * s);
+        ctx.stroke();
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.moveTo(0.05 * s, -0.4 * s);
+        ctx.lineTo(0.35 * s, 0.1 * s);
+        ctx.lineTo(0.05 * s, 0.1 * s);
+        ctx.closePath();
+        ctx.fill();
+      },
+    },
+    // Mushroom
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.dark;
+        ctx.fillRect(-0.11 * s, 0, 0.22 * s, 0.42 * s);
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.ellipse(0, 0.02 * s, 0.39 * s, 0.32 * s, 0, Math.PI, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = ink.dark;
+        ctx.beginPath();
+        ctx.arc(-0.16 * s, -0.09 * s, 0.06 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0.12 * s, -0.16 * s, 0.05 * s, 0, Math.PI * 2);
+        ctx.fill();
+      },
+    },
+    // Kite
+    {
+      flippable: true,
+      draw(ctx, s, ink) {
+        ctx.fillStyle = ink.body;
+        ctx.beginPath();
+        ctx.moveTo(0, -0.46 * s);
+        ctx.lineTo(0.29 * s, -0.06 * s);
+        ctx.lineTo(0, 0.24 * s);
+        ctx.lineTo(-0.29 * s, -0.06 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = ink.dark;
+        ctx.lineWidth = 0.045 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.24 * s);
+        ctx.quadraticCurveTo(0.17 * s, 0.36 * s, 0.02 * s, 0.5 * s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -0.46 * s);
+        ctx.lineTo(0, 0.24 * s);
+        ctx.moveTo(-0.29 * s, -0.06 * s);
+        ctx.lineTo(0.29 * s, -0.06 * s);
+        ctx.stroke();
+      },
+    },
+    // Bird
+    {
+      flippable: false,
+      draw(ctx, s, ink) {
+        ctx.strokeStyle = ink.body;
+        ctx.lineWidth = 0.07 * s;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-0.4 * s, 0.08 * s);
+        ctx.quadraticCurveTo(-0.2 * s, -0.22 * s, 0, 0.04 * s);
+        ctx.quadraticCurveTo(0.2 * s, -0.22 * s, 0.4 * s, 0.08 * s);
+        ctx.stroke();
+      },
+    },
+  ];
+
+  /** Grid and crowding per difficulty, keyed by how many differences are hidden. */
+  const LEVELS: Record<number, { cols: number; rows: number; props: number }> = {
+    3: { cols: 4, rows: 3, props: 9 },
+    5: { cols: 5, rows: 4, props: 14 },
+    7: { cols: 6, rows: 5, props: 21 },
+  };
+
+  /** How the edit is picked. Vanishing and appearing are the loudest, so they
+      are drawn less often and capped at one each per scene. */
+  const CHANGE_BAG: Change[] = [
+    "color",
+    "color",
+    "color",
+    "moved",
+    "moved",
+    "moved",
+    "size",
+    "size",
+    "flip",
+    "flip",
+    "swap",
+    "swap",
+    "gone",
+    "added",
+  ];
+
+  const FLASH_MS = 520;
+
+  const scene = document.getElementById("twins-scene") as HTMLDivElement;
+  const leftCanvas = document.getElementById("twins-left") as HTMLCanvasElement;
+  const rightCanvas = document.getElementById("twins-right") as HTMLCanvasElement;
+  const leftContext = leftCanvas.getContext("2d") as CanvasRenderingContext2D;
+  const rightContext = rightCanvas.getContext("2d") as CanvasRenderingContext2D;
+  const status = document.getElementById("twins-status") as HTMLSpanElement;
+  const hintButton = document.getElementById("twins-hint") as HTMLButtonElement;
+  const newButton = document.getElementById("twins-new") as HTMLButtonElement;
+  const countButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-count]")
+  );
+
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reducedMotion = motionQuery.matches;
+
+  const tokens = { bg: "#ffffff", border: "#e5e7eb", accent: "#2563eb", text: "#1a1a1a" };
+
+  let target = 5;
+  let cols = 5;
+  let rows = 4;
+  let before: Prop[] = [];
+  let after: Prop[] = [];
+  /** Cell index of every difference, and what was done to it. */
+  let changes = new Map<number, Change>();
+  let found = new Set<number>();
+  let misses = 0;
+  let hinted = false;
+  let cursor = -1;
+  let showCursor = false;
+  let flashes: Flash[] = [];
+  let frameId: number | null = null;
+  let flashTimer: number | null = null;
+
+  function readTokens() {
+    const style = getComputedStyle(scene);
+    tokens.bg = style.getPropertyValue("--bg").trim() || tokens.bg;
+    tokens.border = style.getPropertyValue("--border").trim() || tokens.border;
+    tokens.accent = style.getPropertyValue("--accent").trim() || tokens.accent;
+    tokens.text = style.getPropertyValue("--text").trim() || tokens.text;
+  }
+
+  const bestKey = () => `twins-best-${target}`;
+
+  function readBest(): number | null {
+    const raw = Number.parseInt(localStorage.getItem(bestKey()) ?? "", 10);
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  function pick<T>(items: readonly T[]): T {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  function shuffle<T>(items: T[]): T[] {
+    const copy = items.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function setStatus(message?: string) {
+    if (message) {
+      status.textContent = message;
+      return;
+    }
+    const label = `${found.size} of ${target} found`;
+    status.textContent = misses === 0 ? label : `${label} · ${misses} off`;
+  }
+
+  function newProp(cell: number, motif?: number, ink?: number): Prop {
+    return {
+      cell,
+      motif: motif ?? Math.floor(Math.random() * MOTIFS.length),
+      ink: ink ?? Math.floor(Math.random() * INKS.length),
+      scale: 0.74 + Math.random() * 0.18,
+      dx: (Math.random() - 0.5) * 0.18,
+      dy: (Math.random() - 0.5) * 0.18,
+      flip: Math.random() < 0.5,
+    };
+  }
+
+  /** A clearly different color: neighbours in the list are too close to be fair. */
+  function otherInk(ink: number): number {
+    const choices = INKS.map((_, index) => index).filter(
+      (index) => Math.min(Math.abs(index - ink), INKS.length - Math.abs(index - ink)) > 1
+    );
+    return pick(choices);
+  }
+
+  function otherMotif(motif: number): number {
+    const choices = MOTIFS.map((_, index) => index).filter((index) => index !== motif);
+    return pick(choices);
+  }
+
+  function edit(prop: Prop, change: Change): Prop | null {
+    const next = { ...prop };
+    switch (change) {
+      case "color":
+        next.ink = otherInk(prop.ink);
+        return next;
+      case "swap":
+        next.motif = otherMotif(prop.motif);
+        return next;
+      case "size":
+        // A third bigger or a third smaller, and never past the cell it lives
+        // in, so a difference cannot look like it belongs to its neighbour.
+        next.scale =
+          prop.scale < 0.84 ? Math.min(1, prop.scale * 1.35) : prop.scale * 0.68;
+        return next;
+      case "flip":
+        // Mirroring a symmetric shape changes nothing you could ever find.
+        if (!MOTIFS[prop.motif].flippable) return null;
+        next.flip = !prop.flip;
+        return next;
+      case "moved": {
+        // Always shoved away from the middle it started nearest, so the step is
+        // never quietly swallowed by the edge of the cell.
+        const step = 0.26 + Math.random() * 0.1;
+        if (Math.random() < 0.5) {
+          next.dx = clamp(prop.dx - Math.sign(prop.dx || 1) * step, -0.24, 0.24);
+        } else {
+          next.dy = clamp(prop.dy - Math.sign(prop.dy || 1) * step, -0.24, 0.24);
+        }
+        // A nudge that hit the wall and barely moved is not a fair difference.
+        if (Math.hypot(next.dx - prop.dx, next.dy - prop.dy) < 0.18) return null;
+        return next;
+      }
+      default:
+        return next;
+    }
+  }
+
+  function build() {
+    const level = LEVELS[target];
+    cols = level.cols;
+    rows = level.rows;
+
+    const cells = shuffle(Array.from({ length: cols * rows }, (_, index) => index));
+    const filled = cells.slice(0, level.props);
+    const empty = cells.slice(level.props);
+
+    // Colors and shapes are dealt from shuffled bags rather than rolled one at
+    // a time, so a scene never comes out as four kites in three shades of green.
+    const inks = shuffle(filled.map((_, index) => index % INKS.length));
+    const motifs = shuffle(filled.map((_, index) => index % MOTIFS.length));
+
+    before = filled.map((cell, index) => newProp(cell, motifs[index], inks[index]));
+    after = before.map((prop) => ({ ...prop }));
+    changes = new Map();
+    found = new Set();
+    misses = 0;
+    hinted = false;
+    flashes = [];
+
+    const spare = shuffle(before.map((prop) => prop.cell));
+    const spareEmpty = shuffle(empty);
+    let guard = 0;
+
+    while (changes.size < target && guard < 400) {
+      guard += 1;
+      const change = pick(CHANGE_BAG);
+
+      if (change === "added") {
+        const cell = spareEmpty.pop();
+        if (cell === undefined || [...changes.values()].includes("added")) continue;
+        after.push(newProp(cell));
+        changes.set(cell, "added");
+        continue;
+      }
+
+      const cell = spare.pop();
+      if (cell === undefined) break;
+
+      if (change === "gone") {
+        if ([...changes.values()].includes("gone")) {
+          spare.unshift(cell);
+          continue;
+        }
+        after = after.filter((prop) => prop.cell !== cell);
+        changes.set(cell, "gone");
+        continue;
+      }
+
+      const index = after.findIndex((prop) => prop.cell === cell);
+      const changed = edit(after[index], change);
+      if (!changed) {
+        spare.unshift(cell);
+        continue;
+      }
+      after[index] = changed;
+      changes.set(cell, change);
+    }
+
+    // A grid this small can run out of usable cells; tell the truth about it.
+    target = changes.size;
+    cursor = -1;
+    scene.dataset.solved = "false";
+    hintButton.disabled = false;
+    setStatus();
+    draw();
+  }
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function geometry(canvas: HTMLCanvasElement) {
+    const rect = canvas.getBoundingClientRect();
+    const cellWidth = rect.width / cols;
+    const cellHeight = rect.height / rows;
+    return { width: rect.width, height: rect.height, cellWidth, cellHeight };
+  }
+
+  function drawProp(
+    ctx: CanvasRenderingContext2D,
+    prop: Prop,
+    cellWidth: number,
+    cellHeight: number
+  ) {
+    const column = prop.cell % cols;
+    const row = Math.floor(prop.cell / cols);
+    const x = (column + 0.5 + prop.dx) * cellWidth;
+    const y = (row + 0.5 + prop.dy) * cellHeight;
+    const size = Math.min(cellWidth, cellHeight) * prop.scale;
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (prop.flip) ctx.scale(-1, 1);
+    MOTIFS[prop.motif].draw(ctx, size, INKS[prop.ink]);
+    ctx.restore();
+  }
+
+  function drawRing(
+    ctx: CanvasRenderingContext2D,
+    cell: number,
+    cellWidth: number,
+    cellHeight: number
+  ) {
+    const column = cell % cols;
+    const row = Math.floor(cell / cols);
+    ctx.save();
+    ctx.strokeStyle = tokens.accent;
+    ctx.fillStyle = tokens.accent;
+    ctx.globalAlpha = 0.12;
+    ctx.beginPath();
+    ctx.ellipse(
+      (column + 0.5) * cellWidth,
+      (row + 0.5) * cellHeight,
+      cellWidth * 0.44,
+      cellHeight * 0.44,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCursor(
+    ctx: CanvasRenderingContext2D,
+    cellWidth: number,
+    cellHeight: number
+  ) {
+    const column = cursor % cols;
+    const row = Math.floor(cursor / cols);
+    ctx.save();
+    ctx.strokeStyle = tokens.text;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(
+      column * cellWidth + 2,
+      row * cellHeight + 2,
+      cellWidth - 4,
+      cellHeight - 4
+    );
+    ctx.restore();
+  }
+
+  function drawFlash(
+    ctx: CanvasRenderingContext2D,
+    flash: Flash,
+    size: number,
+    now: number
+  ) {
+    const age = (now - flash.born) / FLASH_MS;
+    ctx.save();
+    ctx.globalAlpha = reducedMotion ? 0.85 : Math.max(0, 1 - age) * 0.85;
+    ctx.strokeStyle = tokens.text;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    const arm = size * 0.06;
+    ctx.beginPath();
+    ctx.moveTo(flash.x - arm, flash.y - arm);
+    ctx.lineTo(flash.x + arm, flash.y + arm);
+    ctx.moveTo(flash.x + arm, flash.y - arm);
+    ctx.lineTo(flash.x - arm, flash.y + arm);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function paint(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    props: Prop[],
+    side: "left" | "right"
+  ) {
+    const { width, height, cellWidth, cellHeight } = geometry(canvas);
+    if (width === 0 || height === 0) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.fillStyle = tokens.bg;
+    ctx.fillRect(0, 0, width, height);
+
+    for (const prop of props) drawProp(ctx, prop, cellWidth, cellHeight);
+    for (const cell of found) drawRing(ctx, cell, cellWidth, cellHeight);
+    if (showCursor && cursor >= 0) drawCursor(ctx, cellWidth, cellHeight);
+
+    const now = performance.now();
+    for (const flash of flashes) {
+      if (flash.side === side) drawFlash(ctx, flash, Math.min(width, height), now);
+    }
+  }
+
+  function draw() {
+    paint(leftCanvas, leftContext, before, "left");
+    paint(rightCanvas, rightContext, after, "right");
+  }
+
+  function tick() {
+    frameId = null;
+    const now = performance.now();
+    flashes = flashes.filter((flash) => now - flash.born < FLASH_MS);
+    draw();
+    if (flashes.length > 0) frameId = requestAnimationFrame(tick);
+  }
+
+  function scheduleFlash() {
+    if (reducedMotion) {
+      // No fade for reduced motion: the mark simply shows, then goes.
+      if (flashTimer !== null) clearTimeout(flashTimer);
+      flashTimer = window.setTimeout(() => {
+        flashes = [];
+        flashTimer = null;
+        draw();
+      }, FLASH_MS);
+      return;
+    }
+    if (frameId === null) frameId = requestAnimationFrame(tick);
+  }
+
+  function solved() {
+    scene.dataset.solved = "true";
+    hintButton.disabled = true;
+
+    if (hinted) {
+      setStatus(`All ${target} found, with a little help`);
+      return;
+    }
+
+    const best = readBest();
+    const tally = misses === 0 ? "no wrong guesses" : `${misses} wrong`;
+    if (best === null || misses < best) {
+      localStorage.setItem(bestKey(), String(misses));
+      setStatus(`All ${target} found, ${tally} — new best!`);
+      return;
+    }
+    setStatus(`All ${target} found, ${tally} · best ${best}`);
+  }
+
+  function reveal(cell: number) {
+    found.add(cell);
+    if (found.size === target) {
+      draw();
+      solved();
+      return;
+    }
+    setStatus();
+    draw();
+  }
+
+  function guess(cell: number, spot?: { x: number; y: number; side: "left" | "right" }) {
+    if (scene.dataset.solved === "true") return;
+    if (found.has(cell)) return;
+
+    if (changes.has(cell)) {
+      reveal(cell);
+      return;
+    }
+
+    misses += 1;
+    setStatus();
+    if (spot) {
+      flashes.push({ x: spot.x, y: spot.y, born: performance.now(), side: spot.side });
+      scheduleFlash();
+    } else {
+      draw();
+    }
+  }
+
+  function cellAt(canvas: HTMLCanvasElement, event: PointerEvent): number {
+    const rect = canvas.getBoundingClientRect();
+    const column = clamp(
+      Math.floor(((event.clientX - rect.left) / rect.width) * cols),
+      0,
+      cols - 1
+    );
+    const row = clamp(
+      Math.floor(((event.clientY - rect.top) / rect.height) * rows),
+      0,
+      rows - 1
+    );
+    return row * cols + column;
+  }
+
+  function onCanvas(canvas: HTMLCanvasElement, side: "left" | "right") {
+    canvas.addEventListener("pointerdown", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      // A pointer guess owns the cursor: hide the keyboard box so there are
+      // never two different ideas of where you are looking.
+      showCursor = false;
+      guess(cellAt(canvas, event), {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+        side,
+      });
+    });
+  }
+
+  const STEPS: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  };
+
+  scene.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      if (cursor < 0) {
+        cursor = 0;
+        showCursor = true;
+        draw();
+        return;
+      }
+      showCursor = true;
+      guess(cursor);
+      return;
+    }
+
+    const step = STEPS[event.key];
+    if (!step) return;
+    event.preventDefault();
+    showCursor = true;
+
+    if (cursor < 0) {
+      cursor = 0;
+    } else {
+      const column = clamp((cursor % cols) + step[0], 0, cols - 1);
+      const row = clamp(Math.floor(cursor / cols) + step[1], 0, rows - 1);
+      cursor = row * cols + column;
+    }
+    draw();
+  });
+
+  scene.addEventListener("blur", () => {
+    showCursor = false;
+    draw();
+  });
+
+  onCanvas(leftCanvas, "left");
+  onCanvas(rightCanvas, "right");
+
+  hintButton.addEventListener("click", (event) => {
+    if (scene.dataset.solved === "true") return;
+    const remaining = [...changes.keys()].filter((cell) => !found.has(cell));
+    if (remaining.length === 0) return;
+    hinted = true;
+    reveal(pick(remaining));
+    if (event.detail > 0) hintButton.blur();
+  });
+
+  newButton.addEventListener("click", (event) => {
+    build();
+    if (event.detail > 0) newButton.blur();
+  });
+
+  for (const button of countButtons) {
+    button.addEventListener("click", (event) => {
+      target = Number.parseInt(button.dataset.count ?? "5", 10);
+      for (const other of countButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      build();
+      if (event.detail > 0) button.blur();
+    });
+  }
+
+  const resizeObserver = new ResizeObserver(() => draw());
+  resizeObserver.observe(scene);
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+  });
+
+  new MutationObserver(() => {
+    readTokens();
+    draw();
+  }).observe(document.documentElement, { attributeFilter: ["data-theme"] });
+
+  readTokens();
+  build();
+</script>

@@ -245,7 +245,7 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   Reduced-motion visitors get a still frame with immediate, non-animated feedback.
 - **Sound:** always off by default and only started from a user gesture.
 
-### Puzzles (Memory, Jigsaw, Queens)
+### Puzzles (Memory, Jigsaw, Queens, Twins)
 - **Fairness:** every board is generated in the browser and verified before it is shown.
   Queens refines its colour regions until exactly one solution survives, so a puzzle can
   always be reasoned out rather than guessed.
@@ -254,6 +254,33 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   status line is the single source of progress for screen readers.
 - **Difficulty:** offered as board size rather than timers or lives — the games have no
   fail state, only a longer think.
+
+### Twins (puzzle)
+- **Placement:** `/games/twins/`, in the puzzles section — a spot-the-difference with no
+  fail state, only a wrong-guess tally you are trying to keep low.
+- **Pictures:** both are drawn, not photographed. One list of little props (tree, house,
+  balloon, fish, kite…) is laid out on a jittered grid and painted twice, the second time
+  with N of them edited. That is what makes the puzzles endless and keeps the repo free of
+  image assets — there is no set of hand-authored scenes to run out of.
+- **Fairness:** an edit has to be *findable*. A recolour skips the two nearest hues, so
+  nothing turns teal into green; a mirror is only offered on shapes that are actually
+  asymmetric; a nudge has to clear a minimum distance and is pushed away from whichever
+  edge it already sat near. Anything that fails those tests is thrown away and re-rolled,
+  and the count in the status line is the number that survived rather than the number
+  requested.
+- **Hit testing:** by grid cell, not by pixel or radius. Clicking anywhere in the cell that
+  holds a difference counts, which is what lets the mouse, the arrow keys and a fingertip
+  all mean the same thing without three sets of tolerances.
+- **Difficulty:** offered as the number of differences and how densely the scene is packed
+  (3/5/7), matching the other puzzles' "size, not timers" habit. Each setting keeps its own
+  best score, and best is the *fewest* wrong guesses; taking a hint takes the round out of
+  the running rather than adding a penalty.
+- **Input:** click either picture, or focus the pair and walk a marker around with the
+  arrow keys and check it with enter — the marker draws on both pictures at once so the
+  keyboard sees the comparison the mouse gets for free.
+- **Touch:** the canvases opt into `touch-action: manipulation`, which drops the tap delay
+  but deliberately stops short of `none`. This game is tap-only, so a scroll that begins on
+  a picture should still scroll the page.
 
 ### Chain (arcade)
 - **Placement:** `/games/chain/`, the first entry in the arcade section — the games here
