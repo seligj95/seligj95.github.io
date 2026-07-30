@@ -6,9 +6,25 @@ interface Props {
   slug: string;
   /** Aspect ratio of the play area, e.g. "16 / 9". */
   ratio?: string;
+  /** Overrides for pages that are not a game's own page, like the daily. */
+  title?: string;
+  tagline?: string;
+  tag?: string;
+  instructions?: string;
+  backHref?: string;
+  backLabel?: string;
 }
 
-const { slug, ratio = "16 / 9" } = Astro.props;
+const {
+  slug,
+  ratio = "16 / 9",
+  title,
+  tagline,
+  tag,
+  instructions,
+  backHref,
+  backLabel,
+} = Astro.props;
 const game = gameBySlug(slug);
 const base = import.meta.env.BASE_URL;
 // Phones normally squash the stage to 4/3, but content-sized stages (board
@@ -16,25 +32,34 @@ const base = import.meta.env.BASE_URL;
 const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
   ratio === "auto" ? "auto" : "4 / 3"
 };`;
+const heading = title ?? game.title;
+const subtitle = tagline ?? game.tagline;
+const badge = tag ?? game.tag;
+const howTo = instructions ?? game.instructions;
+// Keep the registry's blurb for a game's own page - it is written for search
+// results - and fall back to the tagline only when a page overrides the title.
+const description = title ? subtitle : game.blurb;
 ---
 
 <BaseLayout
-  title={`${game.title} — Games — Jordan Selig`}
-  description={game.blurb}
+  title={`${heading} — Games — Jordan Selig`}
+  description={description}
 >
   <article class="game">
-    <a class="back" href={`${base}games/`}>&larr; All games</a>
+    <a class="back" href={backHref ?? `${base}games/`}>
+      &larr; {backLabel ?? "All games"}
+    </a>
 
     <header class="game-header">
       <div>
-        <h1>{game.title}</h1>
-        <p class="tagline">{game.tagline}</p>
+        <h1>{heading}</h1>
+        <p class="tagline">{subtitle}</p>
       </div>
-      <span class="tag">{game.tag}</span>
+      <span class="tag">{badge}</span>
     </header>
 
     <div class="game-bar">
-      <p class="instructions" id="game-instructions">{game.instructions}</p>
+      <p class="instructions" id="game-instructions">{howTo}</p>
       <div class="game-status"><slot name="status" /></div>
     </div>
 

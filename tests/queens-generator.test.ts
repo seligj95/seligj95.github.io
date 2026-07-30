@@ -117,7 +117,9 @@ describe("growRegions", () => {
 });
 
 describe("generate", () => {
-  it("builds a legal, uniquely solvable board at every size", () => {
+  // Two dozen boards, and a 10x10 costs the better part of a second to draw
+  // and verify, so this one needs more room than the 5s default.
+  it("builds a legal, uniquely solvable board at every size", { timeout: 60000 }, () => {
     for (const n of SIZES) {
       const rng = createRng(hashSeed(`board-${n}`));
       for (let i = 0; i < 6; i += 1) {

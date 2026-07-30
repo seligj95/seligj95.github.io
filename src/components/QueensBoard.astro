@@ -1,0 +1,262 @@
+---
+/**
+ * The Queens board and its win panel.
+ *
+ * Shared by free play and the daily so the two cannot drift apart. The board's
+ * own squares are built in JavaScript and so never pick up a scoped-style hash,
+ * which is why their colors live in the global block on the free play page,
+ * keyed to `#queens-board`. Everything here is the chrome around them.
+ */
+
+interface Props {
+  /** Spoken name of the board, for screen readers. */
+  label?: string;
+  /** The image used for a crown. */
+  crown: string;
+  /** Whether the win panel offers another board. The daily does not. */
+  showNext?: boolean;
+}
+
+const { label = "Queens board", crown, showNext = true } = Astro.props;
+---
+
+<div class="wrap">
+  <div class="frame">
+    <div
+      id="queens-board"
+      class="board"
+      role="grid"
+      aria-label={label}
+      aria-describedby="game-instructions"
+      data-crown={crown}
+    >
+    </div>
+
+    <slot />
+
+    <div id="queens-win" class="win" aria-hidden="true" hidden>
+      <div class="win-panel">
+        <p class="win-title">Solved</p>
+        <p class="win-note" id="queens-win-note">Every crown in the right place.</p>
+        <slot name="win-extra" />
+        {showNext && <button id="queens-next" type="button">New puzzle</button>}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .wrap {
+    display: grid;
+    place-items: center;
+    padding: clamp(0.6rem, 2vw, 1.1rem);
+  }
+
+  .frame {
+    position: relative;
+    width: min(100%, 30rem);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(var(--size, 8), 1fr);
+    /* Fixed rows, so a mark or a crown can never stretch a square. */
+    grid-template-rows: repeat(var(--size, 8), 1fr);
+    gap: 0;
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid var(--text);
+    border-radius: 0.25rem;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .win {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    border-radius: 0.25rem;
+    animation: queens-win-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .win[hidden] {
+    display: none;
+  }
+
+  .win-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 1.1rem 1.6rem 1.3rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  .win-title {
+    margin: 0;
+    font-size: clamp(1.3rem, 4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .win-note {
+    margin: 0 0 0.5rem;
+    max-width: 22ch;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  .win-panel button {
+    padding: 0.45rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .win-panel button:hover {
+    opacity: 0.85;
+  }
+
+  @keyframes queens-win-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .win {
+      animation: none;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Cells are generated in JS, so they never pick up the scoped-style hash. */
+  #queens-board {
+    --region-sat: 68%;
+    --region-light: 82%;
+    --grid-line: color-mix(in srgb, var(--text) 22%, transparent);
+  }
+
+  [data-theme="dark"] #queens-board {
+    --region-sat: 42%;
+    --region-light: 34%;
+  }
+
+  [data-theme="geocities"] #queens-board {
+    --region-sat: 100%;
+    --region-light: 62%;
+  }
+
+  #queens-board .cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    border-right: 1px solid var(--grid-line);
+    border-bottom: 1px solid var(--grid-line);
+    background: hsl(var(--hue) var(--region-sat) var(--region-light));
+    color: #1a1a1a;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: none;
+    transition: background 0.15s ease-out;
+  }
+
+  [data-theme="dark"] #queens-board .cell {
+    color: #f5f5f5;
+  }
+
+  /* Both glyphs share one grid slot, so neither can push the square around. */
+  #queens-board .cell .glyph {
+    grid-area: 1 / 1;
+    display: block;
+    pointer-events: none;
+  }
+
+  #queens-board .cell .mark {
+    width: 44%;
+    color: color-mix(in srgb, #1a1a1a 62%, transparent);
+  }
+
+  [data-theme="dark"] #queens-board .cell .mark {
+    color: color-mix(in srgb, #f5f5f5 66%, transparent);
+  }
+
+  #queens-board .cell .crown {
+    width: 82%;
+    height: auto;
+    /* The mascot is artwork, not UI color, so it keeps its own palette in
+       every theme; a soft shadow keeps it seated on light region fills. */
+    filter: drop-shadow(0 1px 1px color-mix(in srgb, #1a1a1a 30%, transparent));
+    user-select: none;
+  }
+
+  /* Spotlight: while a hint is up, everything it isn't talking about recedes. */
+  #queens-board .cell[data-dim="true"] {
+    filter: saturate(0.25) opacity(0.55);
+  }
+
+  /* A crown you were given rather than worked out. */
+  #queens-board .cell[data-hint="true"] {
+    box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--text) 40%, transparent);
+  }
+
+  #queens-board .cell:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+    z-index: 2;
+  }
+
+  /* Thicker rules where two color regions meet, the way the paper version reads. */
+  #queens-board .cell[data-edge-right="true"] {
+    border-right: 2px solid var(--text);
+  }
+
+  #queens-board .cell[data-edge-bottom="true"] {
+    border-bottom: 2px solid var(--text);
+  }
+
+  #queens-board .cell[data-conflict="true"] {
+    background: repeating-linear-gradient(
+      -45deg,
+      hsl(var(--hue) var(--region-sat) var(--region-light)) 0 6px,
+      color-mix(in srgb, var(--text) 22%, hsl(var(--hue) var(--region-sat) var(--region-light))) 6px 12px
+    );
+  }
+
+  #queens-board .cell .crown {
+    animation: queens-drop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes queens-drop {
+    from {
+      transform: translateY(-22%) scale(0.7);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #queens-board .cell {
+      transition: none;
+    }
+
+    #queens-board .cell .crown {
+      animation: none;
+    }
+  }
+</style>

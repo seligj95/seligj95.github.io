@@ -1,0 +1,316 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+import QueensBoard from "../../components/QueensBoard.astro";
+
+// The site's own mascot stands in for the crown, same as free play.
+const crown = "/images/games/queens-crown.png";
+---
+
+<GameLayout
+  slug="queens"
+  ratio="auto"
+  title="Daily Queens"
+  tagline="One board a day, the same for everyone."
+  tag="Daily"
+  instructions="One crown per row, per column and per color, and no two crowns may touch. The clock starts on your first move, and each hint costs 30 seconds."
+  backHref="/daily/"
+  backLabel="All daily games"
+>
+  <span slot="status" id="queens-status" aria-live="polite">Not started</span>
+
+  <QueensBoard crown={crown} label="Daily Queens board" showNext={false}>
+    <div id="daily-gate" class="gate">
+      <div class="gate-panel">
+        <p class="gate-day" id="daily-date">Today</p>
+        <p class="gate-title" id="daily-difficulty">Dealing today&rsquo;s board&hellip;</p>
+        <p class="gate-note" id="daily-blurb">
+          Everyone gets this same board today. One go at it, and the clock starts
+          when you make your first move.
+        </p>
+        <button id="daily-start" type="button" disabled>Start</button>
+        <p class="gate-small" id="daily-done" hidden></p>
+      </div>
+    </div>
+
+    <p class="win-time" id="daily-result" slot="win-extra"></p>
+  </QueensBoard>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="daily-clock-label">Time</span>
+      <output class="clock" id="daily-clock" aria-labelledby="daily-clock-label">0:00</output>
+    </div>
+
+    <div class="control-set">
+      <button id="queens-hint" type="button" disabled>Hint &plus;30s</button>
+      <button id="queens-undo" type="button" disabled>Undo</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      Tap a square once to cross it out, again for a crown, again to clear it.
+      Drag across the board to cross out a run of squares in one go.
+    </p>
+    <p>
+      The board is built in your browser from today&rsquo;s date, so everyone
+      playing today gets exactly the same one, and it is checked to have a single
+      solution. Difficulty follows a fixed weekly rhythm &mdash; gentle early in
+      the week, hardest at the weekend &mdash; so a slow Saturday is the board,
+      not you.
+    </p>
+    <p>
+      Each hint adds 30 seconds to your time, so the cost is visible before you
+      take one. Want as many boards as you like instead?
+      <a href="/games/queens/">Free play Queens</a> has every size and no clock.
+    </p>
+  </div>
+</GameLayout>
+
+<style is:global>
+  /* The gate sits inside the board frame, which belongs to QueensBoard. */
+  #daily-gate {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    border-radius: 0.25rem;
+    z-index: 2;
+  }
+
+  #daily-gate[hidden] {
+    display: none;
+  }
+
+  #daily-gate .gate-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.45rem;
+    max-width: 24ch;
+    padding: 1.1rem 1.4rem 1.3rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  #daily-gate .gate-day {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #daily-gate .gate-title {
+    margin: 0;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  #daily-gate .gate-note {
+    margin: 0 0 0.35rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  #daily-gate .gate-small {
+    margin: 0.5rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  #daily-gate button {
+    padding: 0.45rem 1.4rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.15s ease-out;
+  }
+
+  #daily-gate button:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  #daily-gate button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  #daily-clock {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.25rem;
+    font-weight: 600;
+    min-width: 5ch;
+    text-align: center;
+  }
+
+  #daily-result {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  #daily-result:empty {
+    display: none;
+  }
+</style>
+
+<script>
+  import { mountQueens } from "../../lib/queens-board";
+  import {
+    dailyPuzzle,
+    DIFFICULTY_LABEL,
+    DIFFICULTY_BLURB,
+  } from "../../lib/queens-daily";
+  import { dayFor, formatDay } from "../../lib/daily";
+
+  const gate = document.getElementById("daily-gate") as HTMLDivElement;
+  const startButton = document.getElementById("daily-start") as HTMLButtonElement;
+  const dateLine = document.getElementById("daily-date") as HTMLParagraphElement;
+  const difficultyLine = document.getElementById("daily-difficulty") as HTMLParagraphElement;
+  const blurbLine = document.getElementById("daily-blurb") as HTMLParagraphElement;
+  const doneLine = document.getElementById("daily-done") as HTMLParagraphElement;
+  const clock = document.getElementById("daily-clock") as HTMLOutputElement;
+  const result = document.getElementById("daily-result") as HTMLParagraphElement;
+
+  /** What a hint costs, in seconds, charged whether or not it finishes you. */
+  const HINT_PENALTY = 30;
+
+  const day = dayFor();
+  const doneKey = `daily-queens-${day}`;
+
+  /** Wall-clock start of the run, or 0 when the clock is not running. */
+  let startedAt = 0;
+  let penalty = 0;
+  let ticking = false;
+
+  function elapsed(): number {
+    if (!startedAt) return penalty;
+    return Math.floor((Date.now() - startedAt) / 1000) + penalty;
+  }
+
+  function clockText(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  function tick() {
+    if (!ticking) return;
+    clock.textContent = clockText(elapsed());
+    requestAnimationFrame(tick);
+  }
+
+  interface Done {
+    seconds: number;
+    hints: number;
+  }
+
+  function readDone(): Done | null {
+    try {
+      const raw = window.localStorage.getItem(doneKey);
+      return raw ? (JSON.parse(raw) as Done) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeDone(done: Done) {
+    try {
+      window.localStorage.setItem(doneKey, JSON.stringify(done));
+    } catch {
+      // A browser with storage switched off just loses the one-attempt lock.
+    }
+  }
+
+  dateLine.textContent = formatDay(day);
+  const already = readDone();
+
+  /**
+   * Building the board costs a few hundred milliseconds on the harder days, so
+   * doing it inline would hold up the first paint. Let the gate render, then
+   * build behind it: by the time anyone has read the panel and reached for
+   * Start, the board is waiting.
+   */
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const today = dailyPuzzle(day);
+
+      const board = mountQueens({
+        deal: () => today.puzzle,
+        statusFor: ({ placed, size, solved }) => {
+          if (solved) return undefined;
+          return startedAt || penalty ? `${placed} of ${size} crowns` : "Not started";
+        },
+        onFirstMove: () => {
+          startedAt = Date.now();
+          ticking = true;
+          tick();
+        },
+        onHint: () => {
+          penalty += HINT_PENALTY;
+          clock.textContent = clockText(elapsed());
+        },
+        onSolved: ({ hintsUsed }) => {
+          const seconds = elapsed();
+          ticking = false;
+          startedAt = 0;
+          penalty = seconds;
+          clock.textContent = clockText(seconds);
+          board.freeze();
+
+          // Only the first finish counts, so a replay after clearing the lock
+          // cannot overwrite a time you already put up.
+          if (!readDone()) writeDone({ seconds, hints: hintsUsed });
+
+          const charged = hintsUsed * HINT_PENALTY;
+          result.textContent = charged
+            ? `${clockText(seconds)}, including ${clockText(charged)} of hints`
+            : clockText(seconds);
+        },
+      });
+
+      // Nothing is playable until Start: the gate covers the squares, and
+      // freezing covers the hint button, which sits outside it.
+      board.freeze();
+
+      const label = DIFFICULTY_LABEL[today.difficulty];
+      difficultyLine.textContent = `${label} \u00b7 ${today.puzzle.size}\u00d7${today.puzzle.size}`;
+      blurbLine.textContent = DIFFICULTY_BLURB[today.difficulty];
+      startButton.disabled = false;
+
+      if (already) {
+        // The lock is advisory: it lives in localStorage, so clearing your
+        // browser gets you another go. It keeps the day honest, it does not
+        // police it.
+        doneLine.hidden = false;
+        doneLine.textContent = `You finished today in ${clockText(already.seconds)}${
+          already.hints
+            ? ` with ${already.hints} hint${already.hints === 1 ? "" : "s"}`
+            : ""
+        }. A new board arrives tomorrow.`;
+        startButton.textContent = "See the board";
+      }
+
+      startButton.addEventListener("click", () => {
+        gate.hidden = true;
+        // Coming back to a day you already finished shows the board but leaves
+        // it locked, so there is nothing to gain from a second look.
+        if (already) {
+          clock.textContent = clockText(already.seconds);
+          return;
+        }
+        board.thaw();
+      });
+    }, 0);
+  });
+</script>

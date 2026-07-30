@@ -1,0 +1,205 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import GameMark from "../../components/GameMark.astro";
+
+const base = import.meta.env.BASE_URL;
+
+/**
+ * Queens is the only daily to start with. The list is written out rather than
+ * filtered from the games registry because a daily is not the same thing as the
+ * game it is built on: it has its own page, its own rules and its own blurb.
+ */
+const dailies = [
+  {
+    slug: "queens",
+    title: "Queens",
+    tagline: "One board, one go, one clock.",
+    blurb:
+      "Today’s board is the same for everyone. Crowns go one per row, one per column and one per color, and none may touch. Hints cost 30 seconds.",
+  },
+];
+---
+
+<BaseLayout
+  title="Daily games — Jordan Selig"
+  description="One puzzle a day, the same board for everyone. A daily Queens board with a clock, no account needed."
+>
+  <section class="daily">
+    <header class="intro">
+      <h1>Daily</h1>
+      <p>
+        One puzzle a day, the same board for everyone, and a clock running while
+        you solve it. No account, no email, nothing to sign up for &mdash; come
+        back tomorrow and there is a new one.
+      </p>
+    </header>
+
+    <ul class="rows">
+      {
+        dailies.map((game) => (
+          <li>
+            <a href={`${base}daily/${game.slug}/`}>
+              <span class="mark">
+                <GameMark slug={game.slug} />
+              </span>
+              <span class="text">
+                <span class="name">
+                  {game.title}
+                  <span class="dash">&mdash;</span>
+                  <span class="tagline">{game.tagline}</span>
+                </span>
+                <span class="blurb">{game.blurb}</span>
+              </span>
+              <span class="go" aria-hidden="true">
+                &rarr;
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="aside">
+      Prefer to just play? Every one of these is in
+      <a href={`${base}games/`}>the arcade</a> too, with no clock and as many boards
+      as you like.
+    </p>
+  </section>
+</BaseLayout>
+
+<style>
+  .daily {
+    max-width: 52rem;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .intro {
+    max-width: 38rem;
+    margin-bottom: 2.5rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 6vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.6rem;
+    text-wrap: balance;
+  }
+
+  .intro p {
+    color: var(--text-muted);
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    border-top: 2px solid var(--text);
+  }
+
+  .rows li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .rows a {
+    display: grid;
+    grid-template-columns: 2.75rem 1fr auto;
+    align-items: center;
+    gap: 0 1.1rem;
+    padding: 1.15rem 0.6rem;
+    margin-inline: -0.6rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--text);
+    transition: background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .rows a:hover {
+    background: var(--surface);
+  }
+
+  .rows .mark {
+    color: var(--accent);
+    width: 2.75rem;
+    height: 2.75rem;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .rows a:hover .mark {
+    transform: translateY(-2px);
+  }
+
+  .text {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .dash,
+  .tagline {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .blurb {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .go {
+    color: var(--text-muted);
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .rows a:hover .go {
+    transform: translateX(3px);
+  }
+
+  .aside {
+    margin-top: 2.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 34rem) {
+    .daily {
+      padding: 1.5rem 1.1rem;
+    }
+
+    .rows a {
+      grid-template-columns: 2.25rem 1fr;
+    }
+
+    .rows .mark {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    .go {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rows a,
+    .rows .mark,
+    .go {
+      transition: none;
+    }
+
+    .rows a:hover .mark,
+    .rows a:hover .go {
+      transform: none;
+    }
+  }
+</style>

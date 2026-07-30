@@ -183,4 +183,37 @@ describe("Build output", () => {
       'id="talk-modernize-net-apps-and-add-agentic-functionality-in-minutes"'
     );
   });
+
+  it("generates the daily section and links it from the nav", () => {
+    const index = readFileSync(join(dist, "daily", "index.html"), "utf8");
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    expect(index).toContain('href="/daily/queens/"');
+    expect(index).toContain('href="/games/"');
+    expect(queens).toContain('id="daily-gate"');
+    expect(queens).toContain('id="daily-clock"');
+    expect(index).toContain('href="/daily/"');
+  });
+
+  it("gives the daily board no free-play controls", () => {
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+    const free = readFileSync(join(dist, "games", "queens", "index.html"), "utf8");
+
+    // Free play deals as many boards as you like; the daily deals exactly one.
+    expect(free).toContain('id="queens-new"');
+    expect(free).toContain("data-level");
+    expect(queens).not.toContain('id="queens-new"');
+    expect(queens).not.toContain('id="queens-next"');
+    expect(queens).not.toContain("data-level");
+  });
+
+  it("ships the region colors with the shared Queens board", () => {
+    for (const page of [
+      join(dist, "games", "queens", "index.html"),
+      join(dist, "daily", "queens", "index.html"),
+    ]) {
+      // The cells are built in JS, so these rules have to be global to land.
+      expect(readFileSync(page, "utf8")).toContain("region-sat");
+    }
+  });
 });
