@@ -87,7 +87,7 @@ export const games: Game[] = [
     tagline: "Almost the same picture, twice.",
     blurb: "Two scenes drawn side by side with a few quiet differences between them. Find them all, then get a fresh pair.",
     tag: "puzzle",
-    instructions: "Click a spot where the two pictures differ. Arrow keys move the box, enter checks it.",
+    instructions: "Click a spot where the two pictures differ. Arrow keys move the marker, enter checks it.",
   },
 ];
 

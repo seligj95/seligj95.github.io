@@ -247,7 +247,7 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
 
 ### Puzzles (Memory, Jigsaw, Queens, Twins)
 - **Fairness:** every board is generated in the browser and verified before it is shown.
-  Queens refines its colour regions until exactly one solution survives, so a puzzle can
+  Queens refines its color regions until exactly one solution survives, so a puzzle can
   always be reasoned out rather than guessed.
 - **Feedback:** state lives on the element (`data-state`, `data-conflict`) so the visual
   language stays declarative; illegal placements are hatched rather than blocked, and the
@@ -258,19 +258,36 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
 ### Twins (puzzle)
 - **Placement:** `/games/twins/`, in the puzzles section — a spot-the-difference with no
   fail state, only a wrong-guess tally you are trying to keep low.
-- **Pictures:** both are drawn, not photographed. One list of little props (tree, house,
-  balloon, fish, kite…) is laid out on a jittered grid and painted twice, the second time
-  with N of them edited. That is what makes the puzzles endless and keeps the repo free of
-  image assets — there is no set of hand-authored scenes to run out of.
-- **Fairness:** an edit has to be *findable*. A recolour skips the two nearest hues, so
-  nothing turns teal into green; a mirror is only offered on shapes that are actually
-  asymmetric; a nudge has to clear a minimum distance and is pushed away from whichever
-  edge it already sat near. Anything that fails those tests is thrown away and re-rolled,
-  and the count in the status line is the number that survived rather than the number
-  requested.
-- **Hit testing:** by grid cell, not by pixel or radius. Clicking anywhere in the cell that
-  holds a difference counts, which is what lets the mouse, the arrow keys and a fingertip
-  all mean the same thing without three sets of tolerances.
+- **Pictures:** both are drawn, not photographed, and they are one drawing painted twice. A
+  hillside is composed first — sky, layered hills, a tree holding one edge of the frame,
+  falling leaves — and then things are placed into it by zone: birds and balloons in the
+  sky, huts and bushes along the ridge, animals standing in the grass. Ground items are
+  scaled by how far up the grass they stand, so higher reads as farther. The second copy is
+  the same list with N entries edited. That is what makes the puzzles endless and keeps the
+  repo free of image assets — there is no set of hand-authored scenes to run out of.
+- **A place and a moment:** three independent rolls keep rounds from looking alike. A *mood*
+  (day, dusk, overcast, night with a moon and stars, snow) recolors every painted thing at
+  once and decides whether the falling bits are leaves or flakes; a *terrain* gives rolling
+  hills, a single ridge, or a plain with a pond; a *framing* gives the big tree, just a bough
+  leaning in from the top corner, or open sky. The emptier framings quietly place a couple of
+  extra things, so an open scene is no less to hunt through than a tree-framed one.
+- **Scenery is not the puzzle:** the backdrop, the pond and the framing tree are painted
+  rather than placed, so they can never be a difference. Because they are painted, their
+  footprint has to be declared by hand (`sceneWalls`) or the layout would stand a fox behind
+  the trunk or in the water.
+- **Fairness:** an edit has to be *findable*. A recolor skips the two nearest hues, so
+  nothing turns teal into green, and is only offered on palettes with real separation; a
+  mirror is only offered on shapes that are actually asymmetric; a nudge has to clear a
+  minimum distance and is pushed away from whichever edge it already sat near; a swap stays
+  inside the same zone and the same family, so a rabbit never becomes a chimney. Answers are
+  also kept apart from each other, so one ring can only mean one thing. Anything that fails
+  those tests is thrown away and re-rolled, and the count in the status line is the number
+  that survived rather than the number requested.
+- **Hit testing:** by distance to the thing itself, in units of picture height so a wide
+  frame does not make sideways guesses cheaper. Each difference records where it sits in
+  *each* picture, so something that moved is findable from whichever side you noticed it on,
+  and the ring that marks it is derived from the drawing rather than guessed at — which is
+  what keeps the marker centered on what it is marking.
 - **Difficulty:** offered as the number of differences and how densely the scene is packed
   (3/5/7), matching the other puzzles' "size, not timers" habit. Each setting keeps its own
   best score, and best is the *fewest* wrong guesses; taking a hint takes the round out of
