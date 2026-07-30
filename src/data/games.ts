@@ -81,6 +81,14 @@ export const games: Game[] = [
     tag: "puzzle",
     instructions: "Tap once to cross a square out, twice to place a crown. Drag to cross out a run. Crowns can't touch, even diagonally.",
   },
+  {
+    slug: "twins",
+    title: "Twins",
+    tagline: "Almost the same picture, twice.",
+    blurb: "Two scenes drawn side by side with a few quiet differences between them. Find them all, then get a fresh pair.",
+    tag: "puzzle",
+    instructions: "Click a spot where the two pictures differ. Arrow keys move the marker, enter checks it.",
+  },
 ];
 
 export const gameBySlug = (slug: string): Game => {

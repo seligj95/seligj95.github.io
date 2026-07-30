@@ -48,6 +48,48 @@ const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
   </article>
 </BaseLayout>
 
+<script>
+  /*
+   * iOS starts its own selection and callout gestures partway through a drag,
+   * especially once a finger leaves the board and lands on the prose below it.
+   * A play surface that declares touch-action: none has already claimed the
+   * gesture, so for as long as one is running, hold the page's own text
+   * handling off. Only touchmove is cancelled: cancelling touchstart would also
+   * cancel the tap that games like Queens rely on.
+   */
+  const root = document.documentElement;
+
+  function owned(target: EventTarget | null): boolean {
+    return (
+      target instanceof Element &&
+      target.closest(".game-stage") !== null &&
+      getComputedStyle(target).touchAction === "none"
+    );
+  }
+
+  document.addEventListener("pointerdown", (event) => {
+    if (owned(event.target)) root.dataset.gesture = "true";
+  });
+
+  function release() {
+    delete root.dataset.gesture;
+  }
+
+  document.addEventListener("pointerup", release);
+  document.addEventListener("pointercancel", release);
+  window.addEventListener("blur", release);
+
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      // Touch events stay retargeted to where the finger landed, so this asks
+      // whether the gesture began on a play surface, not where it is now.
+      if (owned(event.target)) event.preventDefault();
+    },
+    { passive: false }
+  );
+</script>
+
 <style>
   .game {
     max-width: 48rem;
@@ -153,15 +195,41 @@ const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.6rem;
-    margin-top: 1rem;
+    gap: 0.85rem;
+    margin-top: 1.35rem;
+    /* Buttons get pressed and held mid-game, which on iOS otherwise trips the
+       select-and-copy callout on their labels instead of just firing them. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .game-notes {
-    margin-top: 1.5rem;
+    margin-top: 2rem;
+    /* Same measure the blog prose uses: the board can be as wide as it likes,
+       but the paragraphs under it still have to be readable. */
+    max-width: 62ch;
     color: var(--text-muted);
     font-size: 0.9rem;
-    line-height: 1.65;
+    line-height: 1.7;
+  }
+
+  /* The global reset strips paragraph margins and only .prose puts them back,
+     so without this every note runs into the next as one gray slab. */
+  .game-notes :global(p + p),
+  .game-notes :global(ul),
+  .game-notes :global(ol) {
+    margin-top: 1rem;
+  }
+
+  .game-notes :global(li + li) {
+    margin-top: 0.35rem;
+  }
+
+  .game-notes :global(ul),
+  .game-notes :global(ol) {
+    padding-left: 1.25rem;
   }
 
   :global([data-theme="geocities"]) .game-stage {
@@ -196,6 +264,14 @@ const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
 
 <style is:global>
   /* Shared control styling for every game page. */
+
+  /* While a play surface owns a drag, nothing on the page is selectable, so a
+     finger that wanders off the board cannot start highlighting the prose
+     underneath it mid-game. */
+  html[data-gesture] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
 
   /* A labeled cluster of related controls. Sets wrap as a unit so buttons
      never scatter into an arbitrary ragged grid. */
@@ -244,6 +320,9 @@ const stageStyle = `--stage-ratio: ${ratio}; --stage-ratio-narrow: ${
     color: var(--text-muted);
     cursor: pointer;
     white-space: nowrap;
+    /* Repeated taps on a control are the game being played, not a request to
+       double-tap-zoom the page. */
+    touch-action: manipulation;
     transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   }
 

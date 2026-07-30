@@ -64,17 +64,17 @@ import GameLayout from "../../layouts/GameLayout.astro";
       clearing as you go.
     </p>
     <p>
-      On a computer the arrow keys work as soon as the board is on screen: left and
-      right slide, up spins, down hurries the piece along and space drops it. On a
-      touchscreen, drag left and right to slide, tap to spin, swipe down to drop
-      &mdash; or use the buttons. Nothing shows you where a piece will land, so spin
-      it into shape on the way down. The board pauses itself while it is off screen,
-      and while it is paused the arrow keys go back to scrolling the page.
+      On a computer the arrow keys work as soon as the board is on screen: left
+      and right slide, up spins the piece, down hurries it along, and space
+      drops it the rest of the way. On a touchscreen, drag left and right to
+      slide, tap to spin, swipe down to drop &mdash; or use the buttons. Nothing
+      shows you where a piece will land, so spin it into shape on the way down.
+      The board pauses itself while it is off screen, and while it is paused the
+      arrow keys go back to scrolling the page.
     </p>
     <p>
-      Fewer colors means clumps form on their own; five means you have to plan for them.
-      Every color also carries its own small mark, so the board is readable without
-      relying on hue. Your best score for each setting is kept in this browser.
+      Fewer colors means clumps form on their own; five means you have to plan
+      for them. Your best score for each setting is kept in this browser.
     </p>
   </div>
 </GameLayout>
@@ -229,14 +229,13 @@ import GameLayout from "../../layouts/GameLayout.astro";
   /** Grace period after a piece lands, so a last-moment slide still counts. */
   const LOCK_DELAY_MS = 200;
 
-  // Orb colors are illustration, not UI: they stay put across themes. Each one
-  // also carries a mark so the board reads without relying on hue alone.
+  // Orb colors are illustration, not UI: they stay put across themes.
   const PALETTE = [
-    { body: "#e05a4f", glow: "#ff9c90", rim: "#8d2f27", mark: "dot" },
-    { body: "#e0a92f", glow: "#ffd884", rim: "#8a6410", mark: "ring" },
-    { body: "#46a262", glow: "#93dfa8", rim: "#256239", mark: "bar" },
-    { body: "#4589cf", glow: "#98c8f4", rim: "#245685", mark: "square" },
-    { body: "#9367cf", glow: "#c9a6f2", rim: "#573a86", mark: "cross" },
+    { body: "#e05a4f", glow: "#ff9c90", rim: "#8d2f27" },
+    { body: "#e0a92f", glow: "#ffd884", rim: "#8a6410" },
+    { body: "#46a262", glow: "#93dfa8", rim: "#256239" },
+    { body: "#4589cf", glow: "#98c8f4", rim: "#245685" },
+    { body: "#9367cf", glow: "#c9a6f2", rim: "#573a86" },
   ] as const;
   const COLOR_NAMES = ["red", "amber", "green", "blue", "violet"] as const;
 
@@ -652,42 +651,6 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (!moving) resolveStep();
   }
 
-  function orbMark(x: number, y: number, radius: number, color: number) {
-    const { rim, mark } = PALETTE[color];
-    context.save();
-    context.globalAlpha = 0.55;
-    context.strokeStyle = rim;
-    context.fillStyle = rim;
-    context.lineWidth = Math.max(1.2, radius * 0.16);
-    context.lineCap = "round";
-    const size = radius * 0.34;
-
-    if (mark === "dot") {
-      context.beginPath();
-      context.arc(x, y, size * 0.62, 0, Math.PI * 2);
-      context.fill();
-    } else if (mark === "ring") {
-      context.beginPath();
-      context.arc(x, y, size, 0, Math.PI * 2);
-      context.stroke();
-    } else if (mark === "bar") {
-      context.beginPath();
-      context.moveTo(x - size, y);
-      context.lineTo(x + size, y);
-      context.stroke();
-    } else if (mark === "square") {
-      context.strokeRect(x - size * 0.8, y - size * 0.8, size * 1.6, size * 1.6);
-    } else {
-      context.beginPath();
-      context.moveTo(x - size * 0.8, y - size * 0.8);
-      context.lineTo(x + size * 0.8, y + size * 0.8);
-      context.moveTo(x + size * 0.8, y - size * 0.8);
-      context.lineTo(x - size * 0.8, y + size * 0.8);
-      context.stroke();
-    }
-    context.restore();
-  }
-
   function drawOrb(
     target: CanvasRenderingContext2D,
     cx: number,
@@ -721,8 +684,6 @@ import GameLayout from "../../layouts/GameLayout.astro";
     target.strokeStyle = rim;
     target.stroke();
     target.restore();
-
-    if (target === context && scale > 0.6) orbMark(cx, cy, radius, color);
   }
 
   /** Same-color neighbors grow into each other, so a clump reads as one blob. */
@@ -1028,21 +989,36 @@ import GameLayout from "../../layouts/GameLayout.astro";
     });
   }
 
-  document.getElementById("chain-left")?.addEventListener("click", () => move(-1));
-  document.getElementById("chain-right")?.addEventListener("click", () => move(1));
-  document.getElementById("chain-spin")?.addEventListener("click", () => spin(1));
-  document.getElementById("chain-drop")?.addEventListener("click", hardDrop);
-  document.getElementById("chain-new")?.addEventListener("click", newGame);
-  document.getElementById("chain-again")?.addEventListener("click", newGame);
-  pauseButton.addEventListener("click", () => setPaused(!paused));
+  /**
+   * Space drops the piece, but a focused button claims Space for itself. After a
+   * mouse click the button would keep that focus and quietly break the drop key,
+   * so pointer-driven clicks hand focus back (detail is 0 for keyboard ones).
+   */
+  function onPress(id: string, run: () => void) {
+    document.getElementById(id)?.addEventListener("click", (event) => {
+      run();
+      if (event.detail > 0 && event.currentTarget instanceof HTMLElement) {
+        event.currentTarget.blur();
+      }
+    });
+  }
+
+  onPress("chain-left", () => move(-1));
+  onPress("chain-right", () => move(1));
+  onPress("chain-spin", () => spin(1));
+  onPress("chain-drop", () => hardDrop());
+  onPress("chain-new", newGame);
+  onPress("chain-again", newGame);
+  onPress("chain-pause", () => setPaused(!paused));
 
   for (const button of colorButtons) {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
       colorCount = Number.parseInt(button.dataset.colors ?? "4", 10);
       for (const other of colorButtons) {
         other.setAttribute("aria-checked", String(other === button));
       }
       newGame();
+      if (event.detail > 0) button.blur();
     });
   }
 

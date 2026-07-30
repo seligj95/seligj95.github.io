@@ -1,0 +1,1850 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+---
+
+<GameLayout slug="twins" ratio="auto">
+  <span slot="status" id="twins-status" aria-live="polite">0 of 5 found</span>
+
+  <div
+    id="twins-scene"
+    class="scene"
+    tabindex="0"
+    role="group"
+    aria-label="Two pictures to compare"
+    aria-describedby="game-instructions"
+  >
+    <figure class="picture">
+      <canvas id="twins-left" aria-label="First picture"></canvas>
+      <figcaption>First</figcaption>
+    </figure>
+
+    <figure class="picture">
+      <canvas id="twins-right" aria-label="Second picture"></canvas>
+      <figcaption>Second</figcaption>
+    </figure>
+  </div>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="twins-count-label">Differences</span>
+      <div class="control-group" role="radiogroup" aria-labelledby="twins-count-label">
+        <button type="button" role="radio" aria-checked="false" data-count="3">3</button>
+        <button type="button" role="radio" aria-checked="true" data-count="5">5</button>
+        <button type="button" role="radio" aria-checked="false" data-count="7">7</button>
+      </div>
+    </div>
+
+    <div class="control-set">
+      <button id="twins-hint" type="button">Give me one</button>
+      <button id="twins-new" type="button">New pictures</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      Both pictures come from one drawing. A landscape is laid out &mdash; hills or a
+      plain with a pond, a tree holding one edge of the frame or just a bough leaning
+      in, someone standing in the grass, something up in the sky &mdash; and then it is
+      painted twice, the second time with a handful of quiet edits. Something changes
+      color, grows, shrinks, shuffles sideways, turns around, becomes something else,
+      or leaves entirely. The hour and the weather are rolled too, so a round might
+      arrive at dusk, under cloud, by moonlight, or in falling snow. Nothing here is a
+      photograph and nothing is stored: every scene is invented in your browser the
+      moment you ask for it, so you will never see the same one twice.
+    </p>
+    <p>
+      Click either picture where you think a difference is. You have as long as you like;
+      the only thing counted against you is a wrong guess. More differences also means a
+      busier scene to hunt through, and each setting keeps its own best score in this
+      browser. <em>Give me one</em> hands over a difference you have not found, which
+      finishes the round but takes it out of the running for a best score.
+    </p>
+  </div>
+</GameLayout>
+
+<style>
+  .scene {
+    display: flex;
+    gap: clamp(0.6rem, 2vw, 1rem);
+    align-items: flex-start;
+    padding: clamp(0.6rem, 2vw, 1rem);
+    /* Tap-only, so the page still scrolls when a finger starts on a picture;
+       this only stops a quick double tap from zooming instead of guessing. */
+    touch-action: manipulation;
+  }
+
+  .scene:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: 0.5rem;
+  }
+
+  .picture {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    cursor: crosshair;
+    /* Not inherited from .scene, and guesses come in quick pairs: a second tap
+       is another look, not a request to zoom. */
+    touch-action: manipulation;
+  }
+
+  .scene[data-solved="true"] canvas {
+    border-color: var(--accent);
+  }
+
+  figcaption {
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    .scene {
+      flex-direction: column;
+    }
+
+    .picture {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  type Zone = "sky" | "hill" | "ground";
+  type Family = "critter" | "plant" | "thing";
+  type Change = "color" | "moved" | "size" | "flip" | "swap" | "gone" | "added";
+
+  interface Motif {
+    zones: Zone[];
+    family: Family;
+    /** Which palette it draws from; "none" means its colors are part of the drawing. */
+    palette: "ink" | "leaf" | "fur" | "stone" | "none";
+    /** Footprint inside the unit box. Drawings are centered in it, so a grounded
+        thing meets its ground line at h / 2 and growing it does not float it. */
+    w: number;
+    h: number;
+    /** Whether mirroring it is something a person could actually notice. */
+    flippable: boolean;
+    draw: (ctx: CanvasRenderingContext2D, body: string) => void;
+  }
+
+  interface Item {
+    id: number;
+    zone: Zone;
+    motif: number;
+    color: number;
+    /** Fraction of the picture's width. */
+    x: number;
+    /** Fraction of the picture's height, at the middle of the drawing. */
+    y: number;
+    /** Height of the drawing as a fraction of the picture's height. */
+    size: number;
+    flip: boolean;
+    /** Ground line this thing stands on, or null for anything in the air. */
+    base: number | null;
+  }
+
+  interface Spot {
+    x: number;
+    y: number;
+    r: number;
+  }
+
+  interface Diff {
+    id: number;
+    kind: Change;
+    left: Spot;
+    right: Spot;
+  }
+
+  interface Leaf {
+    x: number;
+    y: number;
+    r: number;
+    turn: number;
+    color: string;
+  }
+
+  interface Backdrop {
+    mood: Mood;
+    terrain: Terrain;
+    frame: Frame;
+    orbX: number;
+    orbY: number;
+    horizon: number;
+    hills: { x: number; top: number; width: number; color: string }[];
+    pond: { x: number; y: number; rx: number; ry: number } | null;
+    stars: { x: number; y: number; r: number }[];
+    treeX: number;
+    treeInk: string;
+    leaves: Leaf[];
+  }
+
+  interface Flash {
+    x: number;
+    y: number;
+    born: number;
+    side: "left" | "right";
+  }
+
+  /** A weather-and-hour look for the whole picture. Everything painted rather
+      than placed reads from one of these, so a scene is a place *and* a moment. */
+  interface Mood {
+    id: string;
+    sky: [string, string];
+    hills: string[];
+    grass: string;
+    water: string;
+    orb: string | null;
+    crescent: boolean;
+    stars: boolean;
+    flecks: string[];
+    round: boolean;
+  }
+
+  type Terrain = "hills" | "meadow" | "ridge";
+  type Frame = "tree" | "bough" | "open";
+
+  /** Illustration colors, not UI: they stay put across themes. Each list is
+      ordered so neighbors are the pairs that read alike, which is what lets a
+      recolor skip its neighbors and still be findable. */
+  const PALETTES: Record<string, string[]> = {
+    ink: ["#e0574c", "#e39a2a", "#4aa563", "#3fa8a0", "#4189cf", "#9367cf"],
+    leaf: ["#4f9d4f", "#84ae36", "#e0a32c", "#d9722c", "#c0392b"],
+    fur: ["#e2762f", "#8a5a3b", "#c8a267", "#e6d4b4", "#9aa3ad"],
+    stone: ["#9aa3ad", "#8f9096", "#a8a08f"],
+    none: ["#8a5a3b"],
+  };
+
+  const BARK = "#8a5a3b";
+  const CREAM = "#f6ead9";
+  const COAL = "#3a3330";
+
+  const FALL = ["#c0392b", "#e0a32c", "#d9722c", "#8a5a3b", "#e6c34a"];
+
+  const MOODS: Mood[] = [
+    {
+      id: "day",
+      sky: ["#cbe6f7", "#ecf6fc"],
+      hills: ["#8bc06a", "#6fae59", "#a3cd77", "#7cb85f"],
+      grass: "#5faa50",
+      water: "#6cb4d8",
+      orb: "#f7d76b",
+      crescent: false,
+      stars: false,
+      flecks: FALL,
+      round: false,
+    },
+    {
+      id: "dusk",
+      sky: ["#f0a45c", "#fbdcae"],
+      hills: ["#5d8f57", "#47734a", "#6f9d5c", "#3f6845"],
+      grass: "#41794a",
+      water: "#d59a63",
+      orb: "#ef8a3c",
+      crescent: false,
+      stars: false,
+      flecks: ["#b6432c", "#d9722c", "#e0a32c", "#7a4a30"],
+      round: false,
+    },
+    {
+      id: "overcast",
+      sky: ["#d3dae0", "#eef2f5"],
+      hills: ["#7d9c6e", "#688a5e", "#8faa7c", "#5d7d56"],
+      grass: "#6a9159",
+      water: "#8fa7b5",
+      orb: null,
+      crescent: false,
+      stars: false,
+      flecks: ["#a9682f", "#c08b3a", "#8a5a3b", "#9c9a6a"],
+      round: false,
+    },
+    {
+      id: "night",
+      sky: ["#1d2a4d", "#4a5c86"],
+      hills: ["#33553f", "#264534", "#3d6248", "#1f3a2d"],
+      grass: "#2c5138",
+      water: "#33517c",
+      orb: "#f4f0d5",
+      crescent: true,
+      stars: true,
+      flecks: ["#b98a3a", "#8a5a3b", "#a4623a", "#c9a24a"],
+      round: false,
+    },
+    {
+      id: "snow",
+      sky: ["#c9dcec", "#f2f7fb"],
+      hills: ["#eef4f9", "#dde8f1", "#f6fafd", "#d2e0ec"],
+      grass: "#edf3f8",
+      water: "#bcd5e6",
+      orb: "#f3f6f8",
+      crescent: false,
+      stars: false,
+      flecks: ["#ffffff", "#dbe8f4", "#c3d8ea"],
+      round: true,
+    },
+  ];
+
+  /** Nudge a color toward white or black so a drawing can shade itself. */
+  function shade(color: string, amount: number): string {
+    const n = Number.parseInt(color.slice(1), 16);
+    let r = (n >> 16) & 255;
+    let g = (n >> 8) & 255;
+    let b = n & 255;
+    if (amount < 0) {
+      const k = 1 + amount;
+      r *= k;
+      g *= k;
+      b *= k;
+    } else {
+      r += (255 - r) * amount;
+      g += (255 - g) * amount;
+      b += (255 - b) * amount;
+    }
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+  }
+
+  /** Mix two hex colors, so a shape can match a gradient at the point it sits. */
+  function blend(a: string, b: string, t: number): string {
+    const na = Number.parseInt(a.slice(1), 16);
+    const nb = Number.parseInt(b.slice(1), 16);
+    const mix = (shift: number) => {
+      const x = (na >> shift) & 255;
+      const y = (nb >> shift) & 255;
+      return Math.round(x + (y - x) * clamp(t, 0, 1));
+    };
+    return `rgb(${mix(16)}, ${mix(8)}, ${mix(0)})`;
+  }
+
+  function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function oval(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    rx: number,
+    ry: number,
+    turn = 0
+  ) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, turn, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function poly(ctx: CanvasRenderingContext2D, points: [number, number][]) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i += 1) ctx.lineTo(points[i][0], points[i][1]);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /** Every motif draws inside a box from -0.5 to 0.5, centered, where one unit
+      of height is the item's size. */
+  const MOTIFS: Motif[] = [
+    {
+      zones: ["sky"],
+      family: "thing",
+      palette: "none",
+      w: 1,
+      h: 0.54,
+      flippable: true,
+      draw(ctx) {
+        ctx.fillStyle = "#dbe7f3";
+        oval(ctx, 0.02, 0.11, 0.45, 0.14);
+        ctx.fillStyle = "#ffffff";
+        dot(ctx, -0.24, 0.02, 0.15);
+        dot(ctx, 0.0, -0.08, 0.18);
+        dot(ctx, 0.26, 0.05, 0.13);
+        oval(ctx, 0.0, 0.06, 0.43, 0.12);
+      },
+    },
+    {
+      zones: ["sky"],
+      family: "critter",
+      palette: "none",
+      w: 1,
+      h: 0.44,
+      flippable: true,
+      draw(ctx) {
+        ctx.fillStyle = "#8a6a4f";
+        poly(ctx, [
+          [-0.16, 0.0],
+          [-0.46, -0.12],
+          [-0.38, 0.12],
+        ]);
+        oval(ctx, 0.04, 0.04, 0.26, 0.12);
+        ctx.fillStyle = shade("#8a6a4f", -0.3);
+        poly(ctx, [
+          [-0.04, 0.0],
+          [0.08, -0.2],
+          [0.24, 0.02],
+        ]);
+        ctx.fillStyle = "#e39a2a";
+        poly(ctx, [
+          [0.26, 0.0],
+          [0.4, 0.05],
+          [0.26, 0.09],
+        ]);
+      },
+    },
+    {
+      zones: ["sky"],
+      family: "thing",
+      palette: "ink",
+      w: 0.62,
+      h: 1,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.strokeStyle = shade(body, -0.4);
+        ctx.lineWidth = 0.018;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.16);
+        ctx.quadraticCurveTo(0.14, 0.3, 0.06, 0.5);
+        ctx.stroke();
+        ctx.fillStyle = body;
+        poly(ctx, [
+          [0, -0.5],
+          [0.24, -0.14],
+          [0, 0.16],
+          [-0.24, -0.14],
+        ]);
+        ctx.strokeStyle = shade(body, -0.35);
+        ctx.beginPath();
+        ctx.moveTo(0, -0.5);
+        ctx.lineTo(0, 0.16);
+        ctx.moveTo(-0.24, -0.14);
+        ctx.lineTo(0.24, -0.14);
+        ctx.stroke();
+        ctx.fillStyle = "#e39a2a";
+        dot(ctx, 0.08, 0.27, 0.036);
+        ctx.fillStyle = "#4189cf";
+        dot(ctx, 0.11, 0.39, 0.036);
+      },
+    },
+    {
+      zones: ["sky"],
+      family: "thing",
+      palette: "ink",
+      w: 0.52,
+      h: 1,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.strokeStyle = shade(body, -0.45);
+        ctx.lineWidth = 0.016;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.14);
+        ctx.bezierCurveTo(0.12, 0.28, -0.08, 0.36, 0.04, 0.5);
+        ctx.stroke();
+        ctx.fillStyle = body;
+        oval(ctx, 0, -0.16, 0.23, 0.28);
+        poly(ctx, [
+          [-0.05, 0.08],
+          [0.05, 0.08],
+          [0, 0.17],
+        ]);
+        ctx.fillStyle = shade(body, 0.45);
+        oval(ctx, -0.08, -0.24, 0.06, 0.1, -0.5);
+      },
+    },
+    {
+      zones: ["hill", "ground"],
+      family: "plant",
+      palette: "leaf",
+      w: 0.74,
+      h: 1,
+      flippable: false,
+      draw(ctx, body) {
+        ctx.fillStyle = BARK;
+        ctx.fillRect(-0.05, 0.28, 0.1, 0.22);
+        ctx.fillStyle = body;
+        poly(ctx, [
+          [0, -0.5],
+          [0.21, -0.16],
+          [-0.21, -0.16],
+        ]);
+        poly(ctx, [
+          [0, -0.32],
+          [0.29, 0.05],
+          [-0.29, 0.05],
+        ]);
+        ctx.fillStyle = shade(body, -0.12);
+        poly(ctx, [
+          [0, -0.12],
+          [0.37, 0.3],
+          [-0.37, 0.3],
+        ]);
+      },
+    },
+    {
+      zones: ["hill", "ground"],
+      family: "plant",
+      palette: "leaf",
+      w: 1,
+      h: 0.6,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = shade(body, -0.16);
+        dot(ctx, -0.28, 0.09, 0.16);
+        ctx.fillStyle = body;
+        dot(ctx, 0.02, -0.05, 0.23);
+        dot(ctx, 0.3, 0.11, 0.17);
+        ctx.fillRect(-0.42, 0.02, 0.86, 0.28);
+      },
+    },
+    {
+      zones: ["hill", "ground"],
+      family: "plant",
+      palette: "leaf",
+      w: 0.88,
+      h: 1,
+      flippable: false,
+      draw(ctx, body) {
+        ctx.fillStyle = BARK;
+        ctx.fillRect(-0.055, 0.06, 0.11, 0.44);
+        ctx.fillStyle = shade(body, -0.14);
+        dot(ctx, 0, -0.14, 0.36);
+        ctx.fillStyle = body;
+        dot(ctx, -0.1, -0.2, 0.25);
+        dot(ctx, 0.14, -0.16, 0.21);
+      },
+    },
+    {
+      zones: ["hill"],
+      family: "thing",
+      palette: "stone",
+      w: 0.46,
+      h: 1,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.strokeStyle = shade(body, -0.4);
+        ctx.lineWidth = 0.02;
+        ctx.beginPath();
+        ctx.moveTo(0.02, -0.34);
+        ctx.lineTo(0.02, -0.5);
+        ctx.stroke();
+        ctx.fillStyle = "#c0392b";
+        poly(ctx, [
+          [0.03, -0.5],
+          [0.2, -0.44],
+          [0.03, -0.38],
+        ]);
+        ctx.fillStyle = body;
+        ctx.fillRect(-0.17, -0.3, 0.34, 0.8);
+        ctx.fillRect(-0.2, -0.34, 0.08, 0.08);
+        ctx.fillRect(-0.04, -0.34, 0.08, 0.08);
+        ctx.fillRect(0.12, -0.34, 0.08, 0.08);
+        ctx.fillStyle = shade(body, -0.45);
+        ctx.fillRect(-0.05, -0.16, 0.1, 0.14);
+      },
+    },
+    {
+      zones: ["hill", "ground"],
+      family: "thing",
+      palette: "ink",
+      w: 1,
+      h: 0.87,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = body;
+        ctx.fillRect(-0.33, -0.06, 0.66, 0.5);
+        ctx.fillStyle = shade(body, -0.32);
+        poly(ctx, [
+          [-0.44, -0.04],
+          [0, -0.43],
+          [0.44, -0.04],
+        ]);
+        ctx.fillRect(0.08, 0.14, 0.16, 0.3);
+        ctx.fillStyle = shade(body, 0.62);
+        ctx.fillRect(-0.24, 0.06, 0.16, 0.15);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "critter",
+      palette: "fur",
+      w: 0.92,
+      h: 1,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = shade(body, -0.1);
+        oval(ctx, -0.3, 0.24, 0.19, 0.1, -0.5);
+        ctx.fillStyle = CREAM;
+        dot(ctx, -0.42, 0.1, 0.07);
+        ctx.fillStyle = body;
+        oval(ctx, 0.02, 0.25, 0.19, 0.24);
+        poly(ctx, [
+          [-0.16, -0.24],
+          [-0.11, -0.5],
+          [0.02, -0.28],
+        ]);
+        poly(ctx, [
+          [0.2, -0.24],
+          [0.15, -0.5],
+          [0.02, -0.28],
+        ]);
+        dot(ctx, 0.02, -0.14, 0.2);
+        ctx.fillStyle = CREAM;
+        oval(ctx, 0.02, -0.03, 0.12, 0.09);
+        ctx.fillStyle = COAL;
+        dot(ctx, 0.02, -0.08, 0.03);
+        dot(ctx, -0.07, -0.17, 0.032);
+        dot(ctx, 0.11, -0.17, 0.032);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "critter",
+      palette: "fur",
+      w: 0.78,
+      h: 1,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = shade(body, -0.14);
+        oval(ctx, -0.13, -0.31, 0.055, 0.18, 0.26);
+        ctx.fillStyle = body;
+        oval(ctx, 0.11, -0.33, 0.06, 0.17, -0.1);
+        oval(ctx, -0.13, -0.31, 0.045, 0.16, 0.26);
+        oval(ctx, 0, 0.26, 0.19, 0.23);
+        dot(ctx, 0, -0.09, 0.17);
+        ctx.fillStyle = CREAM;
+        dot(ctx, 0.22, 0.36, 0.08);
+        oval(ctx, 0, -0.02, 0.09, 0.06);
+        ctx.fillStyle = COAL;
+        dot(ctx, 0, -0.05, 0.026);
+        dot(ctx, -0.07, -0.12, 0.028);
+        dot(ctx, 0.07, -0.12, 0.028);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "critter",
+      palette: "fur",
+      w: 0.86,
+      h: 0.88,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = body;
+        dot(ctx, -0.16, -0.32, 0.09);
+        dot(ctx, 0.16, -0.32, 0.09);
+        oval(ctx, 0, 0.2, 0.21, 0.24);
+        dot(ctx, 0, -0.2, 0.2);
+        ctx.fillStyle = "#4189cf";
+        poly(ctx, [
+          [-0.19, -0.05],
+          [0.19, -0.05],
+          [0.17, 0.04],
+          [-0.17, 0.04],
+        ]);
+        poly(ctx, [
+          [0.09, 0.01],
+          [0.2, 0.01],
+          [0.24, 0.2],
+          [0.13, 0.2],
+        ]);
+        ctx.fillStyle = shade(body, 0.42);
+        oval(ctx, 0, -0.13, 0.1, 0.075);
+        ctx.fillStyle = COAL;
+        dot(ctx, 0, -0.17, 0.032);
+        dot(ctx, -0.08, -0.25, 0.03);
+        dot(ctx, 0.08, -0.25, 0.03);
+      },
+    },
+    {
+      zones: ["ground", "hill"],
+      family: "critter",
+      palette: "fur",
+      w: 0.72,
+      h: 1,
+      flippable: false,
+      draw(ctx, body) {
+        ctx.fillStyle = "#e39a2a";
+        ctx.fillRect(-0.12, 0.4, 0.07, 0.1);
+        ctx.fillRect(0.05, 0.4, 0.07, 0.1);
+        ctx.fillStyle = body;
+        poly(ctx, [
+          [-0.23, -0.3],
+          [-0.11, -0.5],
+          [-0.05, -0.28],
+        ]);
+        poly(ctx, [
+          [0.23, -0.3],
+          [0.11, -0.5],
+          [0.05, -0.28],
+        ]);
+        oval(ctx, 0, 0.04, 0.26, 0.42);
+        ctx.fillStyle = shade(body, 0.35);
+        oval(ctx, 0, 0.16, 0.16, 0.26);
+        ctx.fillStyle = "#ffffff";
+        dot(ctx, -0.1, -0.14, 0.1);
+        dot(ctx, 0.1, -0.14, 0.1);
+        ctx.fillStyle = COAL;
+        dot(ctx, -0.1, -0.14, 0.05);
+        dot(ctx, 0.1, -0.14, 0.05);
+        ctx.fillStyle = "#e39a2a";
+        poly(ctx, [
+          [0, -0.07],
+          [0.05, 0.01],
+          [-0.05, 0.01],
+        ]);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "plant",
+      palette: "ink",
+      w: 0.9,
+      h: 0.96,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = CREAM;
+        poly(ctx, [
+          [-0.1, -0.02],
+          [0.1, -0.02],
+          [0.13, 0.48],
+          [-0.13, 0.48],
+        ]);
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(-0.44, 0.0);
+        ctx.quadraticCurveTo(-0.34, -0.46, 0, -0.46);
+        ctx.quadraticCurveTo(0.34, -0.46, 0.44, 0.0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = shade(body, 0.55);
+        dot(ctx, -0.16, -0.16, 0.08);
+        dot(ctx, 0.14, -0.25, 0.06);
+        dot(ctx, 0.22, -0.06, 0.05);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "plant",
+      palette: "ink",
+      w: 0.68,
+      h: 1,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.strokeStyle = "#4f9d4f";
+        ctx.lineWidth = 0.05;
+        ctx.beginPath();
+        ctx.moveTo(0, -0.1);
+        ctx.quadraticCurveTo(0.06, 0.2, 0.0, 0.5);
+        ctx.stroke();
+        ctx.fillStyle = "#4f9d4f";
+        oval(ctx, 0.14, 0.16, 0.13, 0.06, -0.4);
+        ctx.fillStyle = body;
+        for (let i = 0; i < 6; i += 1) {
+          const angle = (i / 6) * Math.PI * 2;
+          dot(ctx, Math.cos(angle) * 0.17, -0.21 + Math.sin(angle) * 0.17, 0.12);
+        }
+        ctx.fillStyle = "#e39a2a";
+        dot(ctx, 0, -0.21, 0.09);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "plant",
+      palette: "none",
+      w: 1,
+      h: 0.9,
+      flippable: true,
+      draw(ctx) {
+        const body = "#e08432";
+        ctx.fillStyle = shade(body, -0.16);
+        oval(ctx, 0, 0.1, 0.44, 0.36);
+        ctx.fillStyle = body;
+        oval(ctx, -0.16, 0.1, 0.24, 0.35);
+        oval(ctx, 0.16, 0.1, 0.24, 0.35);
+        oval(ctx, 0, 0.1, 0.22, 0.37);
+        ctx.fillStyle = "#4f7a3a";
+        poly(ctx, [
+          [-0.04, -0.26],
+          [0.05, -0.26],
+          [0.11, -0.45],
+          [0.02, -0.42],
+        ]);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "thing",
+      palette: "none",
+      w: 1,
+      h: 0.34,
+      flippable: true,
+      draw(ctx) {
+        ctx.fillStyle = BARK;
+        ctx.fillRect(-0.42, -0.16, 0.78, 0.32);
+        oval(ctx, -0.42, 0, 0.08, 0.16);
+        ctx.fillStyle = shade(BARK, 0.3);
+        oval(ctx, 0.36, 0, 0.08, 0.16);
+        ctx.fillStyle = shade(BARK, -0.1);
+        oval(ctx, 0.36, 0, 0.045, 0.09);
+        ctx.fillStyle = shade(BARK, 0.3);
+        oval(ctx, 0.36, 0, 0.018, 0.036);
+      },
+    },
+    {
+      zones: ["ground", "hill"],
+      family: "thing",
+      palette: "stone",
+      w: 1,
+      h: 0.6,
+      flippable: true,
+      draw(ctx, body) {
+        ctx.fillStyle = body;
+        poly(ctx, [
+          [-0.44, 0.28],
+          [-0.3, -0.16],
+          [-0.02, -0.3],
+          [0.26, -0.14],
+          [0.44, 0.28],
+        ]);
+        ctx.fillStyle = shade(body, 0.22);
+        poly(ctx, [
+          [-0.3, -0.16],
+          [-0.02, -0.3],
+          [0.04, 0.02],
+          [-0.16, 0.06],
+        ]);
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "thing",
+      palette: "none",
+      w: 1,
+      h: 0.5,
+      flippable: true,
+      draw(ctx) {
+        const mix = ["#c0392b", "#e0a32c", "#d9722c", "#8a5a3b", "#e6c34a"];
+        ctx.fillStyle = "#b8722c";
+        ctx.beginPath();
+        ctx.moveTo(-0.48, 0.24);
+        ctx.quadraticCurveTo(-0.18, -0.7, 0.12, -0.6);
+        ctx.quadraticCurveTo(0.36, -0.52, 0.48, 0.24);
+        ctx.closePath();
+        ctx.fill();
+        for (let i = 0; i < 14; i += 1) {
+          const t = i / 13;
+          ctx.fillStyle = mix[i % mix.length];
+          oval(
+            ctx,
+            -0.4 + t * 0.8,
+            0.18 - Math.sin(t * Math.PI) * 0.36 + (i % 3) * 0.07,
+            0.08,
+            0.045,
+            (i % 4) * 0.7
+          );
+        }
+      },
+    },
+    {
+      zones: ["ground"],
+      family: "thing",
+      palette: "none",
+      w: 1,
+      h: 0.66,
+      flippable: false,
+      draw(ctx) {
+        ctx.fillStyle = shade(BARK, 0.25);
+        ctx.fillRect(-0.34, -0.33, 0.1, 0.66);
+        ctx.fillRect(0.24, -0.33, 0.1, 0.66);
+        ctx.fillStyle = BARK;
+        ctx.fillRect(-0.46, -0.22, 0.92, 0.08);
+        ctx.fillRect(-0.46, 0.04, 0.92, 0.08);
+      },
+    },
+  ];
+
+  const BY_ZONE: Record<Zone, number[]> = { sky: [], hill: [], ground: [] };
+  MOTIFS.forEach((motif, index) => {
+    for (const zone of motif.zones) BY_ZONE[zone].push(index);
+  });
+
+  /** Weighted by how fair each edit is, not by how easy it was to write. */
+  const CHANGE_BAG: Change[] = [
+    "color",
+    "color",
+    "color",
+    "moved",
+    "moved",
+    "moved",
+    "size",
+    "size",
+    "flip",
+    "flip",
+    "swap",
+    "swap",
+    "gone",
+    "added",
+  ];
+
+  const LEVELS: Record<
+    number,
+    { sky: number; hill: number; ground: number; leaves: number }
+  > = {
+    3: { sky: 3, hill: 2, ground: 4, leaves: 12 },
+    5: { sky: 4, hill: 3, ground: 6, leaves: 20 },
+    7: { sky: 5, hill: 4, ground: 8, leaves: 28 },
+  };
+
+  const FLASH_MS = 520;
+  /** Two answers never sit closer than this, so one ring can only mean one thing. */
+  const APART = 0.17;
+
+  const scene = document.getElementById("twins-scene") as HTMLDivElement;
+  const leftCanvas = document.getElementById("twins-left") as HTMLCanvasElement;
+  const rightCanvas = document.getElementById("twins-right") as HTMLCanvasElement;
+  const leftContext = leftCanvas.getContext("2d") as CanvasRenderingContext2D;
+  const rightContext = rightCanvas.getContext("2d") as CanvasRenderingContext2D;
+  const status = document.getElementById("twins-status") as HTMLSpanElement;
+  const hintButton = document.getElementById("twins-hint") as HTMLButtonElement;
+  const newButton = document.getElementById("twins-new") as HTMLButtonElement;
+  const countButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-count]")
+  );
+
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reducedMotion = motionQuery.matches;
+
+  /** What was asked for, which is also what a best score is filed under. */
+  let wanted = 5;
+  /** What the scene actually managed to hide, which is what you have to find. */
+  let goal = 5;
+  let backdrop: Backdrop | null = null;
+  let before: Item[] = [];
+  let after: Item[] = [];
+  let diffs: Diff[] = [];
+  let blockers: Spot[] = [];
+  let found = new Set<number>();
+  let misses = 0;
+  let hinted = false;
+  let cursor: { x: number; y: number } | null = null;
+  let showCursor = false;
+  let flashes: Flash[] = [];
+  let frameId: number | null = null;
+  let flashTimer: number | null = null;
+  let nextId = 1;
+
+  const bestKey = () => `twins-best-${wanted}`;
+
+  function readBest(): number | null {
+    const raw = Number.parseInt(localStorage.getItem(bestKey()) ?? "", 10);
+    return Number.isFinite(raw) ? raw : null;
+  }
+
+  function pick<T>(items: readonly T[]): T {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  function between(low: number, high: number): number {
+    return low + Math.random() * (high - low);
+  }
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function shuffle<T>(items: T[]): T[] {
+    const copy = items.slice();
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function setStatus(message?: string) {
+    if (message) {
+      status.textContent = message;
+      return;
+    }
+    const label = `${found.size} of ${goal} found`;
+    status.textContent = misses === 0 ? label : `${label} · ${misses} off`;
+  }
+
+  /** Aspect of one picture, used to measure distance in height units so a wide
+      canvas does not make sideways guesses cheaper than upward ones. */
+  function aspect(): number {
+    const w = leftCanvas.clientWidth;
+    const h = leftCanvas.clientHeight;
+    return w > 0 && h > 0 ? w / h : 4 / 3;
+  }
+
+  function span(a: { x: number; y: number }, b: { x: number; y: number }) {
+    return Math.hypot((a.x - b.x) * aspect(), a.y - b.y);
+  }
+
+  /** Where the middle of a drawing sits once its feet are on its ground line. */
+  function centerY(item: Item): number {
+    if (item.base === null) return item.y;
+    return item.base - (item.size * MOTIFS[item.motif].h) / 2;
+  }
+
+  function spotOf(item: Item): Spot {
+    const motif = MOTIFS[item.motif];
+    const reach = Math.max(motif.w, motif.h) * item.size * 0.6;
+    return { x: item.x, y: centerY(item), r: Math.max(reach, 0.055) };
+  }
+
+  function bounds(zone: Zone) {
+    const horizon = backdrop?.horizon ?? 0.6;
+    if (zone === "sky") return { x: [0.1, 0.9], y: [0.08, horizon - 0.2] };
+    if (zone === "hill") return { x: [0.08, 0.92], y: [horizon - 0.11, horizon - 0.01] };
+    return { x: [0.09, 0.91], y: [horizon + 0.06, 0.94] };
+  }
+
+  function makeItem(zone: Zone, motifIndex?: number): Item {
+    const motif = motifIndex ?? pick(BY_ZONE[zone]);
+    const edge = bounds(zone);
+    const item: Item = {
+      id: nextId,
+      zone,
+      motif,
+      color: Math.floor(Math.random() * PALETTES[MOTIFS[motif].palette].length),
+      x: between(edge.x[0], edge.x[1]),
+      y: 0,
+      size: 0,
+      flip: Math.random() < 0.5,
+      base: null,
+    };
+    nextId += 1;
+
+    if (zone === "sky") {
+      item.size = between(0.1, 0.16);
+      item.y = between(edge.y[0], edge.y[1]);
+      return item;
+    }
+
+    if (zone === "hill") {
+      item.size = between(0.06, 0.1);
+      item.base = between(edge.y[0], edge.y[1]);
+    } else {
+      // Higher on the grass means farther away, and farther away means smaller.
+      // That is the only depth cue a flat drawing gets.
+      const depth = Math.random();
+      item.base = edge.y[0] + depth * (edge.y[1] - edge.y[0]);
+      item.size = 0.1 + depth * 0.11;
+    }
+    item.y = centerY(item);
+    return item;
+  }
+
+  function fits(item: Item, others: Item[]): boolean {
+    const spot = spotOf(item);
+    for (const other of others) {
+      const theirs = spotOf(other);
+      if (span(spot, theirs) < (spot.r + theirs.r) * 0.92) return false;
+    }
+    // The big tree is scenery, but it still takes up room.
+    for (const wall of blockers) {
+      if (span(spot, wall) < (spot.r + wall.r) * 0.9) return false;
+    }
+    return true;
+  }
+
+  function place(zone: Zone, items: Item[], motif?: number): Item | null {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const item = makeItem(zone, motif);
+      if (fits(item, items)) return item;
+    }
+    return null;
+  }
+
+  function otherColor(item: Item): number | null {
+    const palette = MOTIFS[item.motif].palette;
+    // Fur and stone are close enough in tone that a swap inside them reads as a
+    // trick of the light, so only the vivid palettes get recolored.
+    if (palette !== "ink" && palette !== "leaf") return null;
+    const list = PALETTES[palette];
+    const choices = list
+      .map((_, index) => index)
+      .filter((index) => {
+        const step = Math.abs(index - item.color);
+        return Math.min(step, list.length - step) > 1;
+      });
+    return choices.length > 0 ? pick(choices) : null;
+  }
+
+  function otherMotif(item: Item): number | null {
+    const family = MOTIFS[item.motif].family;
+    const choices = BY_ZONE[item.zone].filter(
+      (index) => index !== item.motif && MOTIFS[index].family === family
+    );
+    return choices.length > 0 ? pick(choices) : null;
+  }
+
+  /** Returns the edited copy, or null when the edit would not be findable. */
+  function edit(item: Item, kind: Change, others: Item[]): Item | null {
+    const next: Item = { ...item };
+
+    switch (kind) {
+      case "color": {
+        const color = otherColor(item);
+        if (color === null) return null;
+        next.color = color;
+        return next;
+      }
+      case "moved": {
+        const edge = bounds(item.zone).x;
+        const reach = spotOf(item).r;
+        const step = (reach + between(0.04, 0.09)) / aspect();
+        const away = item.x > (edge[0] + edge[1]) / 2 ? -1 : 1;
+        next.x = clamp(item.x + away * step, edge[0], edge[1]);
+        // A shove that runs straight into the edge of the picture is not a shove.
+        if (Math.abs(next.x - item.x) * aspect() < reach * 0.85) return null;
+        return fits(next, others) ? next : null;
+      }
+      case "size": {
+        next.size = Math.random() < 0.5 ? item.size * 1.38 : item.size * 0.66;
+        if (next.size > 0.3 || next.size < 0.05) return null;
+        next.y = centerY(next);
+        return fits(next, others) ? next : null;
+      }
+      case "flip": {
+        // Mirroring a symmetric shape changes nothing you could ever find.
+        if (!MOTIFS[item.motif].flippable) return null;
+        next.flip = !item.flip;
+        return next;
+      }
+      case "swap": {
+        const motif = otherMotif(item);
+        if (motif === null) return null;
+        next.motif = motif;
+        next.color = Math.floor(Math.random() * PALETTES[MOTIFS[motif].palette].length);
+        next.y = centerY(next);
+        return fits(next, others) ? next : null;
+      }
+      default:
+        return next;
+    }
+  }
+
+  /** Keeps two answers from sharing a spot, which would make one ring a lie. */
+  function roomy(spot: Spot): boolean {
+    return diffs.every(
+      (diff) => span(spot, diff.left) > APART && span(spot, diff.right) > APART
+    );
+  }
+
+  function makeBackdrop(leafCount: number): Backdrop {
+    const mood = pick(MOODS);
+    const terrain = pick(["hills", "hills", "meadow", "ridge"] as Terrain[]);
+    const frame = pick(["tree", "tree", "bough", "open"] as Frame[]);
+    const horizon = between(0.58, 0.64);
+    const greens = shuffle(mood.hills);
+
+    const hills: Backdrop["hills"] = [];
+    if (terrain === "hills") {
+      for (let i = 0; i < 3; i += 1) {
+        hills.push({
+          x: between(0.05, 0.95),
+          top: between(0.36, 0.52),
+          width: between(0.45, 0.9),
+          color: greens[i],
+        });
+      }
+    } else if (terrain === "ridge") {
+      // One shoulder of land filling a side, with a smaller one answering it.
+      const side = Math.random() < 0.5 ? 0.22 : 0.78;
+      hills.push({
+        x: side,
+        top: between(0.28, 0.36),
+        width: between(0.5, 0.62),
+        color: greens[0],
+      });
+      hills.push({
+        x: 1 - side + between(-0.08, 0.08),
+        top: between(0.45, 0.53),
+        width: between(0.4, 0.6),
+        color: greens[1],
+      });
+    } else {
+      // A plain: one wide, shallow swell so the horizon is not a ruled line.
+      hills.push({
+        x: between(0.35, 0.65),
+        top: horizon - between(0.04, 0.08),
+        width: between(0.85, 1.1),
+        color: greens[0],
+      });
+    }
+    hills.sort((a, b) => a.top - b.top);
+
+    const stars: Backdrop["stars"] = [];
+    if (mood.stars) {
+      for (let i = 0; i < 26; i += 1) {
+        stars.push({
+          x: between(0.02, 0.98),
+          y: between(0.03, horizon - 0.06),
+          r: between(0.003, 0.007),
+        });
+      }
+    }
+
+    const leaves: Leaf[] = [];
+    for (let i = 0; i < leafCount; i += 1) {
+      leaves.push({
+        x: between(0.03, 0.97),
+        y: between(0.06, 0.96),
+        r: between(0.013, 0.022),
+        turn: Math.random() * Math.PI,
+        color: pick(mood.flecks),
+      });
+    }
+
+    return {
+      mood,
+      terrain,
+      frame,
+      orbX: Math.random() < 0.5 ? 0.14 : 0.86,
+      orbY: between(0.1, 0.18),
+      horizon,
+      hills,
+      pond:
+        terrain === "meadow"
+          ? {
+              x: between(0.3, 0.7),
+              y: between(0.74, 0.86),
+              rx: between(0.15, 0.22),
+              ry: between(0.045, 0.065),
+            }
+          : null,
+      stars,
+      treeX: Math.random() < 0.5 ? 0.06 : 0.94,
+      // Skipping the deep green keeps the canopy from reading as one more hill.
+      treeInk: pick(PALETTES.leaf.slice(1)),
+      leaves,
+    };
+  }
+
+  /** Scenery is painted rather than placed, so its footprint has to be declared
+      here or the layout would stand a fox behind the trunk or in the pond. */
+  function sceneWalls(drop: Backdrop): Spot[] {
+    const walls: Spot[] = [];
+    const lean = drop.treeX < 0.5 ? 1 : -1;
+
+    if (drop.frame === "tree") {
+      walls.push(
+        { x: drop.treeX + lean * 0.02, y: 0.03, r: 0.2 },
+        { x: drop.treeX + lean * 0.14, y: 0.1, r: 0.15 },
+        { x: drop.treeX + lean * 0.2, y: 0.03, r: 0.11 },
+        { x: drop.treeX - lean * 0.02, y: 0.17, r: 0.12 }
+      );
+      for (const y of [0.35, 0.55, 0.75, 0.95]) {
+        walls.push({ x: drop.treeX, y, r: 0.08 });
+      }
+    } else if (drop.frame === "bough") {
+      walls.push(
+        { x: drop.treeX + lean * 0.02, y: 0.02, r: 0.14 },
+        { x: drop.treeX + lean * 0.14, y: 0.08, r: 0.12 },
+        { x: drop.treeX + lean * 0.27, y: 0.05, r: 0.09 }
+      );
+    }
+
+    if (drop.mood.orb) walls.push({ x: drop.orbX, y: drop.orbY, r: 0.1 });
+
+    if (drop.pond) {
+      const { x, y, rx, ry } = drop.pond;
+      for (const at of [-0.62, 0, 0.62]) {
+        walls.push({ x: x + at * rx, y, r: ry + 0.035 });
+      }
+    }
+
+    return walls;
+  }
+
+  function build() {
+    const level = LEVELS[wanted];
+
+    found = new Set();
+    misses = 0;
+    hinted = false;
+    cursor = null;
+    showCursor = false;
+    flashes = [];
+    diffs = [];
+    delete scene.dataset.solved;
+    hintButton.disabled = false;
+
+    backdrop = makeBackdrop(level.leaves);
+    blockers = sceneWalls(backdrop);
+
+    const items: Item[] = [];
+    // A frame that takes up less of the picture leaves room to fill, so the
+    // scene stays about as busy whichever framing came up.
+    const bonus = backdrop.frame === "open" ? 2 : backdrop.frame === "bough" ? 1 : 0;
+    for (const zone of ["ground", "hill", "sky"] as Zone[]) {
+      // A shuffled bag rather than independent rolls, so a scene does not come
+      // out as three of the same thing in the same color.
+      const bag = shuffle(BY_ZONE[zone]);
+      const count = level[zone] + (zone === "sky" ? 0 : bonus);
+      for (let i = 0; i < count; i += 1) {
+        const item = place(zone, items, bag[i % bag.length]);
+        if (item) items.push(item);
+      }
+    }
+
+    before = items;
+    after = items.map((item) => ({ ...item }));
+
+    const spare = shuffle(items.map((item) => item.id));
+    const used = { gone: false, added: false };
+    let guard = 0;
+
+    while (diffs.length < wanted && guard < 500) {
+      guard += 1;
+      const kind = pick(CHANGE_BAG);
+
+      if (kind === "added") {
+        if (used.added) continue;
+        const extra = place(pick(["sky", "hill", "ground"] as Zone[]), after);
+        if (!extra) continue;
+        const spot = spotOf(extra);
+        if (!roomy(spot)) continue;
+        after.push(extra);
+        used.added = true;
+        diffs.push({ id: extra.id, kind, left: spot, right: spot });
+        continue;
+      }
+
+      const id = spare.pop();
+      if (id === undefined) break;
+
+      const index = after.findIndex((item) => item.id === id);
+      if (index < 0) continue;
+      const original = after[index];
+      const spot = spotOf(original);
+      if (!roomy(spot)) continue;
+
+      if (kind === "gone") {
+        if (used.gone) {
+          spare.unshift(id);
+          continue;
+        }
+        after.splice(index, 1);
+        used.gone = true;
+        diffs.push({ id, kind, left: spot, right: spot });
+        continue;
+      }
+
+      const rest = after.filter((_, i) => i !== index);
+      const changed = edit(original, kind, rest);
+      if (!changed) {
+        spare.unshift(id);
+        continue;
+      }
+      after[index] = changed;
+      diffs.push({ id, kind, left: spot, right: spotOf(changed) });
+    }
+
+    // Tell the truth about what actually made it in rather than promising a
+    // difference that is not there.
+    goal = diffs.length;
+    setStatus();
+    draw();
+  }
+
+  function drawItem(
+    ctx: CanvasRenderingContext2D,
+    item: Item,
+    width: number,
+    height: number
+  ) {
+    const motif = MOTIFS[item.motif];
+    const size = item.size * height;
+    ctx.save();
+    ctx.translate(item.x * width, centerY(item) * height);
+    ctx.scale(item.flip ? -size : size, size);
+    motif.draw(ctx, PALETTES[motif.palette][item.color] ?? PALETTES[motif.palette][0]);
+    ctx.restore();
+  }
+
+  function drawBackdrop(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    if (!backdrop) return;
+    const mood = backdrop.mood;
+
+    const sky = ctx.createLinearGradient(0, 0, 0, height * backdrop.horizon);
+    sky.addColorStop(0, mood.sky[0]);
+    sky.addColorStop(1, mood.sky[1]);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+
+    if (mood.stars) {
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      for (const star of backdrop.stars) {
+        dot(ctx, star.x * width, star.y * height, star.r * height);
+      }
+    }
+
+    if (mood.orb) {
+      const ox = backdrop.orbX * width;
+      const oy = backdrop.orbY * height;
+      const r = height * (mood.crescent ? 0.055 : 0.07);
+      ctx.fillStyle = mood.orb;
+      dot(ctx, ox, oy, r);
+      if (mood.crescent) {
+        // Bite the moon with the sky as it actually is at that height, so the
+        // crescent leaves no seam behind it.
+        ctx.fillStyle = blend(mood.sky[0], mood.sky[1], backdrop.orbY / backdrop.horizon);
+        dot(ctx, ox + r * 0.45, oy - r * 0.3, r * 0.92);
+      }
+    }
+
+    for (const hill of backdrop.hills) {
+      ctx.fillStyle = hill.color;
+      ctx.beginPath();
+      ctx.moveTo((hill.x - hill.width) * width, height);
+      // Pulled twice as far up as the crown, because a quadratic only reaches
+      // halfway to its control point.
+      ctx.quadraticCurveTo(
+        hill.x * width,
+        (2 * hill.top - 1) * height,
+        (hill.x + hill.width) * width,
+        height
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = mood.grass;
+    ctx.beginPath();
+    ctx.moveTo(0, height);
+    ctx.lineTo(0, height * backdrop.horizon);
+    ctx.quadraticCurveTo(
+      width * 0.5,
+      height * (backdrop.horizon - 0.04),
+      width,
+      height * backdrop.horizon
+    );
+    ctx.lineTo(width, height);
+    ctx.closePath();
+    ctx.fill();
+
+    if (backdrop.pond) {
+      const { x, y, rx, ry } = backdrop.pond;
+      ctx.fillStyle = shade(mood.water, -0.1);
+      oval(ctx, x * width, y * height, rx * width, ry * height, 0);
+      ctx.fillStyle = mood.water;
+      oval(ctx, x * width, (y - ry * 0.12) * height, rx * 0.93 * width, ry * 0.82 * height, 0);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+      oval(
+        ctx,
+        (x - rx * 0.3) * width,
+        (y - ry * 0.25) * height,
+        rx * 0.28 * width,
+        ry * 0.14 * height,
+        0
+      );
+    }
+  }
+
+  function drawFrame(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    if (!backdrop || backdrop.frame === "open") return;
+    const x = backdrop.treeX * width;
+    const lean = backdrop.treeX < 0.5 ? 1 : -1;
+
+    ctx.save();
+    ctx.lineCap = "round";
+
+    if (backdrop.frame === "bough") {
+      // A branch leaning in from the top corner: the tree without the trunk, so
+      // the whole lower picture stays open.
+      ctx.strokeStyle = BARK;
+      ctx.lineWidth = height * 0.03;
+      ctx.beginPath();
+      ctx.moveTo(x - lean * width * 0.04, -height * 0.02);
+      ctx.quadraticCurveTo(
+        x + lean * width * 0.1,
+        height * 0.04,
+        x + lean * width * 0.3,
+        height * 0.09
+      );
+      ctx.stroke();
+
+      ctx.fillStyle = shade(backdrop.treeInk, -0.12);
+      dot(ctx, x + lean * width * 0.2, height * 0.02, height * 0.07);
+      ctx.fillStyle = backdrop.treeInk;
+      for (const [px, py, r] of [
+        [0.0, 0.01, 0.1],
+        [0.11, 0.05, 0.08],
+        [0.24, 0.03, 0.07],
+        [0.3, 0.09, 0.05],
+      ] as [number, number, number][]) {
+        dot(ctx, x + lean * width * px, height * py, height * r);
+      }
+      ctx.restore();
+      return;
+    }
+
+    const trunk = height * 0.08;
+    ctx.fillStyle = BARK;
+    ctx.beginPath();
+    ctx.moveTo(x - trunk, height);
+    ctx.quadraticCurveTo(x - trunk * 0.55, height * 0.5, x - trunk * 0.4, 0);
+    ctx.lineTo(x + trunk * 0.4, 0);
+    ctx.quadraticCurveTo(x + trunk * 0.55, height * 0.5, x + trunk, height);
+    ctx.closePath();
+    ctx.fill();
+
+    // One bough reaching into the picture, so the tree frames rather than blocks.
+    ctx.strokeStyle = BARK;
+    ctx.lineWidth = trunk * 0.34;
+    ctx.beginPath();
+    ctx.moveTo(x, height * 0.26);
+    ctx.quadraticCurveTo(
+      x + lean * width * 0.08,
+      height * 0.21,
+      x + lean * width * 0.15,
+      height * 0.25
+    );
+    ctx.stroke();
+
+    ctx.fillStyle = shade(backdrop.treeInk, -0.12);
+    dot(ctx, x + lean * width * 0.09, height * 0.15, height * 0.1);
+    ctx.fillStyle = backdrop.treeInk;
+    for (const [px, py, r] of [
+      [0.02, 0.02, 0.2],
+      [0.14, 0.09, 0.14],
+      [0.2, 0.02, 0.1],
+      [-0.02, 0.17, 0.11],
+    ] as [number, number, number][]) {
+      dot(ctx, x + lean * width * px, height * py, height * r);
+    }
+    ctx.restore();
+  }
+
+  function drawLeaves(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    if (!backdrop) return;
+    const round = backdrop.mood.round;
+    for (const leaf of backdrop.leaves) {
+      ctx.fillStyle = leaf.color;
+      if (round) {
+        dot(ctx, leaf.x * width, leaf.y * height, leaf.r * height * 0.55);
+      } else {
+        oval(
+          ctx,
+          leaf.x * width,
+          leaf.y * height,
+          leaf.r * height * 1.5,
+          leaf.r * height * 0.7,
+          leaf.turn
+        );
+      }
+    }
+  }
+
+  /** Rings and marks are drawn white-then-color so they read on sky, on grass
+      or on top of a fox, none of which follow the page theme. */
+  function halo(ctx: CanvasRenderingContext2D, color: string, trace: () => void) {
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.lineWidth = 5.5;
+    trace();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    trace();
+  }
+
+  function drawRing(
+    ctx: CanvasRenderingContext2D,
+    spot: Spot,
+    width: number,
+    height: number
+  ) {
+    ctx.save();
+    halo(ctx, "#1f4bd8", () => {
+      ctx.beginPath();
+      ctx.arc(spot.x * width, spot.y * height, spot.r * height * 1.2, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawCursor(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    if (!cursor) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.lineWidth = 5.5;
+    ctx.beginPath();
+    ctx.arc(cursor.x * width, cursor.y * height, height * 0.075, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFlash(
+    ctx: CanvasRenderingContext2D,
+    flash: Flash,
+    height: number,
+    now: number
+  ) {
+    const age = (now - flash.born) / FLASH_MS;
+    if (!reducedMotion && age >= 1) return;
+
+    const arm = height * 0.035;
+    ctx.save();
+    ctx.globalAlpha = reducedMotion ? 0.9 : 1 - age;
+    ctx.lineCap = "round";
+    halo(ctx, "#c0392b", () => {
+      ctx.beginPath();
+      ctx.moveTo(flash.x - arm, flash.y - arm);
+      ctx.lineTo(flash.x + arm, flash.y + arm);
+      ctx.moveTo(flash.x + arm, flash.y - arm);
+      ctx.lineTo(flash.x - arm, flash.y + arm);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function paint(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    items: Item[],
+    side: "left" | "right"
+  ) {
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    if (width === 0 || height === 0) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    drawBackdrop(ctx, width, height);
+
+    for (const item of items) {
+      if (item.zone === "sky") drawItem(ctx, item, width, height);
+    }
+    for (const item of items) {
+      if (item.zone === "hill") drawItem(ctx, item, width, height);
+    }
+    drawFrame(ctx, width, height);
+    drawLeaves(ctx, width, height);
+
+    const ground = items
+      .filter((item) => item.zone === "ground")
+      .sort((a, b) => (a.base ?? 0) - (b.base ?? 0));
+    for (const item of ground) drawItem(ctx, item, width, height);
+
+    for (const diff of diffs) {
+      if (found.has(diff.id)) {
+        drawRing(ctx, side === "left" ? diff.left : diff.right, width, height);
+      }
+    }
+    if (showCursor) drawCursor(ctx, width, height);
+
+    const now = performance.now();
+    for (const flash of flashes) {
+      if (flash.side === side) drawFlash(ctx, flash, height, now);
+    }
+  }
+
+  function draw() {
+    paint(leftCanvas, leftContext, before, "left");
+    paint(rightCanvas, rightContext, after, "right");
+  }
+
+  function tick() {
+    frameId = null;
+    const now = performance.now();
+    flashes = flashes.filter((flash) => now - flash.born < FLASH_MS);
+    draw();
+    if (flashes.length > 0) frameId = requestAnimationFrame(tick);
+  }
+
+  function scheduleFlash() {
+    if (reducedMotion) {
+      // No fade for reduced motion: the mark simply shows, then goes.
+      if (flashTimer !== null) clearTimeout(flashTimer);
+      flashTimer = window.setTimeout(() => {
+        flashes = [];
+        flashTimer = null;
+        draw();
+      }, FLASH_MS);
+      return;
+    }
+    if (frameId === null) frameId = requestAnimationFrame(tick);
+  }
+
+  function solved() {
+    scene.dataset.solved = "true";
+    hintButton.disabled = true;
+
+    if (hinted) {
+      setStatus(`All ${goal} found, with a little help`);
+      return;
+    }
+
+    const best = readBest();
+    const tally = misses === 0 ? "no wrong guesses" : `${misses} wrong`;
+    if (best === null || misses < best) {
+      localStorage.setItem(bestKey(), String(misses));
+      setStatus(`All ${goal} found, ${tally} — new best!`);
+      return;
+    }
+    setStatus(`All ${goal} found, ${tally} · best ${best}`);
+  }
+
+  function reveal(id: number) {
+    found.add(id);
+    if (found.size === goal) {
+      draw();
+      solved();
+      return;
+    }
+    setStatus();
+    draw();
+  }
+
+  function guess(
+    at: { x: number; y: number },
+    mark?: { x: number; y: number; side: "left" | "right" }
+  ) {
+    if (scene.dataset.solved === "true") return;
+
+    let hit: Diff | null = null;
+    let closest = Infinity;
+
+    for (const diff of diffs) {
+      if (found.has(diff.id)) continue;
+      // Either picture's copy of the answer counts, which is what makes a
+      // moved thing findable from whichever side you noticed it on.
+      for (const spot of [diff.left, diff.right]) {
+        const distance = span(at, spot);
+        if (distance <= spot.r && distance < closest) {
+          hit = diff;
+          closest = distance;
+        }
+      }
+    }
+
+    if (hit) {
+      reveal(hit.id);
+      return;
+    }
+
+    misses += 1;
+    setStatus();
+    if (mark) {
+      flashes.push({ x: mark.x, y: mark.y, born: performance.now(), side: mark.side });
+      scheduleFlash();
+    } else {
+      draw();
+    }
+  }
+
+  function onCanvas(canvas: HTMLCanvasElement, side: "left" | "right") {
+    canvas.addEventListener("pointerdown", (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      // A pointer guess owns the marker: hide the keyboard one so there are
+      // never two different ideas of where you are looking.
+      showCursor = false;
+      guess({ x: x / rect.width, y: y / rect.height }, { x, y, side });
+    });
+  }
+
+  const STEPS: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  };
+
+  scene.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      if (!cursor) {
+        cursor = { x: 0.5, y: 0.5 };
+        showCursor = true;
+        draw();
+        return;
+      }
+      showCursor = true;
+      guess(cursor);
+      return;
+    }
+
+    const step = STEPS[event.key];
+    if (!step) return;
+    event.preventDefault();
+    showCursor = true;
+
+    if (!cursor) {
+      cursor = { x: 0.5, y: 0.5 };
+    } else {
+      // Each step is shorter than the marker is wide, so walking the picture
+      // cannot stride over an answer sitting between two stops.
+      cursor = {
+        x: clamp(cursor.x + step[0] * 0.05, 0.04, 0.96),
+        y: clamp(cursor.y + step[1] * 0.06, 0.05, 0.95),
+      };
+    }
+    draw();
+  });
+
+  scene.addEventListener("blur", () => {
+    showCursor = false;
+    draw();
+  });
+
+  onCanvas(leftCanvas, "left");
+  onCanvas(rightCanvas, "right");
+
+  hintButton.addEventListener("click", (event) => {
+    if (scene.dataset.solved === "true") return;
+    const remaining = diffs.filter((diff) => !found.has(diff.id));
+    if (remaining.length === 0) return;
+    hinted = true;
+    reveal(pick(remaining).id);
+    if (event.detail > 0) hintButton.blur();
+  });
+
+  newButton.addEventListener("click", (event) => {
+    build();
+    if (event.detail > 0) newButton.blur();
+  });
+
+  for (const button of countButtons) {
+    button.addEventListener("click", (event) => {
+      wanted = Number.parseInt(button.dataset.count ?? "5", 10);
+      for (const other of countButtons) {
+        other.setAttribute("aria-checked", String(other === button));
+      }
+      build();
+      if (event.detail > 0) button.blur();
+    });
+  }
+
+  const resizeObserver = new ResizeObserver(() => draw());
+  resizeObserver.observe(scene);
+
+  motionQuery.addEventListener("change", (event) => {
+    reducedMotion = event.matches;
+  });
+
+  build();
+</script>

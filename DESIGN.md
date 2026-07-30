@@ -217,7 +217,9 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   `currentColor` on a 40x40 grid so it inherits the accent and themes for free.
 - **Page chrome:** a shared `GameLayout` gives each game the same frame — a back link,
   title + tagline + tag pill, a one-line instruction, an `aria-live` status readout, the
-  stage, then controls and explanatory notes below.
+  stage, then controls and explanatory notes below. The notes keep the same 62ch measure
+  the blog prose uses and space their own paragraphs, since the global reset strips
+  paragraph margins and only `.prose` puts them back.
 - **Stage:** 1px `--border`, 12px radius, `aspect-ratio` per game with a 280px minimum.
   The geocities theme replaces the border with its ridged neon glow.
 - **Style:** stage chrome and controls read from the semantic tokens; the illustration
@@ -229,6 +231,12 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   fill on the active segment) while independent actions stay separate pills. Toggles use
   `aria-pressed`, choice sets use `role="radiogroup"` + `aria-checked`, and every control
   meets a 44px target on coarse pointers.
+- **Touch:** a play surface claims its gestures by declaring `touch-action: none`. While a
+  drag on one of those surfaces is running, `GameLayout` marks the document and holds text
+  selection off page-wide, so a finger that slides off the board cannot start highlighting
+  the prose underneath it, and it cancels `touchmove` on those surfaces so iOS does not
+  hand the gesture to its own selection and callout. Only `touchmove` is cancelled —
+  cancelling `touchstart` would also cancel the tap that Queens and Memory run on.
 - **Generated content:** games that build their own DOM must use `<style is:global>`
   scoped by the game's root id — Astro's scoped styles never reach elements created in
   JavaScript.
@@ -237,15 +245,59 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   Reduced-motion visitors get a still frame with immediate, non-animated feedback.
 - **Sound:** always off by default and only started from a user gesture.
 
-### Puzzles (Memory, Jigsaw, Queens)
+### Puzzles (Memory, Jigsaw, Queens, Twins)
 - **Fairness:** every board is generated in the browser and verified before it is shown.
-  Queens refines its colour regions until exactly one solution survives, so a puzzle can
+  Queens refines its color regions until exactly one solution survives, so a puzzle can
   always be reasoned out rather than guessed.
 - **Feedback:** state lives on the element (`data-state`, `data-conflict`) so the visual
   language stays declarative; illegal placements are hatched rather than blocked, and the
   status line is the single source of progress for screen readers.
 - **Difficulty:** offered as board size rather than timers or lives — the games have no
   fail state, only a longer think.
+
+### Twins (puzzle)
+- **Placement:** `/games/twins/`, in the puzzles section — a spot-the-difference with no
+  fail state, only a wrong-guess tally you are trying to keep low.
+- **Pictures:** both are drawn, not photographed, and they are one drawing painted twice. A
+  hillside is composed first — sky, layered hills, a tree holding one edge of the frame,
+  falling leaves — and then things are placed into it by zone: birds and balloons in the
+  sky, huts and bushes along the ridge, animals standing in the grass. Ground items are
+  scaled by how far up the grass they stand, so higher reads as farther. The second copy is
+  the same list with N entries edited. That is what makes the puzzles endless and keeps the
+  repo free of image assets — there is no set of hand-authored scenes to run out of.
+- **A place and a moment:** three independent rolls keep rounds from looking alike. A *mood*
+  (day, dusk, overcast, night with a moon and stars, snow) recolors every painted thing at
+  once and decides whether the falling bits are leaves or flakes; a *terrain* gives rolling
+  hills, a single ridge, or a plain with a pond; a *framing* gives the big tree, just a bough
+  leaning in from the top corner, or open sky. The emptier framings quietly place a couple of
+  extra things, so an open scene is no less to hunt through than a tree-framed one.
+- **Scenery is not the puzzle:** the backdrop, the pond and the framing tree are painted
+  rather than placed, so they can never be a difference. Because they are painted, their
+  footprint has to be declared by hand (`sceneWalls`) or the layout would stand a fox behind
+  the trunk or in the water.
+- **Fairness:** an edit has to be *findable*. A recolor skips the two nearest hues, so
+  nothing turns teal into green, and is only offered on palettes with real separation; a
+  mirror is only offered on shapes that are actually asymmetric; a nudge has to clear a
+  minimum distance and is pushed away from whichever edge it already sat near; a swap stays
+  inside the same zone and the same family, so a rabbit never becomes a chimney. Answers are
+  also kept apart from each other, so one ring can only mean one thing. Anything that fails
+  those tests is thrown away and re-rolled, and the count in the status line is the number
+  that survived rather than the number requested.
+- **Hit testing:** by distance to the thing itself, in units of picture height so a wide
+  frame does not make sideways guesses cheaper. Each difference records where it sits in
+  *each* picture, so something that moved is findable from whichever side you noticed it on,
+  and the ring that marks it is derived from the drawing rather than guessed at — which is
+  what keeps the marker centered on what it is marking.
+- **Difficulty:** offered as the number of differences and how densely the scene is packed
+  (3/5/7), matching the other puzzles' "size, not timers" habit. Each setting keeps its own
+  best score, and best is the *fewest* wrong guesses; taking a hint takes the round out of
+  the running rather than adding a penalty.
+- **Input:** click either picture, or focus the pair and walk a marker around with the
+  arrow keys and check it with enter — the marker draws on both pictures at once so the
+  keyboard sees the comparison the mouse gets for free.
+- **Touch:** the canvases opt into `touch-action: manipulation`, which drops the tap delay
+  but deliberately stops short of `none`. This game is tap-only, so a scroll that begins on
+  a picture should still scroll the page.
 
 ### Chain (arcade)
 - **Placement:** `/games/chain/`, the first entry in the arcade section — the games here
@@ -256,9 +308,8 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   own color. Rotation is table-driven (four quarter-turns per shape, precomputed) with a
   small wall-kick list so a long piece can still spin flush against a wall. There is no
   landing preview — the drop is the part you are supposed to be reading.
-- **Readability:** each orb color also carries its own small mark (dot, ring, bar, square,
-  cross) so the board never depends on hue alone, and touching orbs of one color are
-  welded into a single blob so a clump reads as one object.
+- **Readability:** touching orbs of one color are welded into a single blob so a clump
+  reads as one object, and every orb keeps a darker rim against the board behind it.
 - **Difficulty:** offered as the number of colors (3/4/5) rather than speed presets,
   matching the puzzles' "size, not timers" habit. Each setting keeps its own best score.
 - **Input:** the arrow keys work whenever the board is on screen and something is actually
