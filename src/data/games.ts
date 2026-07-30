@@ -53,9 +53,9 @@ export const games: Game[] = [
     slug: "chain",
     title: "Chain",
     tagline: "Four in a clump and the whole stack goes.",
-    blurb: "Drop pairs of orbs, group four of a color to pop them, and stack the board so one pop sets off the next.",
+    blurb: "Drop pieces of two or three orbs, group four of a color to pop them, and stack the board so one pop sets off the next.",
     tag: "arcade",
-    instructions: "Click the board, then arrows move and spin and space drops. On a phone: drag to slide, tap to spin, swipe down to drop.",
+    instructions: "Arrow keys move and spin, space drops. On a phone: drag to slide, tap to spin, swipe down to drop.",
   },
   {
     slug: "memory",

@@ -27,7 +27,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
     <aside class="side">
       <span class="side-label" id="chain-next-label">Next</span>
-      <canvas id="chain-next" role="img" aria-label="Next pair"></canvas>
+      <canvas id="chain-next" role="img" aria-label="Next piece"></canvas>
     </aside>
   </div>
 
@@ -56,18 +56,20 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   <div slot="notes">
     <p>
-      Pairs of orbs fall two at a time. Four or more of the same color touching side to
-      side or top to bottom pop, everything above them falls into the gap &mdash; and if
-      that landing makes another four, it pops too. Each link in a chain is worth double
-      the last one, so the big scores come from building a stack that collapses on
-      itself rather than clearing as you go.
+      Orbs fall in small pieces &mdash; two of them, sometimes three in a line or an
+      elbow. Four or more of the same color touching side to side or top to bottom
+      pop, everything above them falls into the gap &mdash; and if that landing makes
+      another four, it pops too. Each link in a chain is worth double the last one, so
+      the big scores come from building a stack that collapses on itself rather than
+      clearing as you go.
     </p>
     <p>
-      Click the board (or tab to it) and the arrow keys move and spin, down nudges
-      the pair along faster, space drops it instantly. On a touchscreen, drag left
-      and right to slide, tap to spin, swipe down to drop &mdash; or use the buttons.
-      The board pauses itself while it is off screen, so nothing collapses while you
-      are reading this.
+      On a computer the arrow keys work as soon as the board is on screen: left and
+      right slide, up spins, down hurries the piece along and space drops it. On a
+      touchscreen, drag left and right to slide, tap to spin, swipe down to drop
+      &mdash; or use the buttons. Nothing shows you where a piece will land, so spin
+      it into shape on the way down. The board pauses itself while it is off screen,
+      and while it is paused the arrow keys go back to scrolling the page.
     </p>
     <p>
       Fewer colors means clumps form on their own; five means you have to plan for them.
@@ -89,7 +91,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
   .frame {
     position: relative;
     height: clamp(340px, 62vh, 32rem);
-    /* One extra row of headroom above the well, so the incoming pair is fully
+    /* One extra row of headroom above the well, so the incoming piece is fully
        visible as it drops in rather than sliced off at the ceiling. */
     aspect-ratio: 6 / 13;
   }
@@ -219,12 +221,12 @@ import GameLayout from "../../layouts/GameLayout.astro";
   /** Orbs of one color that have to touch before the clump pops. */
   const GROUP = 4;
   const SPAWN_COL = 2;
-  /** Rows of open air drawn above the well for the incoming pair. */
+  /** Rows of open air drawn above the well for the incoming piece. */
   const HEADROOM = 1;
   const POP_MS = 220;
   /** Cells per second that loose orbs fall once a clump underneath them goes. */
   const SETTLE_SPEED = 24;
-  /** Grace period after a pair lands, so a last-moment slide still counts. */
+  /** Grace period after a piece lands, so a last-moment slide still counts. */
   const LOCK_DELAY_MS = 200;
 
   // Orb colors are illustration, not UI: they stay put across themes. Each one
@@ -238,13 +240,39 @@ import GameLayout from "../../layouts/GameLayout.astro";
   ] as const;
   const COLOR_NAMES = ["red", "amber", "green", "blue", "violet"] as const;
 
-  /** Satellite offset from the axis orb, clockwise from "above". */
-  const OFFSETS = [
-    [0, -1],
-    [1, 0],
-    [0, 1],
-    [-1, 0],
+  /** Piece shapes as cell offsets from the pivot, in their upright orientation.
+      Two orbs or three, so what lands is never quite the same problem. */
+  const SHAPES = [
+    [
+      [0, 0],
+      [0, -1],
+    ],
+    [
+      [0, -1],
+      [0, 0],
+      [0, 1],
+    ],
+    [
+      [0, 0],
+      [0, -1],
+      [1, 0],
+    ],
   ] as const;
+
+  /** Every shape pre-rotated a quarter turn at a time, clockwise. */
+  const SHAPE_ROTATIONS = SHAPES.map((shape) => {
+    const turns: number[][][] = [];
+    let cells = shape.map(([dx, dy]) => [dx, dy]);
+    for (let rot = 0; rot < 4; rot += 1) {
+      turns.push(cells);
+      cells = cells.map(([dx, dy]) => [-dy, dx]);
+    }
+    return turns;
+  });
+
+  /** Draw order: pairs stay the staple, trios are the complication. */
+  const SHAPE_BAG = [0, 0, 1, 2] as const;
+
   const NEIGHBORS = [
     [1, 0],
     [-1, 0],
@@ -271,19 +299,19 @@ import GameLayout from "../../layouts/GameLayout.astro";
   /** How far above its resting place each orb still is, in cells. */
   const drop = new Float32Array(COLS * ROWS);
 
-  interface Pair {
+  interface Piece {
     x: number;
     y: number;
     rot: number;
-    axis: number;
-    satellite: number;
+    shape: number;
+    colors: number[];
   }
 
   let colorCount = 4;
   let phase: Phase = "falling";
   let settling: Settling = "settle";
-  let piece: Pair | null = null;
-  let queued: Pair = spawnPair();
+  let piece: Piece | null = null;
+  let queued: Piece = spawnPiece();
   let fallOffset = 0;
   let lockTimer = 0;
   let popTimer = 0;
@@ -328,31 +356,36 @@ import GameLayout from "../../layouts/GameLayout.astro";
     return Math.floor(Math.random() * colorCount);
   }
 
-  function spawnPair(): Pair {
+  function spawnPiece(): Piece {
+    const shape = SHAPE_BAG[Math.floor(Math.random() * SHAPE_BAG.length)];
     return {
       x: SPAWN_COL,
       y: 0,
       rot: 0,
-      axis: randomColor(),
-      satellite: randomColor(),
+      shape,
+      colors: SHAPES[shape].map(() => randomColor()),
     };
   }
 
+  const cellsOf = (shape: number, rot: number) => SHAPE_ROTATIONS[shape][rot];
+
   function free(x: number, y: number): boolean {
     if (x < 0 || x >= COLS || y >= ROWS) return false;
-    // Above the ceiling is open air: a pair can spawn half off the board.
+    // Above the ceiling is open air: a piece can spawn half off the board.
     if (y < 0) return true;
     return board[y * COLS + x] === EMPTY;
   }
 
-  function fits(x: number, y: number, rot: number): boolean {
-    const [dx, dy] = OFFSETS[rot];
-    return free(x, y) && free(x + dx, y + dy);
+  function fits(x: number, y: number, shape: number, rot: number): boolean {
+    for (const [dx, dy] of cellsOf(shape, rot)) {
+      if (!free(x + dx, y + dy)) return false;
+    }
+    return true;
   }
 
-  function landingRow(pair: Pair): number {
-    let y = pair.y;
-    while (fits(pair.x, y + 1, pair.rot)) y += 1;
+  function landingRow(item: Piece): number {
+    let y = item.y;
+    while (fits(item.x, y + 1, item.shape, item.rot)) y += 1;
     return y;
   }
 
@@ -381,7 +414,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     pauseButton.disabled = false;
     overPanel.hidden = true;
     phase = "falling";
-    queued = spawnPair();
+    queued = spawnPiece();
     spawn();
     setStatus();
     drawNext();
@@ -390,17 +423,17 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   function spawn() {
-    const pair = queued;
-    queued = spawnPair();
+    const next = queued;
+    queued = spawnPiece();
     drawNext();
 
-    if (!fits(pair.x, pair.y, pair.rot)) {
+    if (!fits(next.x, next.y, next.shape, next.rot)) {
       piece = null;
       gameOver();
       return;
     }
 
-    piece = pair;
+    piece = next;
     fallOffset = 0;
     lockTimer = 0;
     lockResets = 0;
@@ -423,7 +456,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     draw();
   }
 
-  /** Sliding along a landing re-arms the lock, but only a few times: the pair
+  /** Sliding along a landing re-arms the lock, but only a few times: the piece
       has to come to rest eventually. */
   function nudgeLock() {
     if (lockResets >= 6) return;
@@ -433,9 +466,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   function move(direction: number) {
     if (phase !== "falling" || !piece || paused) return;
-    if (!fits(piece.x + direction, piece.y, piece.rot)) return;
+    if (!fits(piece.x + direction, piece.y, piece.shape, piece.rot)) return;
     piece.x += direction;
-    if (!fits(piece.x, piece.y + 1, piece.rot)) nudgeLock();
+    if (!fits(piece.x, piece.y + 1, piece.shape, piece.rot)) nudgeLock();
     if (reducedMotion) draw();
   }
 
@@ -449,7 +482,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
       [1, 0],
       [0, -1],
     ] as const) {
-      if (!fits(piece.x + dx, piece.y + dy, rot)) continue;
+      if (!fits(piece.x + dx, piece.y + dy, piece.shape, rot)) continue;
       piece.x += dx;
       piece.y += dy;
       piece.rot = rot;
@@ -474,9 +507,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   function lock() {
     if (!piece) return;
-    const [dx, dy] = OFFSETS[piece.rot];
-    place(piece.x, piece.y, piece.axis);
-    place(piece.x + dx, piece.y + dy, piece.satellite);
+    cellsOf(piece.shape, piece.rot).forEach(([dx, dy], index) => {
+      place(piece!.x + dx, piece!.y + dy, piece!.colors[index]);
+    });
     piece = null;
     chain = 0;
     phase = "resolving";
@@ -576,7 +609,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
   function stepFalling(dt: number) {
     if (!piece) return;
 
-    if (!fits(piece.x, piece.y + 1, piece.rot)) {
+    if (!fits(piece.x, piece.y + 1, piece.shape, piece.rot)) {
       fallOffset = 0;
       lockTimer += dt;
       if (lockTimer >= LOCK_DELAY_MS) lock();
@@ -588,7 +621,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     fallOffset += dt / interval;
 
     while (fallOffset >= 1) {
-      if (!fits(piece.x, piece.y + 1, piece.rot)) {
+      if (!fits(piece.x, piece.y + 1, piece.shape, piece.rot)) {
         fallOffset = 0;
         return;
       }
@@ -710,7 +743,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.save();
 
-    // The well is a drawn object rather than the canvas box, so the pair can
+    // The well is a drawn object rather than the canvas box, so a piece can
     // sit in open air above it.
     const radius = Math.min(8, cell * 0.35);
     context.beginPath();
@@ -741,7 +774,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
     context.stroke();
     context.restore();
 
-    // Clip to the well plus its headroom: a pair can hang above the ceiling.
+    // Clip to the well plus its headroom: a piece can hang above the ceiling.
     context.beginPath();
     context.rect(originX, originY - cell * HEADROOM, width, height + cell * HEADROOM);
     context.clip();
@@ -784,31 +817,18 @@ import GameLayout from "../../layouts/GameLayout.astro";
     }
 
     if (piece && phase === "falling") {
-      const [dx, dy] = OFFSETS[piece.rot];
-      const ghostY = landingRow(piece);
-      if (ghostY !== piece.y) {
-        context.save();
-        context.globalAlpha = 0.22;
-        drawOrb(context, originX + (piece.x + 0.5) * cell, originY + (ghostY + 0.5) * cell, cell, piece.axis);
+      // No landing preview: where a piece will come down is something to judge,
+      // not something the board answers for you.
+      const y = piece.y + fallOffset;
+      cellsOf(piece.shape, piece.rot).forEach(([dx, dy], index) => {
         drawOrb(
           context,
-          originX + (piece.x + dx + 0.5) * cell,
-          originY + (ghostY + dy + 0.5) * cell,
+          originX + (piece!.x + dx + 0.5) * cell,
+          originY + (y + dy + 0.5) * cell,
           cell,
-          piece.satellite
+          piece!.colors[index]
         );
-        context.restore();
-      }
-
-      const y = piece.y + fallOffset;
-      drawOrb(context, originX + (piece.x + 0.5) * cell, originY + (y + 0.5) * cell, cell, piece.axis);
-      drawOrb(
-        context,
-        originX + (piece.x + dx + 0.5) * cell,
-        originY + (y + dy + 0.5) * cell,
-        cell,
-        piece.satellite
-      );
+      });
     }
 
     context.restore();
@@ -822,14 +842,36 @@ import GameLayout from "../../layouts/GameLayout.astro";
     nextContext.setTransform(dpr, 0, 0, dpr, 0, 0);
     nextContext.clearRect(0, 0, rect.width, rect.height);
 
-    const size = Math.min(rect.width * 0.8, rect.height * 0.42);
-    const cx = rect.width / 2;
-    drawOrb(nextContext, cx, rect.height / 2 - size * 0.52, size, queued.satellite);
-    drawOrb(nextContext, cx, rect.height / 2 + size * 0.52, size, queued.axis);
+    const cells = cellsOf(queued.shape, queued.rot);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const [dx, dy] of cells) {
+      minX = Math.min(minX, dx);
+      maxX = Math.max(maxX, dx);
+      minY = Math.min(minY, dy);
+      maxY = Math.max(maxY, dy);
+    }
+    const wide = maxX - minX + 1;
+    const tall = maxY - minY + 1;
+    const size = Math.min((rect.width * 0.92) / wide, (rect.height * 0.92) / tall);
+    const left = rect.width / 2 - (wide * size) / 2;
+    const top = rect.height / 2 - (tall * size) / 2;
+
+    cells.forEach(([dx, dy], index) => {
+      drawOrb(
+        nextContext,
+        left + (dx - minX + 0.5) * size,
+        top + (dy - minY + 0.5) * size,
+        size,
+        queued.colors[index]
+      );
+    });
 
     nextCanvas.setAttribute(
       "aria-label",
-      `Next pair: ${COLOR_NAMES[queued.satellite]} on ${COLOR_NAMES[queued.axis]}`
+      `Next piece: ${queued.colors.map((color) => COLOR_NAMES[color]).join(", ")}`
     );
   }
 
@@ -843,7 +885,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
     cell = Math.min(rect.width / COLS, rect.height / (ROWS + HEADROOM));
     originX = (rect.width - cell * COLS) / 2;
-    // The well hangs below the headroom row the incoming pair drops through.
+    // The well hangs below the headroom row the incoming piece drops through.
     originY = (rect.height - cell * (ROWS + HEADROOM)) / 2 + cell * HEADROOM;
     draw();
     drawNext();
@@ -904,18 +946,29 @@ import GameLayout from "../../layouts/GameLayout.astro";
     "KeyP",
   ]);
 
+  /** Somewhere the keys belong to the visitor rather than the game. */
+  function typing(element: Element | null): boolean {
+    if (!(element instanceof HTMLElement)) return false;
+    if (element.isContentEditable) return true;
+    return ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName);
+  }
+
   window.addEventListener("keydown", (event) => {
     if (!onScreen || !HANDLED.has(event.code)) return;
-    // The board has to hold focus before it takes the arrow keys, so reading the
-    // page never turns into an accidental game of Chain.
-    if (document.activeElement !== canvas) return;
-    event.preventDefault();
+    if (typing(document.activeElement)) return;
+    // Space belongs to whatever button is focused, not to the board.
+    if (event.code === "Space" && document.activeElement instanceof HTMLButtonElement) return;
 
     if (event.code === "KeyP") {
+      event.preventDefault();
       setPaused(!paused);
       return;
     }
+
+    // While the board is stopped the page keeps its own scrolling keys; the
+    // game only takes them over once something is actually falling.
     if (paused || phase === "over") return;
+    event.preventDefault();
 
     if (event.code === "ArrowLeft") move(-1);
     else if (event.code === "ArrowRight") move(1);
