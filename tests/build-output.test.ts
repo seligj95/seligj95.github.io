@@ -63,6 +63,40 @@ describe("Build output", () => {
     }
   });
 
+  it("waits for a tap before Chain starts running", () => {
+    const html = readFileSync(join(dist, "games", "chain", "index.html"), "utf8");
+
+    // The start panel is rendered server side so there is never a flash of a
+    // game already in progress before the script boots.
+    expect(html).toContain('id="chain-over-title"');
+    expect(html).toContain("Start game");
+    expect(html).toContain(">Ready<");
+
+    const source = readFileSync(
+      join(process.cwd(), "src", "pages", "games", "chain.astro"),
+      "utf8"
+    );
+    expect(source).toMatch(/idleGame\(\);\s*<\/script>/);
+    expect(source).not.toMatch(/newGame\(\);\s*<\/script>/);
+  });
+
+  it("announces the win in Twins", () => {
+    const html = readFileSync(join(dist, "games", "twins", "index.html"), "utf8");
+
+    expect(html).toContain('id="twins-win"');
+    expect(html).toContain('id="twins-win-note"');
+    expect(html).toContain('id="twins-again"');
+    expect(html).toContain('id="twins-look"');
+
+    const source = readFileSync(
+      join(process.cwd(), "src", "pages", "games", "twins.astro"),
+      "utf8"
+    );
+    // The panel must stay outside .scene, whose keydown handler calls
+    // preventDefault and would swallow Enter on the buttons.
+    expect(source).toMatch(/<\/div>\s*(<!--[\s\S]*?-->\s*)?<div id="twins-win"/);
+  });
+
   it("sends each koi after its own pellet without discarding food", () => {
     const pondSource = readFileSync(
       join(process.cwd(), "src", "components", "KoiPond.astro"),

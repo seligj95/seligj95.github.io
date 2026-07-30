@@ -3,7 +3,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
 ---
 
 <GameLayout slug="chain" ratio="auto">
-  <span slot="status" id="chain-status" aria-live="polite">0 points</span>
+  <span slot="status" id="chain-status" aria-live="polite">Ready</span>
 
   <div class="wrap">
     <div class="frame">
@@ -16,11 +16,15 @@ import GameLayout from "../../layouts/GameLayout.astro";
         Your browser does not support the board.
       </canvas>
 
-      <div id="chain-over" class="over" hidden>
+      <!-- Doubles as the start panel, so the board waits to be asked rather than
+           running the moment the page loads. -->
+      <div id="chain-over" class="over">
         <div class="over-panel">
-          <p class="over-title">Stacked out</p>
-          <p class="over-note" id="chain-over-note">The column filled up.</p>
-          <button id="chain-again" type="button">New game</button>
+          <p class="over-title" id="chain-over-title">Chain</p>
+          <p class="over-note" id="chain-over-note">
+            Four of a color touching pop, and so can whatever falls in after.
+          </p>
+          <button id="chain-again" type="button">Start game</button>
         </div>
       </div>
     </div>
@@ -64,13 +68,13 @@ import GameLayout from "../../layouts/GameLayout.astro";
       clearing as you go.
     </p>
     <p>
-      On a computer the arrow keys work as soon as the board is on screen: left
-      and right slide, up spins the piece, down hurries it along, and space
-      drops it the rest of the way. On a touchscreen, drag left and right to
-      slide, tap to spin, swipe down to drop &mdash; or use the buttons. Nothing
-      shows you where a piece will land, so spin it into shape on the way down.
-      The board pauses itself while it is off screen, and while it is paused the
-      arrow keys go back to scrolling the page.
+      On a computer, once a game is running the arrow keys take over: left and
+      right slide, up spins the piece, down hurries it along, and space drops it
+      the rest of the way. On a touchscreen, drag left and right to slide, tap to
+      spin, swipe down to drop &mdash; or use the buttons. Nothing shows you where
+      a piece will land, so spin it into shape on the way down. The board pauses
+      itself while it is off screen, and while it is paused or waiting to start
+      the arrow keys go back to scrolling the page.
     </p>
     <p>
       Fewer colors means clumps form on their own; five means you have to plan
@@ -212,7 +216,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
 </style>
 
 <script>
-  type Phase = "falling" | "resolving" | "over";
+  type Phase = "idle" | "falling" | "resolving" | "over";
   type Settling = "settle" | "pop";
 
   const COLS = 6;
@@ -285,7 +289,9 @@ import GameLayout from "../../layouts/GameLayout.astro";
   const nextContext = nextCanvas.getContext("2d") as CanvasRenderingContext2D;
   const status = document.getElementById("chain-status") as HTMLSpanElement;
   const overPanel = document.getElementById("chain-over") as HTMLDivElement;
+  const overTitle = document.getElementById("chain-over-title") as HTMLParagraphElement;
   const overNote = document.getElementById("chain-over-note") as HTMLParagraphElement;
+  const againButton = document.getElementById("chain-again") as HTMLButtonElement;
   const pauseButton = document.getElementById("chain-pause") as HTMLButtonElement;
   const colorButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-colors]")
@@ -307,7 +313,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   let colorCount = 4;
-  let phase: Phase = "falling";
+  let phase: Phase = "idle";
   let settling: Settling = "settle";
   let piece: Piece | null = null;
   let queued: Piece = spawnPiece();
@@ -395,8 +401,43 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   function newGame() {
+    clearBoard();
+    pauseButton.disabled = false;
+    overPanel.hidden = true;
+    phase = "falling";
+    queued = spawnPiece();
+    spawn();
+    setStatus();
+    drawNext();
+    draw();
+    start();
+  }
+
+  /** An empty board behind the start panel: nothing moves until it is asked to. */
+  function idleGame() {
+    stop();
+    clearBoard();
+    phase = "idle";
+    pauseButton.disabled = true;
+    overTitle.textContent = "Chain";
+    overNote.textContent =
+      "Four of a color touching pop, and so can whatever falls in after.";
+    againButton.textContent = "Start game";
+    overPanel.hidden = false;
+    setStatus(idleStatus());
+    drawNext();
+    draw();
+  }
+
+  function idleStatus(): string {
+    const best = readBest();
+    return best > 0 ? `Ready · best ${best}` : "Ready";
+  }
+
+  function clearBoard() {
     board.fill(EMPTY);
     drop.fill(0);
+    piece = null;
     popping = [];
     popTimer = 0;
     lockTimer = 0;
@@ -410,15 +451,6 @@ import GameLayout from "../../layouts/GameLayout.astro";
     paused = false;
     pauseButton.setAttribute("aria-pressed", "false");
     pauseButton.textContent = "Pause";
-    pauseButton.disabled = false;
-    overPanel.hidden = true;
-    phase = "falling";
-    queued = spawnPiece();
-    spawn();
-    setStatus();
-    drawNext();
-    draw();
-    start();
   }
 
   function spawn() {
@@ -449,6 +481,8 @@ import GameLayout from "../../layouts/GameLayout.astro";
     } else {
       overNote.textContent = `${score} points · best ${best}`;
     }
+    overTitle.textContent = "Stacked out";
+    againButton.textContent = "New game";
     overPanel.hidden = false;
     pauseButton.disabled = true;
     setStatus(`Stacked out at ${score} points`);
@@ -803,6 +837,12 @@ import GameLayout from "../../layouts/GameLayout.astro";
     nextContext.setTransform(dpr, 0, 0, dpr, 0, 0);
     nextContext.clearRect(0, 0, rect.width, rect.height);
 
+    // Nothing is queued until a game starts, so the preview stays empty.
+    if (phase === "idle") {
+      nextCanvas.setAttribute("aria-label", "Next piece");
+      return;
+    }
+
     const cells = cellsOf(queued.shape, queued.rot);
     let minX = Infinity;
     let maxX = -Infinity;
@@ -853,7 +893,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   const running = () =>
-    phase !== "over" && !paused && onScreen && !document.hidden;
+    (phase === "falling" || phase === "resolving") &&
+    !paused &&
+    onScreen &&
+    !document.hidden;
 
   function frame(now: number) {
     frameId = null;
@@ -882,7 +925,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
   }
 
   function setPaused(value: boolean) {
-    if (phase === "over") return;
+    if (phase === "over" || phase === "idle") return;
     paused = value;
     pauseButton.setAttribute("aria-pressed", String(paused));
     pauseButton.textContent = paused ? "Resume" : "Pause";
@@ -928,7 +971,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
     // While the board is stopped the page keeps its own scrolling keys; the
     // game only takes them over once something is actually falling.
-    if (paused || phase === "over") return;
+    if (paused || phase === "over" || phase === "idle") return;
     event.preventDefault();
 
     if (event.code === "ArrowLeft") move(-1);
@@ -1017,7 +1060,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
       for (const other of colorButtons) {
         other.setAttribute("aria-checked", String(other === button));
       }
-      newGame();
+      // Picking a setting before you have started should not start the game for
+      // you; it only changes which best score the status line is talking about.
+      if (phase === "idle") setStatus(idleStatus());
+      else newGame();
       if (event.detail > 0) button.blur();
     });
   }
@@ -1055,5 +1101,5 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   readTokens();
   resize();
-  newGame();
+  idleGame();
 </script>
