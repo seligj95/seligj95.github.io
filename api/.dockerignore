@@ -1,0 +1,4 @@
+node_modules
+tests
+vitest.config.ts
+npm-debug.log

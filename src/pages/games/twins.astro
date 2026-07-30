@@ -24,6 +24,19 @@ import GameLayout from "../../layouts/GameLayout.astro";
     </figure>
   </div>
 
+  <!-- Sits over the stage rather than inside .scene, so its buttons never meet
+       the scene's own Enter and arrow handling. -->
+  <div id="twins-win" class="win" hidden>
+    <div class="win-panel">
+      <p class="win-title">Found them all</p>
+      <p class="win-note" id="twins-win-note">Every difference spotted.</p>
+      <div class="win-actions">
+        <button id="twins-again" type="button">New pictures</button>
+        <button id="twins-look" type="button" class="quiet">Look again</button>
+      </div>
+    </div>
+  </div>
+
   <div slot="controls">
     <div class="control-set">
       <span class="control-label" id="twins-count-label">Differences</span>
@@ -98,6 +111,107 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
   .scene[data-solved="true"] canvas {
     border-color: var(--accent);
+  }
+
+  /* The same panel Queens and Chain use, so finishing a round feels the same
+     wherever you are on the site. */
+  .win {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    animation: twins-win-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .win[hidden] {
+    display: none;
+  }
+
+  .win-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 1.1rem 1.5rem 1.25rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  .win-title {
+    margin: 0;
+    font-size: clamp(1.2rem, 4vw, 1.6rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .win-note {
+    margin: 0 0 0.5rem;
+    max-width: 26ch;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-wrap: pretty;
+  }
+
+  .win-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .win-actions button {
+    padding: 0.45rem 1.1rem;
+    min-height: 36px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 1px solid var(--text);
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  /* The second way out: dismiss the panel and study the pictures you just
+     finished, rather than being pushed straight into a new pair. */
+  .win-actions button.quiet {
+    color: var(--text-muted);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .win-actions button:hover {
+    color: var(--bg);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .win-actions button.quiet:hover {
+    color: var(--accent);
+    background: var(--accent-subtle);
+  }
+
+  @media (pointer: coarse) {
+    .win-actions button {
+      min-height: 44px;
+    }
+  }
+
+  @keyframes twins-win-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .win {
+      animation: none;
+    }
   }
 
   figcaption {
@@ -918,6 +1032,10 @@ import GameLayout from "../../layouts/GameLayout.astro";
   const status = document.getElementById("twins-status") as HTMLSpanElement;
   const hintButton = document.getElementById("twins-hint") as HTMLButtonElement;
   const newButton = document.getElementById("twins-new") as HTMLButtonElement;
+  const winPanel = document.getElementById("twins-win") as HTMLDivElement;
+  const winNote = document.getElementById("twins-win-note") as HTMLParagraphElement;
+  const againButton = document.getElementById("twins-again") as HTMLButtonElement;
+  const lookButton = document.getElementById("twins-look") as HTMLButtonElement;
   const countButtons = Array.from(
     document.querySelectorAll<HTMLButtonElement>("[data-count]")
   );
@@ -942,6 +1060,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
   let flashes: Flash[] = [];
   let frameId: number | null = null;
   let flashTimer: number | null = null;
+  let winTimer: number | null = null;
   let nextId = 1;
 
   const bestKey = () => `twins-best-${wanted}`;
@@ -1283,6 +1402,11 @@ import GameLayout from "../../layouts/GameLayout.astro";
     diffs = [];
     delete scene.dataset.solved;
     hintButton.disabled = false;
+    winPanel.hidden = true;
+    if (winTimer !== null) {
+      clearTimeout(winTimer);
+      winTimer = null;
+    }
 
     backdrop = makeBackdrop(level.leaves);
     blockers = sceneWalls(backdrop);
@@ -1694,6 +1818,7 @@ import GameLayout from "../../layouts/GameLayout.astro";
 
     if (hinted) {
       setStatus(`All ${goal} found, with a little help`);
+      showWin(`All ${goal} found, with a little help — no best score for this one.`);
       return;
     }
 
@@ -1702,9 +1827,22 @@ import GameLayout from "../../layouts/GameLayout.astro";
     if (best === null || misses < best) {
       localStorage.setItem(bestKey(), String(misses));
       setStatus(`All ${goal} found, ${tally} — new best!`);
+      showWin(`All ${goal} found with ${tally}. A new best for ${wanted}.`);
       return;
     }
     setStatus(`All ${goal} found, ${tally} · best ${best}`);
+    showWin(`All ${goal} found with ${tally} · best ${best}`);
+  }
+
+  /** A beat before the panel arrives, so the last ring lands on a picture you
+      can still see rather than behind the announcement of it. */
+  function showWin(note: string) {
+    winNote.textContent = note;
+    if (winTimer !== null) clearTimeout(winTimer);
+    winTimer = window.setTimeout(() => {
+      winTimer = null;
+      winPanel.hidden = false;
+    }, reducedMotion ? 0 : 500);
   }
 
   function reveal(id: number) {
@@ -1826,6 +1964,16 @@ import GameLayout from "../../layouts/GameLayout.astro";
   newButton.addEventListener("click", (event) => {
     build();
     if (event.detail > 0) newButton.blur();
+  });
+
+  againButton.addEventListener("click", (event) => {
+    build();
+    if (event.detail > 0) againButton.blur();
+  });
+
+  lookButton.addEventListener("click", (event) => {
+    winPanel.hidden = true;
+    if (event.detail > 0) lookButton.blur();
   });
 
   for (const button of countButtons) {

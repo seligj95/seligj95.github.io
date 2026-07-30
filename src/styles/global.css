@@ -8,6 +8,7 @@
   --accent-hover: #1d4ed8;
   --accent-subtle: rgba(37, 99, 235, 0.08);
   --surface: #f9fafb;
+  --danger: #b3261e;
 }
 
 [data-theme="dark"] {
@@ -19,6 +20,7 @@
   --accent-hover: #93bbfd;
   --accent-subtle: rgba(96, 165, 250, 0.1);
   --surface: #1f2937;
+  --danger: #ff8a80;
 }
 
 [data-theme="rainbow"] {
@@ -30,6 +32,7 @@
   --accent-hover: #8c0aa6;
   --accent-subtle: rgba(176, 16, 207, 0.08);
   --surface: #f3e8ff;
+  --danger: #b3261e;
 }
 
 [data-theme="geocities"] {
@@ -41,6 +44,7 @@
   --accent-hover: #ffff00;
   --accent-subtle: rgba(255, 0, 0, 0.2);
   --surface: #0000ff;
+  --danger: #ff0000;
   font-family: "Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive;
 }
 

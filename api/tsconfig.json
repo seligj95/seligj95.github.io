@@ -1,0 +1,20 @@
+{
+  // The API stands alone. Without this it walks up and finds the site's config,
+  // which extends an Astro preset that only exists in the site's node_modules —
+  // fine locally, but the API's own CI job never installs those.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    // Node strips the types rather than compiling, so nothing is ever emitted.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+}

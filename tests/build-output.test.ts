@@ -63,6 +63,40 @@ describe("Build output", () => {
     }
   });
 
+  it("waits for a tap before Chain starts running", () => {
+    const html = readFileSync(join(dist, "games", "chain", "index.html"), "utf8");
+
+    // The start panel is rendered server side so there is never a flash of a
+    // game already in progress before the script boots.
+    expect(html).toContain('id="chain-over-title"');
+    expect(html).toContain("Start game");
+    expect(html).toContain(">Ready<");
+
+    const source = readFileSync(
+      join(process.cwd(), "src", "pages", "games", "chain.astro"),
+      "utf8"
+    );
+    expect(source).toMatch(/idleGame\(\);\s*<\/script>/);
+    expect(source).not.toMatch(/newGame\(\);\s*<\/script>/);
+  });
+
+  it("announces the win in Twins", () => {
+    const html = readFileSync(join(dist, "games", "twins", "index.html"), "utf8");
+
+    expect(html).toContain('id="twins-win"');
+    expect(html).toContain('id="twins-win-note"');
+    expect(html).toContain('id="twins-again"');
+    expect(html).toContain('id="twins-look"');
+
+    const source = readFileSync(
+      join(process.cwd(), "src", "pages", "games", "twins.astro"),
+      "utf8"
+    );
+    // The panel must stay outside .scene, whose keydown handler calls
+    // preventDefault and would swallow Enter on the buttons.
+    expect(source).toMatch(/<\/div>\s*(<!--[\s\S]*?-->\s*)?<div id="twins-win"/);
+  });
+
   it("sends each koi after its own pellet without discarding food", () => {
     const pondSource = readFileSync(
       join(process.cwd(), "src", "components", "KoiPond.astro"),
@@ -148,5 +182,70 @@ describe("Build output", () => {
     expect(talksPage).toContain(
       'id="talk-modernize-net-apps-and-add-agentic-functionality-in-minutes"'
     );
+  });
+
+  it("generates the daily section and links it from the nav", () => {
+    const index = readFileSync(join(dist, "daily", "index.html"), "utf8");
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    expect(index).toContain('href="/daily/queens/"');
+    expect(index).toContain('href="/games/"');
+    expect(queens).toContain('id="daily-gate"');
+    expect(queens).toContain('id="daily-clock"');
+    expect(index).toContain('href="/daily/"');
+  });
+
+  it("gives the daily board no free-play controls", () => {
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+    const free = readFileSync(join(dist, "games", "queens", "index.html"), "utf8");
+
+    // Free play deals as many boards as you like; the daily deals exactly one.
+    expect(free).toContain('id="queens-new"');
+    expect(free).toContain("data-level");
+    expect(queens).not.toContain('id="queens-new"');
+    expect(queens).not.toContain('id="queens-next"');
+    expect(queens).not.toContain("data-level");
+  });
+
+  it("ships the region colors with the shared Queens board", () => {
+    for (const page of [
+      join(dist, "games", "queens", "index.html"),
+      join(dist, "daily", "queens", "index.html"),
+    ]) {
+      // The cells are built in JS, so these rules have to be global to land.
+      expect(readFileSync(page, "utf8")).toContain("region-sat");
+    }
+  });
+
+  it("ships the leaderboard panel, and styles for its JS-built rows", () => {
+    const queens = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    expect(queens).toContain('id="daily-scores"');
+    expect(queens).toContain('id="scores-form"');
+    expect(queens).toContain('id="scores-list"');
+    // Same trap as the board cells: the rows are created in JS, so without a
+    // global rule they render as unstyled run-on text.
+    expect(queens).toContain("#scores-list li");
+  });
+
+  it("keeps the leaderboard off free play, which has no shared board", () => {
+    const free = readFileSync(join(dist, "games", "queens", "index.html"), "utf8");
+
+    expect(free).not.toContain('id="daily-scores"');
+  });
+
+  it("points the daily at the real API, not a local override", () => {
+    const page = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    // The page's own script is bundled out to a chunk, so the API base is never
+    // in the HTML itself. Follow the script tags the page actually loads.
+    const sources = [...page.matchAll(/<script[^>]+src="([^"]+)"/g)].map((match) => match[1]!);
+    const scripts = sources
+      .filter((src) => src.startsWith("/_astro/"))
+      .map((src) => readFileSync(join(dist, src), "utf8"))
+      .join("\n");
+
+    expect(scripts).toContain("https://api.jordanselig.com");
+    expect(scripts).not.toContain("localhost");
   });
 });

@@ -1,0 +1,20 @@
+# The API is deliberately Embr-shaped from day one: it binds 0.0.0.0:$PORT,
+# answers /api/health, and keeps its storage behind a two-method interface. The
+# same app runs unmodified on Container Apps (where it lives today) and on Embr.
+#
+# When it moves, the one change is storage: Embr injects DATABASE_URL, so a
+# Postgres adapter replaces the Table Storage one and nothing else moves.
+name: daily-scores-api
+platform: nodejs
+
+rootDirectory: api
+
+run:
+  command: npm start
+
+health:
+  path: /api/health
+
+env:
+  - name: ALLOWED_ORIGINS
+    value: https://jordanselig.com,https://www.jordanselig.com

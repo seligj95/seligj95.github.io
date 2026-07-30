@@ -3,6 +3,11 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # The API deploys on its own workflow, and a container change does not
+    # need a site rebuild.
+    paths-ignore:
+      - "api/**"
+      - ".github/workflows/deploy-api.yml"
   workflow_dispatch:
 
 permissions:
