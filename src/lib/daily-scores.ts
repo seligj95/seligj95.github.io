@@ -28,8 +28,7 @@ export interface Submitted extends Board {
  * is how a local API or a preview deploy gets picked up.
  */
 export const API_BASE: string =
-  import.meta.env.PUBLIC_SCORES_API ??
-  "https://daily-scores-api.orangecliff-e7f88481.eastus2.azurecontainerapps.io";
+  import.meta.env.PUBLIC_SCORES_API ?? "https://api.jordanselig.com";
 
 /** Scaled to zero, so the first request of the day wakes the container. */
 const TIMEOUT_MS = 20000;

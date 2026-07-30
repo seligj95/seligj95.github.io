@@ -233,4 +233,19 @@ describe("Build output", () => {
 
     expect(free).not.toContain('id="daily-scores"');
   });
+
+  it("points the daily at the real API, not a local override", () => {
+    const page = readFileSync(join(dist, "daily", "queens", "index.html"), "utf8");
+
+    // The page's own script is bundled out to a chunk, so the API base is never
+    // in the HTML itself. Follow the script tags the page actually loads.
+    const sources = [...page.matchAll(/<script[^>]+src="([^"]+)"/g)].map((match) => match[1]!);
+    const scripts = sources
+      .filter((src) => src.startsWith("/_astro/"))
+      .map((src) => readFileSync(join(dist, src), "utf8"))
+      .join("\n");
+
+    expect(scripts).toContain("https://api.jordanselig.com");
+    expect(scripts).not.toContain("localhost");
+  });
 });
