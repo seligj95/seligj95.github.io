@@ -52,3 +52,23 @@ names are trimmed, capped and lightly filtered, times outside 3s–24h are
 rejected, the server stamps its own timestamp, submissions are rate limited per
 address, and a day stops accepting rows once it is full. None of this stops
 somebody determined with curl, and it is not meant to.
+
+## Moderating a board
+
+Names are free text on a public endpoint, so eventually one will need removing.
+`scripts/scores.ts` does that against the live table, authenticating as you
+through the Azure CLI — it works only for someone holding "Storage Table Data
+Contributor" on the storage account.
+
+```sh
+npm run scores -- list
+npm run scores -- delete 000200-ms7ynrfteflk9u
+```
+
+Both default to today's Queens board on the same New York boundary the site
+uses. Pass `--day 2026-03-14` or `--game` to reach another one. Deletion takes
+the row key printed by `list` rather than a position, because a score arriving
+in between would quietly change what "row 3" meant.
+
+If the CLI profile you signed in with is not the default one on the machine,
+set `AZURE_CONFIG_DIR` to point at it.
