@@ -217,7 +217,9 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   `currentColor` on a 40x40 grid so it inherits the accent and themes for free.
 - **Page chrome:** a shared `GameLayout` gives each game the same frame — a back link,
   title + tagline + tag pill, a one-line instruction, an `aria-live` status readout, the
-  stage, then controls and explanatory notes below.
+  stage, then controls and explanatory notes below. The notes keep the same 62ch measure
+  the blog prose uses and space their own paragraphs, since the global reset strips
+  paragraph margins and only `.prose` puts them back.
 - **Stage:** 1px `--border`, 12px radius, `aspect-ratio` per game with a 280px minimum.
   The geocities theme replaces the border with its ridged neon glow.
 - **Style:** stage chrome and controls read from the semantic tokens; the illustration
@@ -229,6 +231,12 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   fill on the active segment) while independent actions stay separate pills. Toggles use
   `aria-pressed`, choice sets use `role="radiogroup"` + `aria-checked`, and every control
   meets a 44px target on coarse pointers.
+- **Touch:** a play surface claims its gestures by declaring `touch-action: none`. While a
+  drag on one of those surfaces is running, `GameLayout` marks the document and holds text
+  selection off page-wide, so a finger that slides off the board cannot start highlighting
+  the prose underneath it, and it cancels `touchmove` on those surfaces so iOS does not
+  hand the gesture to its own selection and callout. Only `touchmove` is cancelled —
+  cancelling `touchstart` would also cancel the tap that Queens and Memory run on.
 - **Generated content:** games that build their own DOM must use `<style is:global>`
   scoped by the game's root id — Astro's scoped styles never reach elements created in
   JavaScript.
@@ -256,9 +264,8 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   own color. Rotation is table-driven (four quarter-turns per shape, precomputed) with a
   small wall-kick list so a long piece can still spin flush against a wall. There is no
   landing preview — the drop is the part you are supposed to be reading.
-- **Readability:** each orb color also carries its own small mark (dot, ring, bar, square,
-  cross) so the board never depends on hue alone, and touching orbs of one color are
-  welded into a single blob so a clump reads as one object.
+- **Readability:** touching orbs of one color are welded into a single blob so a clump
+  reads as one object, and every orb keeps a darker rim against the board behind it.
 - **Difficulty:** offered as the number of colors (3/4/5) rather than speed presets,
   matching the puzzles' "size, not timers" habit. Each setting keeps its own best score.
 - **Input:** the arrow keys work whenever the board is on screen and something is actually
