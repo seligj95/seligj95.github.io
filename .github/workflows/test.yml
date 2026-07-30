@@ -1,0 +1,59 @@
+name: Tests
+
+# The deploy workflow already runs these before it ships, so this is not about
+# protecting main — it is about finding out on the pull request instead of
+# after the merge.
+on:
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same PR makes the previous run's answer irrelevant.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    name: Site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Builds the site first: much of the suite reads dist/.
+      - name: Run tests
+        run: npm test
+
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: api
+
+      - name: Run tests
+        run: npm test
+        working-directory: api

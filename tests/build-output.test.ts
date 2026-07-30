@@ -93,6 +93,22 @@ describe("Build output", () => {
     }
   });
 
+  it("presents every games section the same way", () => {
+    const index = readFileSync(join(dist, "games", "index.html"), "utf8");
+
+    // Zen toys used to be a card shelf while the other two were rows, which read
+    // as three different pages stacked up.
+    expect(index.match(/class="rows"/g)).toHaveLength(3);
+    expect(index).not.toContain('class="shelf"');
+
+    // Every game gets the same parts, blurb included.
+    const text = index.replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+    for (const game of games) {
+      expect(text).toContain(game.tagline);
+      expect(text).toContain(game.blurb);
+    }
+  });
+
   it("keeps every game stage labeled and paired with instructions", () => {
     for (const slug of gameSlugs) {
       const html = readFileSync(join(dist, "games", slug, "index.html"), "utf8");

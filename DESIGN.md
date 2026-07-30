@@ -17,6 +17,12 @@ typography:
     fontWeight: 800
     lineHeight: 1.25
     letterSpacing: "-0.03em"
+  pageTitle:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "2rem"
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: "-0.02em"
   headline:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
     fontSize: "1.5rem"
@@ -33,11 +39,21 @@ typography:
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.7
+  small:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "0.9rem"
+    fontWeight: 400
+    lineHeight: 1.6
   label:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
     fontSize: "0.85rem"
     fontWeight: 500
     lineHeight: 1.6
+  micro:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "0.8rem"
+    fontWeight: 500
+    lineHeight: 1.5
 rounded:
   sm: "4px"
   md: "8px"
@@ -154,18 +170,38 @@ writing. Contrast comes from weight (400 body vs 800 display) and scale, not fon
 ### Hierarchy
 - **Display** (800, 3rem, line-height 1.25, letter-spacing -0.03em): Home hero name only.
   Solid ink with a single accent-colored period; `text-wrap: balance`.
+- **Page Title** (700–800, 2rem, letter-spacing -0.02em): The `<h1>` of a section index
+  or standalone page — Blog, Projects, Talks, Tags, About. Post titles run one step
+  larger at 2.25rem, dropping to 1.75rem on narrow screens. The Games and Daily indexes
+  scale theirs fluidly instead, `clamp(2rem, 6vw, 2.75rem)`, so the title grows with a
+  page that is mostly artwork below the fold.
 - **Headline** (700, 1.5rem): Section headings ("Recent Posts") and post `<h2>`.
 - **Title** (600, 1.25rem): Card titles and post `<h3>`.
 - **Body** (400, 16px, line-height 1.7–1.8): Prose. Capped at a 65ch measure for
   comfortable reading.
+- **Small** (400–600, 0.9rem): Dense interface text where Label reads too quiet but Body
+  reads too loud — search results, controls, in-game copy.
 - **Label** (500, 0.85rem): Post metadata (date · reading time · views), taglines, tags.
   Uses Muted Slate, never for anything that must be read as body copy.
+- **Micro** (500–600, 0.8rem): Badges, pagination, counters, fine print. Never a full
+  sentence anyone has to read carefully.
 
 ### Named Rules
 **The Weight-Not-Family Rule.** Hierarchy is expressed through weight and size in one
 type family. Don't introduce a second font to create contrast.
 
 **The 65ch Rule.** Long-form prose never exceeds a ~65ch measure, regardless of viewport.
+
+**The Nearest-Step Rule.** New type picks the nearest step above rather than inventing a
+value between two of them. The site predates this list and still holds a scatter of
+in-between sizes (`0.875`, `0.925`, `0.95`, `1.05rem`); they are drift, not precedent, and
+are worth snapping whenever the surrounding block is being rewritten anyway — but not
+worth a change of their own, since none of them is visible as a mistake.
+
+**The Game-Stage Exception.** A game board sizes its own type to its stage, not to the
+page: overlays and boards may use fluid `clamp()` values so a win panel reads the same
+over a 244px board on a phone as over a 700px one on a desktop. This is the one place
+where a component's scale legitimately escapes the ramp.
 
 ## 4. Elevation
 
