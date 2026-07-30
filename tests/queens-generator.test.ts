@@ -118,7 +118,8 @@ describe("growRegions", () => {
 
 describe("generate", () => {
   // Two dozen boards, and a 10x10 costs the better part of a second to draw
-  // and verify, so this one needs more room than the 5s default.
+  // and verify. Even against the raised global ceiling this is the one worth
+  // giving extra room, since it is several times heavier than anything else.
   it("builds a legal, uniquely solvable board at every size", { timeout: 60000 }, () => {
     for (const n of SIZES) {
       const rng = createRng(hashSeed(`board-${n}`));
