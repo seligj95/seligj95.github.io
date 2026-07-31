@@ -4,9 +4,9 @@ import GameMark from "../../components/GameMark.astro";
 import { games } from "../../data/games";
 
 const base = import.meta.env.BASE_URL;
-const toys = games.filter((game) => game.tag === "zen");
-// Puzzles and arcade games share the index-of-rows shape; only the framing differs.
-const rowSections = [
+// One shape for every section: a heading, a note, and a list of rows. The three
+// groups differ in what they are, not in how they are presented.
+const sections = [
   {
     title: "Puzzles",
     note: "Something to actually solve. Every board is generated fresh in your browser.",
@@ -16,6 +16,11 @@ const rowSections = [
     title: "Arcade",
     note: "The ones you can lose. Reflexes optional, greed encouraged.",
     games: games.filter((game) => game.tag === "arcade"),
+  },
+  {
+    title: "Zen toys",
+    note: "No score, no timer, no way to lose. Poke them until you feel better.",
+    games: games.filter((game) => game.tag === "zen"),
   },
 ];
 ---
@@ -35,7 +40,7 @@ const rowSections = [
     </header>
 
     {
-      rowSections.map((section) => (
+      sections.map((section) => (
         <section class="group">
           <div class="group-head">
             <h2>{section.title}</h2>
@@ -67,29 +72,6 @@ const rowSections = [
         </section>
       ))
     }
-
-    <section class="group">
-      <div class="group-head">
-        <h2>Zen toys</h2>
-        <p>No score, no timer, no way to lose. Poke them until you feel better.</p>
-      </div>
-
-      <ul class="shelf">
-        {
-          toys.map((game) => (
-            <li>
-              <a href={`${base}games/${game.slug}/`}>
-                <span class="mark">
-                  <GameMark slug={game.slug} />
-                </span>
-                <span class="name">{game.title}</span>
-                <span class="tagline">{game.tagline}</span>
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-    </section>
   </section>
 </BaseLayout>
 
@@ -231,88 +213,6 @@ const rowSections = [
     transform: rotate(-6deg) scale(1.06);
   }
 
-  /* Toys are mark-led: you pick one by the shape of it. */
-  .shelf {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-  }
-
-  .shelf a {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    height: 100%;
-    padding: 1.25rem;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface);
-    color: var(--text);
-    text-decoration: none;
-    transition:
-      border-color 0.2s ease-out,
-      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .shelf .mark {
-    width: 3.25rem;
-    height: 3.25rem;
-    margin-bottom: 0.6rem;
-    color: var(--accent);
-  }
-
-  .shelf .tagline {
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: var(--text-muted);
-  }
-
-  .shelf a:hover,
-  .shelf a:focus-visible {
-    border-color: var(--accent);
-    transform: translateY(-2px);
-  }
-
-  .shelf li:first-child a {
-    background: var(--accent-subtle);
-    border-color: transparent;
-  }
-
-  /*
-   * The geocities palette makes accent pure red and surface pure blue, so the
-   * koi tile came out maroon beside four blue ones and the marks vibrated on
-   * top of them. Same loudness, one coherent shelf.
-   */
-  :global([data-theme="geocities"]) .shelf li:first-child a {
-    background: var(--surface);
-    border-color: var(--border);
-  }
-
-  :global([data-theme="geocities"]) .shelf .mark {
-    color: var(--border);
-  }
-
-  @media (min-width: 48rem) {
-    .shelf li:first-child {
-      grid-column: span 2;
-      grid-row: span 2;
-    }
-
-    .shelf li:first-child a {
-      justify-content: center;
-    }
-
-    .shelf li:first-child .mark {
-      width: 4.5rem;
-      height: 4.5rem;
-    }
-
-    .shelf li:first-child .name {
-      font-size: 1.35rem;
-    }
-  }
-
   @media (max-width: 30rem) {
     .games {
       padding: 1.5rem 1.25rem 2rem;
@@ -341,13 +241,11 @@ const rowSections = [
   @media (prefers-reduced-motion: reduce) {
     .rows a,
     .rows .mark,
-    .shelf a,
     .go {
       transition-duration: 0.01ms;
     }
 
-    .rows a:hover .mark,
-    .shelf a:hover {
+    .rows a:hover .mark {
       transform: none;
     }
   }
