@@ -13,13 +13,13 @@ export function partition(game: string, day: string): string {
 }
 
 /**
- * Table Storage returns a partition ordered by RowKey, so padding the time to a
- * fixed width means the leaderboard comes back already sorted and we never page
- * through a day just to find the top ten. The suffix keeps two identical times
- * from colliding.
+ * Table Storage returns a partition ordered by RowKey, so padding the score to
+ * a fixed width means the leaderboard comes back already sorted and we never
+ * page through a day just to find the top ten. Seconds and guess counts both
+ * pad the same way. The suffix keeps two identical scores from colliding.
  */
-function rowKey(seconds: number): string {
-  const padded = String(seconds).padStart(6, "0");
+function rowKey(score: number): string {
+  const padded = String(score).padStart(6, "0");
   const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   return `${padded}-${unique}`;
 }
@@ -50,7 +50,9 @@ export function tableStore({ account, table = "scores" }: TableStoreOptions): St
     for await (const row of query) {
       found.push({
         name: String(row.name ?? ""),
-        seconds: Number(row.seconds ?? 0),
+        // Rows written before the leaderboard learned about non-timed games
+        // only carry `seconds`.
+        score: Number(row.score ?? row.seconds ?? 0),
         hints: Number(row.hints ?? 0),
         at: String(row.at ?? ""),
       });
@@ -62,14 +64,17 @@ export function tableStore({ account, table = "scores" }: TableStoreOptions): St
     async add(game, day, entry) {
       await client.createEntity({
         partitionKey: partition(game, day),
-        rowKey: rowKey(entry.seconds),
+        rowKey: rowKey(entry.score),
         name: entry.name,
-        seconds: entry.seconds,
+        score: entry.score,
+        // Written alongside for as long as anything might still read it. The
+        // site and the API deploy separately, so they are never in step.
+        seconds: entry.score,
         hints: entry.hints,
         at: entry.at,
       });
     },
-    // Already in RowKey order, which is time order.
+    // Already in RowKey order, which is score order.
     list: rows,
     async count(game, day) {
       return (await rows(game, day)).length;

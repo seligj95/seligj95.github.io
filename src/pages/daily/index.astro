@@ -9,15 +9,15 @@ const base = import.meta.env.BASE_URL;
 
 <BaseLayout
   title="Daily games — Jordan Selig"
-  description="One puzzle a day, the same board for everyone. A daily Queens board with a clock, no account needed."
+  description="One puzzle a day, the same for everyone: a Queens board against the clock and a Contexto word to find. No account needed."
 >
   <section class="daily">
     <header class="intro">
       <h1>Daily</h1>
       <p>
-        One puzzle a day, the same board for everyone, and a clock running while
-        you solve it. No account, no email, nothing to sign up for &mdash; come
-        back tomorrow and there is a new one.
+        One puzzle a day, the same one for everyone, and a shared board to put
+        your result on. No account, no email, nothing to sign up for &mdash;
+        come back tomorrow and there is a new one.
       </p>
       <p class="today" id="daily-today"></p>
     </header>
@@ -61,8 +61,8 @@ const base = import.meta.env.BASE_URL;
 
     <p class="aside">
       Prefer to just play? Every one of these is in
-      <a href={`${base}games/`}>the arcade</a> too, with no clock and as many boards
-      as you like.
+      <a href={`${base}games/`}>the arcade</a> too, with nothing keeping score and
+      as many goes as you like.
     </p>
   </section>
 </BaseLayout>
@@ -330,10 +330,10 @@ const base = import.meta.env.BASE_URL;
   import { dayFor, formatDay } from "../../lib/daily";
   import { readDone } from "../../lib/daily-progress";
   import {
-    clockText,
     drawScoreRows,
     fetchScores,
     hintText,
+    scoreText,
   } from "../../lib/daily-scores";
 
   /**
@@ -345,7 +345,7 @@ const base = import.meta.env.BASE_URL;
   const todayLine = document.getElementById("daily-today");
   if (todayLine) todayLine.textContent = formatDay(day);
 
-  /** How many times a row shows before deferring to the game's own page. */
+  /** How many rows a preview shows before deferring to the game's own page. */
   const PREVIEW = 3;
 
   for (const game of dailies) {
@@ -367,34 +367,34 @@ const base = import.meta.env.BASE_URL;
       badge.className = "badge";
       badge.textContent = "\u2713 Played";
 
+      const yours = scoreText(done.score, game.scoring);
       const time = document.createElement("span");
       time.className = "played-time";
-      time.textContent = hints
-        ? `${clockText(done.seconds)} with ${hints}`
-        : clockText(done.seconds);
+      time.textContent = hints ? `${yours} with ${hints}` : yours;
 
       played.replaceChildren(badge, time);
       played.hidden = false;
       (row as HTMLElement).dataset.done = "true";
     }
 
-    // The times are a nicety on top. A board that never answers simply stays
+    // The board is a nicety on top. One that never answers simply stays
     // hidden, the same as on the game's own page.
     if (!board || !list) continue;
 
     void fetchScores(game.slug, day).then((result) => {
       if (!result || result.count === 0) return;
 
-      drawScoreRows(list, result.scores.slice(0, PREVIEW), done?.posted ?? null);
+      drawScoreRows(list, result.scores.slice(0, PREVIEW), done?.posted ?? null, game.scoring);
       board.hidden = false;
 
-      // Always offered, even when every time already fits above, so the way to
+      // Always offered, even when every row already fits above, so the way to
       // the full list is somewhere obvious rather than implied by the row.
       if (all) {
+        const noun = game.scoring === "time" ? "times" : "scores";
         all.textContent =
           result.count === 1
             ? "See the full list \u2192"
-            : `See all ${result.count} times \u2192`;
+            : `See all ${result.count} ${noun} \u2192`;
         all.hidden = false;
       }
     });

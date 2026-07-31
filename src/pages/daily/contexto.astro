@@ -1,0 +1,395 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+import ContextoBoard from "../../components/ContextoBoard.astro";
+import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
+---
+
+<GameLayout
+  slug="contexto"
+  ratio="auto"
+  title="Daily Contexto"
+  tagline="One word a day, the same for everyone."
+  tag="Daily"
+  instructions="Guess the word. Each guess comes back with its place in a list of twenty thousand, sorted by closeness to the answer. No clock, no hints — your score is how few guesses it takes."
+  backHref="/daily/"
+  backLabel="All daily games"
+>
+  <span slot="status" id="contexto-status" aria-live="polite">No guesses yet</span>
+
+  <p class="daily-line">
+    <span class="daily-day" id="daily-date">Today</span>
+    <span class="daily-note" id="daily-done" hidden></span>
+  </p>
+
+  <ContextoBoard winSlot label="Daily Contexto board">
+    <button id="daily-see-board" type="button" slot="win-actions" hidden>
+      See today&rsquo;s scores
+    </button>
+  </ContextoBoard>
+
+  <div slot="extras">
+    <DailyLeaderboard scoring="guesses" />
+  </div>
+
+  <div slot="notes">
+    <p>
+      Everyone gets the same word today. There is nothing to time and nothing to
+      unlock &mdash; the only number that matters is how many guesses it takes,
+      so a careful game beats a fast one.
+    </p>
+    <p>
+      Ranks come from where words sit relative to one another across a very large
+      pile of text, not from spelling or from a dictionary definition. Words that
+      turn up in the same sort of sentence end up close together, which is why
+      <em>guitar</em> lands near <em>music</em> without sharing a letter that
+      counts. Rank 1 is the word. The high thousands mean you are in the wrong
+      subject altogether, and that is useful too.
+    </p>
+    <p>
+      Your guesses are kept in this browser as you make them, so a reload picks
+      up where you left off rather than handing you a clean slate. Want as many
+      words as you like instead? <a href="/games/contexto/">Free play Contexto</a>
+      deals a new one whenever you ask.
+    </p>
+  </div>
+</GameLayout>
+
+<style is:global>
+  .daily-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0 0 0.25rem;
+  }
+
+  .daily-line .daily-day {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .daily-line .daily-note {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .daily-line .daily-note[hidden] {
+    display: none;
+  }
+
+  /*
+    The win panel holds the post-your-score form on the daily. The panel is
+    authored in ContextoBoard and the form in DailyLeaderboard, so neither
+    carries this page's scoping attribute and these rules have to be global.
+  */
+  #contexto-win {
+    width: min(100%, 22rem);
+  }
+
+  #contexto-win #scores-form {
+    justify-items: center;
+    width: 100%;
+    margin: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  #contexto-win #scores-form .scores-row,
+  #contexto-win #scores-form .scores-known {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* The panel is a moment, not a page: the reassurance about accounts stays
+     on the page below, and comes back when the form moves back down. */
+  #contexto-win #scores-fineprint {
+    display: none;
+  }
+
+  #contexto-win-slot:empty {
+    display: none;
+  }
+
+  /* Quieter than the panel's primary button: the board is not the prize. */
+  #daily-see-board {
+    padding: 0.4rem 1.1rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  #daily-see-board:hover {
+    background: var(--surface);
+  }
+
+  #daily-see-board[hidden] {
+    display: none;
+  }
+</style>
+
+<script>
+  import { mountContexto } from "../../lib/contexto-board";
+  import { secretFor } from "../../lib/contexto-daily";
+  import { dayFor, formatDay } from "../../lib/daily";
+  import {
+    readDone,
+    writeDone,
+    readGuesses,
+    writeGuesses,
+    readName,
+    writeName,
+    type Done,
+  } from "../../lib/daily-progress";
+  import {
+    drawScoreRows,
+    fetchScores,
+    guessText,
+    ordinal,
+    submitScore,
+    type Score,
+  } from "../../lib/daily-scores";
+
+  const status = document.getElementById("contexto-status") as HTMLSpanElement;
+  const dateLine = document.getElementById("daily-date") as HTMLSpanElement;
+  const doneLine = document.getElementById("daily-done") as HTMLSpanElement;
+
+  const day = dayFor();
+  dateLine.textContent = formatDay(day);
+
+  const already = readDone("contexto", day);
+
+  function tell(count: number, won: boolean): void {
+    if (won) status.textContent = `Found in ${guessText(count)}`;
+    else if (count === 0) status.textContent = "No guesses yet";
+    else status.textContent = guessText(count);
+  }
+
+  // ---------------------------------------------------------------------------
+  // The shared board
+  //
+  // Everything below is optional. The game is complete without it, so a slow or
+  // unreachable API only means the section stays hidden.
+  // ---------------------------------------------------------------------------
+
+  const scoresPanel = document.getElementById("daily-scores") as HTMLElement;
+  const scoresForm = document.getElementById("scores-form") as HTMLFormElement;
+  const scoresName = document.getElementById("scores-name") as HTMLInputElement;
+  const scoresList = document.getElementById("scores-list") as HTMLOListElement;
+  const scoresEmpty = document.getElementById("scores-empty") as HTMLParagraphElement;
+  const scoresError = document.getElementById("scores-error") as HTMLParagraphElement;
+  const scoresCount = document.getElementById("scores-count") as HTMLParagraphElement;
+  const scoresKnown = document.getElementById("scores-known") as HTMLDivElement;
+  const scoresAsk = document.getElementById("scores-ask") as HTMLDivElement;
+  const postKnown = document.getElementById("scores-post-known") as HTMLButtonElement;
+  const renameButton = document.getElementById("scores-rename") as HTMLButtonElement;
+
+  const winOverlay = document.getElementById("contexto-win") as HTMLDivElement;
+  const winSlot = document.getElementById("contexto-win-slot") as HTMLDivElement;
+  const seeBoard = document.getElementById("daily-see-board") as HTMLButtonElement;
+
+  /** Identifies your own row, so it can be highlighted after a reload. */
+  let mine: string | null = null;
+  /** Your place, for the rare day busy enough to push you off the first page. */
+  let minePlace: number | null = null;
+
+  function drawScores(scores: Score[], total: number) {
+    scoresEmpty.hidden = scores.length > 0;
+    drawScoreRows(scoresList, scores, mine, "guesses");
+
+    const youIndex = scores.findIndex((score) => score.at === mine);
+    const yourPlace = youIndex >= 0 ? youIndex + 1 : minePlace;
+    if (yourPlace) {
+      scoresCount.hidden = false;
+      scoresCount.textContent = `You are ${ordinal(yourPlace)} of ${total} today.`;
+    } else {
+      scoresCount.hidden = total <= scores.length;
+      scoresCount.textContent = `Showing the best ${scores.length} of ${total} today.`;
+    }
+  }
+
+  /** Shows the panel with whatever the API has. False means it never answered. */
+  async function showScores(): Promise<boolean> {
+    const board = await fetchScores("contexto", day);
+    if (!board) return false;
+    drawScores(board.scores, board.count);
+    scoresPanel.hidden = false;
+    return true;
+  }
+
+  /**
+   * Puts the name controls into one of two states: a single button for anyone
+   * who has posted before, on this game or any other daily, and a box for
+   * everyone else. The stored name lives in the input either way, so submitting
+   * reads one field whichever state is showing.
+   */
+  function fillName() {
+    const stored = readName();
+    scoresName.value = stored;
+    scoresKnown.hidden = !stored;
+    scoresAsk.hidden = Boolean(stored);
+    if (stored) postKnown.textContent = `Post as ${stored}`;
+  }
+
+  renameButton.addEventListener("click", () => {
+    scoresKnown.hidden = true;
+    scoresAsk.hidden = false;
+    scoresName.value = "";
+    scoresName.focus();
+  });
+
+  /** Sends the panel away and leaves you looking at the guesses behind it. */
+  function dismissWin() {
+    winOverlay.hidden = true;
+    // The offer follows you down rather than leaving with the panel, so
+    // dismissing without posting does not cost you the chance.
+    if (!scoresForm.hidden && scoresForm.parentElement === winSlot) {
+      scoresPanel.insertBefore(scoresForm, scoresEmpty);
+    }
+    if (!scoresPanel.hidden) {
+      scoresPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  seeBoard.addEventListener("click", dismissWin);
+
+  /**
+   * Offers to put a finished score on the board.
+   *
+   * `inWin` moves the form into the win panel so the offer arrives with the
+   * congratulations. The node is moved, not copied: there is one form on the
+   * page and it goes where it is most useful.
+   */
+  async function offerToPost(inWin: boolean) {
+    // Fetch first. If the API is unreachable there is no point offering a form
+    // that cannot submit, so the whole section simply never appears.
+    if (!(await showScores())) return;
+
+    if (inWin && !winOverlay.hidden) {
+      winSlot.append(scoresForm);
+      seeBoard.hidden = false;
+    }
+    scoresForm.hidden = false;
+    fillName();
+  }
+
+  scoresForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const name = scoresName.value.trim();
+    if (!name) {
+      // Only reachable if a stored name was whitespace. Ask properly.
+      scoresKnown.hidden = true;
+      scoresAsk.hidden = false;
+      scoresName.focus();
+      return;
+    }
+
+    const done = readDone("contexto", day);
+    if (!done) return;
+
+    const buttons = Array.from(scoresForm.querySelectorAll("button"));
+    buttons.forEach((button) => (button.disabled = true));
+    scoresError.hidden = true;
+
+    try {
+      const posted = await submitScore("contexto", day, {
+        name,
+        score: done.score,
+        hints: done.hints,
+      });
+      mine = posted.entry.at;
+      minePlace = posted.place;
+      writeName(name);
+      writeDone("contexto", { ...done, posted: posted.entry.at }, day);
+
+      scoresForm.hidden = true;
+      drawScores(posted.scores, posted.count);
+      // Where you came is on the board itself, right below. The line up top
+      // only ever needs to say the day is spent.
+      doneLine.hidden = false;
+      doneLine.textContent = `Finished today in ${guessText(done.score)}.`;
+    } catch (error) {
+      scoresError.textContent =
+        error instanceof Error ? error.message : "That did not go through.";
+      scoresError.hidden = false;
+      buttons.forEach((button) => (button.disabled = false));
+    }
+  });
+
+  /**
+   * Arriving from the daily index, which links straight at the scores. The panel
+   * is hidden until it has something in it, so the browser cannot honor the
+   * hash on its own: fetch first, then go there.
+   */
+  const wantsScores = location.hash === "#daily-scores";
+
+  function revealScores(shown: boolean) {
+    if (shown && wantsScores) scoresPanel.scrollIntoView({ block: "start" });
+  }
+
+  // A day already finished either shows the board, or still offers to post.
+  // Either way the offer stays below: the win panel belongs to the moment you
+  // found it, not to a later visit.
+  if (already) {
+    doneLine.hidden = false;
+    doneLine.textContent = `Finished today in ${guessText(already.score)}.`;
+    if (already.posted) {
+      mine = already.posted;
+      void showScores().then(revealScores);
+    } else {
+      void offerToPost(false).then(() => revealScores(!scoresPanel.hidden));
+    }
+  } else if (wantsScores) {
+    void showScores().then(revealScores);
+  }
+
+  const board = mountContexto({
+    secretFor: () => secretFor(day),
+
+    // Written on every guess rather than at the end, because the point is to
+    // survive a reload made halfway through.
+    onGuess: ({ count }) => {
+      tell(count, false);
+      writeGuesses("contexto", board.guesses(), day);
+    },
+
+    onWin: ({ count }) => {
+      tell(count, true);
+      writeGuesses("contexto", board.guesses(), day);
+
+      // Only the first finish counts, so replaying after clearing the lock
+      // cannot overwrite a score you already put up.
+      const done: Done = { score: count, hints: 0 };
+      if (!readDone("contexto", day)) writeDone("contexto", done, day);
+
+      if (!already) void offerToPost(true);
+      else seeBoard.hidden = false;
+    },
+
+    // Replaying today's guesses puts the board back exactly as it was, count
+    // and all, so a reload is not a way to undo a bad guess.
+    restore: () => readGuesses("contexto", day),
+  });
+
+  void board.start().then(() => {
+    const count = board.guesses().length;
+    if (already) {
+      // Coming back to a day you already finished lays the guesses back out and
+      // leaves them locked: there is something to look at and nothing to gain
+      // from a second attempt.
+      tell(already.score, true);
+      board.freeze();
+      seeBoard.hidden = false;
+    } else {
+      tell(count, false);
+    }
+  });
+</script>

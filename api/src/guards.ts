@@ -6,15 +6,29 @@
  * stops a stray script, a fat-fingered client and the accidental 10MB body.
  */
 
-/** Only games that actually have a daily board. */
-export const GAMES = new Set(["queens"]);
+/** How a game's leaderboard is ranked. Lower is better either way. */
+export type Scoring = "time" | "guesses";
+
+/** Only games that actually have a daily board, and what they rank by. */
+export const GAMES = new Map<string, Scoring>([
+  ["queens", "time"],
+  ["contexto", "guesses"],
+]);
 
 export const NAME_MAX = 20;
 
-/** Under this and you did not solve it, you replayed a solution. */
-export const MIN_SECONDS = 3;
-/** A day is 86400 seconds; anything longer is a clock left running. */
-export const MAX_SECONDS = 86400;
+/**
+ * Plausible bounds per scoring. Under the minimum you did not play, over the
+ * maximum something is wrong with the client.
+ */
+export const BOUNDS: Record<Scoring, { min: number; max: number }> = {
+  // A day is 86400 seconds; anything longer is a clock left running.
+  time: { min: 3, max: 86400 },
+  // One guess means you opened with the answer, which does happen. The ceiling
+  // is far above the vocabulary anyone would work through by hand.
+  guesses: { min: 1, max: 5000 },
+};
+
 export const MAX_HINTS = 500;
 
 /**
@@ -81,29 +95,39 @@ function isCount(value: unknown, min: number, max: number): value is number {
 
 export interface Submission {
   name: string;
-  seconds: number;
+  score: number;
   hints: number;
 }
 
 export type Checked = { ok: true; value: Submission } | { ok: false; error: string };
 
-export function checkSubmission(body: unknown): Checked {
+export function checkSubmission(body: unknown, scoring: Scoring = "time"): Checked {
   if (typeof body !== "object" || body === null) {
     return { ok: false, error: "Expected a JSON object." };
   }
-  const { name, seconds, hints } = body as Record<string, unknown>;
+  const { name, score, seconds, hints } = body as Record<string, unknown>;
 
   const cleaned = cleanName(name);
   if (!cleaned) return { ok: false, error: "Pick a name." };
 
-  if (!isCount(seconds, MIN_SECONDS, MAX_SECONDS)) {
-    return { ok: false, error: "That time does not look real." };
+  // A site build made before the rename still posts `seconds`, and the two
+  // deploy on their own schedules.
+  const value = score ?? seconds;
+  const { min, max } = BOUNDS[scoring];
+  if (!isCount(value, min, max)) {
+    return {
+      ok: false,
+      error:
+        scoring === "time"
+          ? "That time does not look real."
+          : "That guess count does not look real.",
+    };
   }
   if (!isCount(hints, 0, MAX_HINTS)) {
     return { ok: false, error: "That hint count does not look real." };
   }
 
-  return { ok: true, value: { name: cleaned, seconds, hints } };
+  return { ok: true, value: { name: cleaned, score: value, hints } };
 }
 
 /**

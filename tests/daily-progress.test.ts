@@ -61,16 +61,16 @@ describe("readDone", () => {
   });
 
   it("round trips a finished day", () => {
-    writeDone("queens", { seconds: 312, hints: 2, posted: "abc" }, "2026-07-30");
+    writeDone("queens", { score: 312, hints: 2, posted: "abc" }, "2026-07-30");
     expect(readDone("queens", "2026-07-30")).toEqual({
-      seconds: 312,
+      score: 312,
       hints: 2,
       posted: "abc",
     });
   });
 
   it("does not read one day's record for another", () => {
-    writeDone("queens", { seconds: 312, hints: 0 }, "2026-07-30");
+    writeDone("queens", { score: 312, hints: 0 }, "2026-07-30");
     expect(readDone("queens", "2026-07-31")).toBeNull();
   });
 
@@ -79,6 +79,21 @@ describe("readDone", () => {
     store.setItem("daily-queens-2026-07-30", JSON.stringify({ time: 312 }));
     useStorage(store);
     expect(readDone("queens", "2026-07-30")).toBeNull();
+  });
+
+  it("still reads a record written before the score was renamed", () => {
+    const store = fakeStorage();
+    // Anyone who played today, on the build before this one, has one of these.
+    store.setItem(
+      "daily-queens-2026-07-30",
+      JSON.stringify({ seconds: 312, hints: 1, posted: "abc" })
+    );
+    useStorage(store);
+    expect(readDone("queens", "2026-07-30")).toMatchObject({
+      score: 312,
+      hints: 1,
+      posted: "abc",
+    });
   });
 
   it("ignores a value that is not JSON at all", () => {
@@ -92,7 +107,7 @@ describe("readDone", () => {
     useStorage(fakeStorage(true));
     expect(() => readDone("queens", "2026-07-30")).not.toThrow();
     expect(readDone("queens", "2026-07-30")).toBeNull();
-    expect(() => writeDone("queens", { seconds: 1, hints: 0 }, "2026-07-30")).not.toThrow();
+    expect(() => writeDone("queens", { score: 1, hints: 0 }, "2026-07-30")).not.toThrow();
   });
 });
 

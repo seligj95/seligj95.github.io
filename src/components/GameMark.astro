@@ -121,6 +121,15 @@ const { slug } = Astro.props;
       </>
     )
   }
+  {
+    slug === "contexto" && (
+      <>
+        <rect x="7" y="8" width="26" height="6.5" rx="2.5" />
+        <rect x="7" y="17" width="16.5" height="6.5" rx="2.5" stroke-opacity="0.55" />
+        <rect x="7" y="26" width="9" height="6.5" rx="2.5" stroke-opacity="0.28" />
+      </>
+    )
+  }
 </svg>
 
 <style>

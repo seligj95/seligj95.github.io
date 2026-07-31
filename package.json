@@ -9,7 +9,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "test": "vitest run",
-    "test:api": "npm test --prefix api"
+    "test:api": "npm test --prefix api",
+    "contexto:words": "node --experimental-strip-types scripts/build-contexto-words.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.11",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "happy-dom": "^20.7.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "word-list": "^4.1.0"
   }
 }

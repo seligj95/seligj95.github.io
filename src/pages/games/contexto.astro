@@ -1,0 +1,82 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+import ContextoBoard from "../../components/ContextoBoard.astro";
+---
+
+<GameLayout slug="contexto" ratio="auto">
+  <span slot="status" id="contexto-status" aria-live="polite">No guesses yet</span>
+
+  <ContextoBoard>
+    <button id="contexto-again" type="button" slot="win-actions">New word</button>
+  </ContextoBoard>
+
+  <div slot="controls">
+    <div class="control-set">
+      <button id="contexto-new" type="button">New word</button>
+      <button id="contexto-reveal" type="button" class="quiet">Give up</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      There is a secret word. Guess any word and it comes back with a number: its
+      place in a list of twenty thousand words sorted by how close each one is to
+      the secret. Rank 1 is the word itself. Something in the low hundreds is a
+      near miss. Fifteen thousand means you are not even in the right subject.
+    </p>
+    <p>
+      Closeness here is not spelling and it is not meaning in the dictionary sense.
+      Every word has a position worked out from the company it keeps across a very
+      large pile of text, and two words sit near each other when they tend to turn
+      up in the same sort of sentence. So <em>doctor</em> lands near
+      <em>nurse</em>, and <em>king</em> near <em>throne</em>, without either pair
+      sharing a letter that matters.
+    </p>
+    <p>
+      The word list was built from
+      <a href="https://nlp.stanford.edu/projects/glove/">GloVe</a>, trained on
+      Wikipedia and a few billion words of news, which is worth knowing when you
+      are stuck: it has read an enormous amount about politics and rather less
+      about kitchens. The secret is always an ordinary, concrete noun. The list
+      you are guessing against is anything but.
+    </p>
+    <p>
+      All of it runs in your browser. The vectors are about a megabyte, fetched
+      once on your first visit, and every guess after that is arithmetic on your
+      own machine &mdash; no server sees a word you type.
+    </p>
+  </div>
+</GameLayout>
+
+<script>
+  import { mountContexto } from "../../lib/contexto-board";
+  import { secrets } from "../../data/contexto-secrets";
+
+  const status = document.getElementById("contexto-status") as HTMLSpanElement;
+
+  function tell(count: number, won: boolean): void {
+    if (won) status.textContent = `Found in ${count}`;
+    else if (count === 0) status.textContent = "No guesses yet";
+    else status.textContent = count === 1 ? "1 guess" : `${count} guesses`;
+  }
+
+  const board = mountContexto({
+    secretFor: () => secrets[Math.floor(Math.random() * secrets.length)],
+    onGuess: ({ count }) => tell(count, false),
+    onWin: ({ count }) => tell(count, true),
+  });
+
+  async function fresh(): Promise<void> {
+    tell(0, false);
+    await board.start();
+  }
+
+  document.getElementById("contexto-new")?.addEventListener("click", fresh);
+  document.getElementById("contexto-again")?.addEventListener("click", fresh);
+  document.getElementById("contexto-reveal")?.addEventListener("click", () => {
+    board.giveUp();
+    status.textContent = "Gave up";
+  });
+
+  void fresh();
+</script>

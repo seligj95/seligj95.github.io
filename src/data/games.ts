@@ -89,6 +89,14 @@ export const games: Game[] = [
     tag: "puzzle",
     instructions: "Click a spot where the two pictures differ. Arrow keys move the marker, enter checks it.",
   },
+  {
+    slug: "contexto",
+    title: "Contexto",
+    tagline: "Guess the word by getting warmer.",
+    blurb: "Every guess comes back with its place in a list of twenty thousand words, ordered by how close each one is to the secret. No letters, no clues, only warmer and colder.",
+    tag: "puzzle",
+    instructions: "Type any word. It comes back with its rank: 1 is the answer, 20,000 is as far away as a word gets.",
+  },
 ];
 
 export const gameBySlug = (slug: string): Game => {

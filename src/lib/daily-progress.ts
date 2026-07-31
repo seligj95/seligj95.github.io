@@ -14,19 +14,35 @@
 import { dayFor, type DayString } from "./daily";
 
 export interface Done {
-  /** Elapsed time in seconds, including any hint penalty. */
-  seconds: number;
+  /**
+   * Whatever the game is scored on: seconds for Queens, including any hint
+   * penalty, and guesses for Contexto.
+   */
+  score: number;
   hints: number;
   /**
-   * The timestamp the API gave your entry, set once the time has gone onto the
-   * shared board. Kept rather than a plain flag so a later visit can still pick
-   * your row out of the list and highlight it.
+   * The timestamp the API gave your entry, set once your score has gone onto
+   * the shared board. Kept rather than a plain flag so a later visit can still
+   * pick your row out of the list and highlight it.
    */
   posted?: string;
 }
 
 export function doneKey(game: string, day: DayString = dayFor()): string {
   return `daily-${game}-${day}`;
+}
+
+/**
+ * Where a half-played game is kept.
+ *
+ * Queens does not need this: it is scored on a clock that keeps running whether
+ * the page is open or not, so a reload costs you nothing you had not already
+ * spent. A game scored on guesses is different — reloading would hand back a
+ * clean count, which turns a refresh into a way of undoing a bad guess. So the
+ * guesses go to storage as they are made and are replayed on the way back in.
+ */
+export function progressKey(game: string, day: DayString = dayFor()): string {
+  return `daily-${game}-${day}-guesses`;
 }
 
 /** The name you last posted under, offered back so you need not retype it. */
@@ -40,8 +56,11 @@ export function readDone(game: string, day: DayString = dayFor()): Done | null {
   try {
     const raw = window.localStorage.getItem(doneKey(game, day));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Done;
-    return typeof parsed?.seconds === "number" ? parsed : null;
+    const parsed = JSON.parse(raw) as Done & { seconds?: number };
+    // Records written before the rename only carry `seconds`, and today's may
+    // well be one of them.
+    const score = parsed?.score ?? parsed?.seconds;
+    return typeof score === "number" ? { ...parsed, score } : null;
   } catch {
     return null;
   }
@@ -52,6 +71,31 @@ export function writeDone(game: string, done: Done, day: DayString = dayFor()): 
     window.localStorage.setItem(doneKey(game, day), JSON.stringify(done));
   } catch {
     // A browser with storage switched off just loses the one-attempt lock.
+  }
+}
+
+/** The words guessed so far today, oldest first. */
+export function readGuesses(game: string, day: DayString = dayFor()): string[] {
+  try {
+    const raw = window.localStorage.getItem(progressKey(game, day));
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((word): word is string => typeof word === "string");
+  } catch {
+    return [];
+  }
+}
+
+export function writeGuesses(
+  game: string,
+  guesses: string[],
+  day: DayString = dayFor(),
+): void {
+  try {
+    window.localStorage.setItem(progressKey(game, day), JSON.stringify(guesses));
+  } catch {
+    // Without storage a reload starts the day over. Nothing else breaks.
   }
 }
 

@@ -326,4 +326,52 @@ describe("Build output", () => {
     expect(scripts).toContain("https://api.jordanselig.com");
     expect(scripts).not.toContain("localhost");
   });
+
+  it("ships the Contexto word list, and asks for it only from a Contexto page", () => {
+    // A megabyte of vectors has no business loading on a page that cannot use
+    // them, so the fetch lives in the board module and nowhere else.
+    expect(existsSync(join(dist, "contexto", "vectors.bin"))).toBe(true);
+    expect(existsSync(join(dist, "contexto", "vocabulary.json"))).toBe(true);
+
+    for (const page of ["daily/contexto", "games/contexto"]) {
+      const scripts = scriptsFor(readFileSync(join(dist, ...page.split("/"), "index.html"), "utf8"));
+      expect(scripts).toContain("contexto/vectors.bin");
+    }
+
+    const home = scriptsFor(readFileSync(join(dist, "index.html"), "utf8"));
+    expect(home).not.toContain("contexto/vectors.bin");
+  });
+
+  it("never ships the answer list to a page that would give it away", () => {
+    const daily = readFileSync(join(dist, "daily", "contexto", "index.html"), "utf8");
+
+    // The secret is picked in the browser, so the list is in the bundle by
+    // design. What must not happen is the day's word reaching the HTML.
+    expect(daily).not.toMatch(/id="contexto-win-note"[^>]*>[^<]/);
+    expect(daily).toContain('id="contexto-win"');
+  });
+
+  it("styles the Contexto rows, which are built in JavaScript", () => {
+    const css = cssFor(readFileSync(join(dist, "games", "contexto", "index.html"), "utf8"));
+
+    expect(css).toContain(".contexto-rows");
+    expect(css).toContain("--fill");
+    expect(css).toContain("--heat");
+    // Closeness is shown with the palette, not with colors invented for it.
+    expect(css).toContain("var(--accent)");
+    expect(css).toContain("var(--danger)");
+  });
+
+  it("scores daily Contexto on guesses and free play on nothing at all", () => {
+    const daily = readFileSync(join(dist, "daily", "contexto", "index.html"), "utf8");
+    const free = readFileSync(join(dist, "games", "contexto", "index.html"), "utf8");
+
+    expect(daily).toContain('id="daily-scores"');
+    expect(daily).toContain("guesses");
+    expect(daily).not.toContain('id="contexto-new"');
+
+    // Free play deals as many words as you like and keeps no shared board.
+    expect(free).toContain('id="contexto-new"');
+    expect(free).not.toContain('id="daily-scores"');
+  });
 });

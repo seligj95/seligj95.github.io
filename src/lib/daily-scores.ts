@@ -6,11 +6,24 @@
  * shows an error people can act on. It just quietly leaves the list out.
  */
 
+/** What a board ranks by. Lower is better either way. */
+export type Scoring = "time" | "guesses";
+
 export interface Score {
   name: string;
-  seconds: number;
+  /** Seconds for a race, guesses for a word game. */
+  score: number;
   hints: number;
   at: string;
+}
+
+/**
+ * The API mirrors `score` as `seconds` while older pages are still out there,
+ * and an API deployed a moment behind the site sends only `seconds`. Reading
+ * both means neither deploy has to land first.
+ */
+function readScore(row: Score & { seconds?: number }): Score {
+  return { ...row, score: row.score ?? row.seconds ?? 0 };
 }
 
 export interface Board {
@@ -50,7 +63,8 @@ async function call(input: string, init?: RequestInit): Promise<unknown> {
 /** Returns null rather than throwing: a missing board is not worth an error. */
 export async function fetchScores(game: string, day: string): Promise<Board | null> {
   try {
-    return (await call(url(game, day))) as Board;
+    const board = (await call(url(game, day))) as Board;
+    return { ...board, scores: board.scores.map(readScore) };
   } catch {
     return null;
   }
@@ -63,18 +77,30 @@ export async function fetchScores(game: string, day: string): Promise<Board | nu
 export async function submitScore(
   game: string,
   day: string,
-  entry: { name: string; seconds: number; hints: number }
+  entry: { name: string; score: number; hints: number }
 ): Promise<Submitted> {
-  return (await call(url(game, day), {
+  const result = (await call(url(game, day), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(entry),
   })) as Submitted;
+
+  return { ...result, entry: readScore(result.entry), scores: result.scores.map(readScore) };
 }
 
 export function clockText(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/** "12 guesses", or "1 guess". */
+export function guessText(guesses: number): string {
+  return `${guesses} guess${guesses === 1 ? "" : "es"}`;
+}
+
+/** A score written the way its own game means it. */
+export function scoreText(score: number, scoring: Scoring = "time"): string {
+  return scoring === "time" ? clockText(score) : guessText(score);
 }
 
 /** "2 hints", "1 hint", or nothing at all when none were taken. */
@@ -94,7 +120,8 @@ export function drawScoreRows(
   list: HTMLOListElement,
   scores: Score[],
   /** The `at` of your own entry, so your row can be picked out of the list. */
-  mine: string | null = null
+  mine: string | null = null,
+  scoring: Scoring = "time"
 ): void {
   list.replaceChildren();
 
@@ -112,7 +139,7 @@ export function drawScoreRows(
 
     const time = document.createElement("span");
     time.className = "scores-time";
-    time.textContent = clockText(score.seconds);
+    time.textContent = scoreText(score.score, scoring);
 
     const hints = hintText(score.hints);
     if (hints) {

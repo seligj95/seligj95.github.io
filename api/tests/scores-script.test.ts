@@ -43,7 +43,7 @@ describe("today", () => {
 });
 
 describe("formatRow", () => {
-  const row = { rowKey: "000094-abc", name: "Anna", seconds: 94, hints: 0, at: "" };
+  const row = { rowKey: "000094-abc", name: "Anna", score: 94, hints: 0, at: "" };
 
   it("shows the place, the time and the key to delete by", () => {
     const line = formatRow(row, 1);

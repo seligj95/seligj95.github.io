@@ -7,6 +7,8 @@
  * `src/pages/daily/`, and a mark in `GameMark.astro` (which the arcade entry
  * will already have provided).
  */
+import type { Scoring } from "../lib/daily-scores";
+
 export interface Daily {
   slug: string;
   title: string;
@@ -14,9 +16,10 @@ export interface Daily {
   blurb: string;
   /**
    * What the leaderboard is ranked by, in words, for the line above the board.
-   * Every daily so far is a race, but a future one might be scored.
    */
   ranking: string;
+  /** What the number on the board means. Lower is better either way. */
+  scoring: Scoring;
 }
 
 export const dailies: Daily[] = [
@@ -27,6 +30,16 @@ export const dailies: Daily[] = [
     blurb:
       "Today’s board is the same for everyone. Crowns go one per row, one per column and one per color, and none may touch. Hints cost 30 seconds.",
     ranking: "Fastest today",
+    scoring: "time",
+  },
+  {
+    slug: "contexto",
+    title: "Contexto",
+    tagline: "One word, and only warmer or colder to go on.",
+    blurb:
+      "Today’s word is the same for everyone. Every guess comes back with its place in a list of twenty thousand, sorted by closeness to the answer. No clock and no hints — only how few guesses it takes.",
+    ranking: "Fewest guesses today",
+    scoring: "guesses",
   },
 ];
 

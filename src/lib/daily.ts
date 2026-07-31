@@ -124,6 +124,25 @@ export function weekdayOf(day: DayString): number {
   return new Date(Date.UTC(year, month - 1, date)).getUTCDay();
 }
 
+/**
+ * How many whole days this one is past 1970-01-01, counting the day string
+ * itself rather than the instant it starts.
+ *
+ * A game that walks through a fixed list wants a counter that goes up by
+ * exactly one each day. `startOfDay` cannot give that: two of its instants are
+ * 23 or 25 hours apart across a daylight saving change, so dividing by a day
+ * would occasionally repeat or skip. Reading the date parts sidesteps the
+ * clock entirely.
+ */
+export function dayIndex(day: DayString): number {
+  const [year, month, date] = day.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  return Math.round(Date.UTC(year, month - 1, date) / 86_400_000);
+}
+
 /** Steps forward or backward by whole days. */
 export function addDays(day: DayString, delta: number): DayString {
   const [year, month, date] = day.split("-").map(Number) as [

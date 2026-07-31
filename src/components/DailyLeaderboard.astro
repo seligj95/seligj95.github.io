@@ -1,10 +1,14 @@
 ---
 /**
- * The shared board for a daily game, and the offer to add your own time.
+ * The shared board for a daily game, and the offer to add your own result.
  *
  * Hidden until there is something to show: either you have finished and can
- * post, or there are already times up. If the API cannot be reached it stays
+ * post, or there are already results up. If the API cannot be reached it stays
  * hidden entirely — the game is complete without it.
+ *
+ * The wording follows what the game is ranked by, because "add your time" is
+ * wrong on a board that counts guesses and "add your score" is vague on one
+ * that is plainly a race.
  *
  * The form is authored here but does not necessarily stay here. On a fresh
  * solve the page moves the node into the win panel, so the offer arrives with
@@ -13,13 +17,25 @@
  * place for its styles.
  */
 import ScoreRows from "./ScoreRows.astro";
+import type { Scoring } from "../lib/daily-scores";
+
+interface Props {
+  scoring?: Scoring;
+}
+
+const { scoring = "time" } = Astro.props;
+
+const words = {
+  time: { heading: "Today’s times", prompt: "Add your time", thing: "a time" },
+  guesses: { heading: "Today’s scores", prompt: "Add your score", thing: "a score" },
+}[scoring];
 ---
 
 <section id="daily-scores" class="scores" hidden data-pagefind-ignore>
-  <h2>Today&rsquo;s times</h2>
+  <h2>{words.heading}</h2>
 
   <form id="scores-form" class="scores-form" hidden>
-    <p class="scores-prompt" id="scores-prompt">Add your time</p>
+    <p class="scores-prompt" id="scores-prompt">{words.prompt}</p>
 
     <!-- Shown to anyone who has posted before, here or on another daily. -->
     <div class="scores-known" id="scores-known" hidden>
@@ -47,7 +63,7 @@ import ScoreRows from "./ScoreRows.astro";
   </form>
 
   <p class="scores-empty" id="scores-empty" hidden>
-    Nobody has posted a time today. Be the first.
+    Nobody has posted {words.thing} today. Be the first.
   </p>
 
   <ScoreRows id="scores-list" />
