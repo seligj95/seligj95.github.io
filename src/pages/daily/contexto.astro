@@ -27,6 +27,21 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     </button>
   </ContextoBoard>
 
+  <div slot="controls">
+    <div class="control-set" id="daily-giveup-set">
+      <button id="daily-giveup" type="button" class="quiet">Give up</button>
+      <span class="control-label" id="daily-giveup-ask" hidden>
+        Show the word? That is your go for today.
+      </span>
+      <button id="daily-giveup-yes" type="button" class="danger" hidden>
+        Show me
+      </button>
+      <button id="daily-giveup-no" type="button" class="quiet" hidden>
+        Keep playing
+      </button>
+    </div>
+  </div>
+
   <div slot="extras">
     <DailyLeaderboard scoring="guesses" />
   </div>
@@ -36,6 +51,11 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       Everyone gets the same word today. There is nothing to time and nothing to
       unlock &mdash; the only number that matters is how many guesses it takes,
       so a careful game beats a fast one.
+    </p>
+    <p>
+      Stuck? <strong>Give up</strong> shows you the word. That spends the day:
+      the guesses behind it are not a result, so there is nothing to put on the
+      board afterwards.
     </p>
     <p>
       Ranks come from where words sit relative to one another across a very large
@@ -60,7 +80,10 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     flex-wrap: wrap;
     align-items: baseline;
     gap: 0.5rem;
-    margin: 0 0 0.25rem;
+    margin: 0;
+    /* Matches the board's own inset below it, since the stage itself has no
+       padding. The gap under the date comes from the board's padding-top. */
+    padding: 0.85rem 0.85rem 0;
   }
 
   .daily-line .daily-day {
@@ -84,10 +107,6 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     authored in ContextoBoard and the form in DailyLeaderboard, so neither
     carries this page's scoping attribute and these rules have to be global.
   */
-  #contexto-win {
-    width: min(100%, 22rem);
-  }
-
   #contexto-win #scores-form {
     justify-items: center;
     width: 100%;
@@ -195,6 +214,12 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   const winSlot = document.getElementById("contexto-win-slot") as HTMLDivElement;
   const seeBoard = document.getElementById("daily-see-board") as HTMLButtonElement;
 
+  const giveUpSet = document.getElementById("daily-giveup-set") as HTMLDivElement;
+  const giveUpButton = document.getElementById("daily-giveup") as HTMLButtonElement;
+  const giveUpAsk = document.getElementById("daily-giveup-ask") as HTMLSpanElement;
+  const giveUpYes = document.getElementById("daily-giveup-yes") as HTMLButtonElement;
+  const giveUpNo = document.getElementById("daily-giveup-no") as HTMLButtonElement;
+
   /** Identifies your own row, so it can be highlighted after a reload. */
   let mine: string | null = null;
   /** Your place, for the rare day busy enough to push you off the first page. */
@@ -245,9 +270,8 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     scoresName.focus();
   });
 
-  /** Sends the panel away and leaves you looking at the guesses behind it. */
-  function dismissWin() {
-    winOverlay.hidden = true;
+  /** Runs after the panel goes, leaving you looking at the guesses behind it. */
+  function afterDismiss() {
     // The offer follows you down rather than leaving with the panel, so
     // dismissing without posting does not cost you the chance.
     if (!scoresForm.hidden && scoresForm.parentElement === winSlot) {
@@ -258,7 +282,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     }
   }
 
-  seeBoard.addEventListener("click", dismissWin);
+  seeBoard.addEventListener("click", () => board.dismiss());
 
   /**
    * Offers to put a finished score on the board.
@@ -335,17 +359,22 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     if (shown && wantsScores) scoresPanel.scrollIntoView({ block: "start" });
   }
 
-  // A day already finished either shows the board, or still offers to post.
-  // Either way the offer stays below: the win panel belongs to the moment you
-  // found it, not to a later visit.
+  // A day already finished still has a board worth seeing, and may still have a
+  // score worth posting. The offer waits for `board.start()` below so it can go
+  // into the win panel: at the bottom of a long list of guesses it is a long
+  // way from anywhere you would be looking.
   if (already) {
     doneLine.hidden = false;
-    doneLine.textContent = `Finished today in ${guessText(already.score)}.`;
+    doneLine.textContent = already.gaveUp
+      ? "You gave up on today\u2019s word."
+      : `Finished today in ${guessText(already.score)}.`;
     if (already.posted) {
       mine = already.posted;
       void showScores().then(revealScores);
-    } else {
-      void offerToPost(false).then(() => revealScores(!scoresPanel.hidden));
+    } else if (already.gaveUp) {
+      // Nothing to offer: a word you were shown is not a score. The board is
+      // still worth seeing, so it is fetched, just never with the form.
+      void showScores().then(revealScores);
     }
   } else if (wantsScores) {
     void showScores().then(revealScores);
@@ -364,6 +393,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     onWin: ({ count }) => {
       tell(count, true);
       writeGuesses("contexto", board.guesses(), day);
+      giveUpSet.hidden = true;
 
       // Only the first finish counts, so replaying after clearing the lock
       // cannot overwrite a score you already put up.
@@ -377,17 +407,81 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     // Replaying today's guesses puts the board back exactly as it was, count
     // and all, so a reload is not a way to undo a bad guess.
     restore: () => readGuesses("contexto", day),
+
+    onDismiss: afterDismiss,
+  });
+
+  /**
+   * Giving up, in two steps.
+   *
+   * The free-play version reveals on one click, because the cost of a misclick
+   * there is one more click to deal a new word. Here it is the whole day, and
+   * there is no undo, so the button only ever asks — the second press is the
+   * one that does anything.
+   */
+  function askGiveUp(asking: boolean): void {
+    giveUpButton.hidden = asking;
+    giveUpAsk.hidden = !asking;
+    giveUpYes.hidden = !asking;
+    giveUpNo.hidden = !asking;
+  }
+
+  giveUpButton.addEventListener("click", () => askGiveUp(true));
+  giveUpNo.addEventListener("click", () => {
+    askGiveUp(false);
+    giveUpButton.focus();
+  });
+
+  giveUpYes.addEventListener("click", () => {
+    // Read before revealing: the count is what you spent, not what it took.
+    const spent = board.guesses().length;
+    board.giveUp();
+    giveUpSet.hidden = true;
+    status.textContent = "Gave up";
+    writeGuesses("contexto", board.guesses(), day);
+
+    // Recorded so the day stays spent across a reload, and marked so nothing
+    // downstream mistakes the count for a result.
+    if (!readDone("contexto", day)) {
+      writeDone("contexto", { score: spent, hints: 0, gaveUp: true }, day);
+    }
+
+    doneLine.hidden = false;
+    doneLine.textContent = "You gave up on today\u2019s word.";
+
+    // No form: there is nothing to post. The board itself is still fair to
+    // look at, and the win panel needs its button to get you there.
+    void showScores().then((shown) => {
+      if (shown) seeBoard.hidden = false;
+    });
   });
 
   void board.start().then(() => {
     const count = board.guesses().length;
     if (already) {
-      // Coming back to a day you already finished lays the guesses back out and
+      // Coming back to a day you already spent lays the guesses back out and
       // leaves them locked: there is something to look at and nothing to gain
       // from a second attempt.
-      tell(already.score, true);
-      board.freeze();
+      giveUpSet.hidden = true;
+      if (already.gaveUp) {
+        // Re-reveals rather than restoring a live board, so the word you were
+        // shown is still on screen. `giveUp` locks the input on its way past.
+        board.giveUp();
+        status.textContent = "Gave up";
+      } else {
+        tell(already.score, true);
+        board.freeze();
+      }
       seeBoard.hidden = false;
+
+      // `start()` put the panel back up on its way past, so a score that was
+      // never posted can be offered there rather than at the foot of the page.
+      if (!already.posted && !already.gaveUp) {
+        void offerToPost(true).then(() => revealScores(!scoresPanel.hidden));
+      }
+
+      // Arriving from the index means you asked for the scores, not the panel.
+      if (wantsScores) board.dismiss();
     } else {
       tell(count, false);
     }

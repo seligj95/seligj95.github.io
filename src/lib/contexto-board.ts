@@ -28,6 +28,11 @@ export interface ContextoBoardOptions {
    * where it left off. Replayed silently: no callbacks, no win panel.
    */
   restore?: () => string[];
+  /**
+   * Runs when the win panel is sent away. It covers the guesses, so closing it
+   * is a normal thing to want, and a page may have its own tidying to do.
+   */
+  onDismiss?: () => void;
 }
 
 export interface ContextoBoard {
@@ -39,6 +44,8 @@ export interface ContextoBoard {
   freeze: () => void;
   /** Gives the answer away and ends the round. */
   giveUp: () => void;
+  /** Sends the win panel away, leaving the guesses behind it. */
+  dismiss: () => void;
 }
 
 /** How far along the row the bar reaches: near-1 fills it, 20,000 barely shows. */
@@ -61,6 +68,8 @@ export function mountContexto(options: ContextoBoardOptions): ContextoBoard {
   const latest = document.getElementById("contexto-latest") as HTMLOListElement;
   const list = document.getElementById("contexto-list") as HTMLOListElement;
   const win = document.getElementById("contexto-win") as HTMLDivElement;
+  const winPanel = document.getElementById("contexto-win-panel") as HTMLDivElement;
+  const winClose = document.getElementById("contexto-win-close") as HTMLButtonElement;
   const winTitle = document.getElementById("contexto-win-title") as HTMLParagraphElement;
   const winNote = document.getElementById("contexto-win-note") as HTMLParagraphElement;
   const closest = document.getElementById("contexto-closest") as HTMLParagraphElement;
@@ -131,15 +140,47 @@ export function mountContexto(options: ContextoBoardOptions): ContextoBoard {
   function finish(): void {
     if (!game) return;
     close();
-    win.hidden = false;
-    winTitle.textContent = "Got it";
-    winNote.textContent =
+    openWin(
+      "Got it",
       game.count === 1
         ? `“${game.secret}” first time. That is either luck or telepathy.`
-        : `“${game.secret}” in ${game.count} guesses.`;
+        : `“${game.secret}” in ${game.count} guesses.`,
+    );
+  }
+
+  /**
+   * Raises the win panel. It covers the viewport, so focus goes with it —
+   * leaving the keyboard behind the scrim on whatever was last active would
+   * make the panel unreachable without a mouse.
+   */
+  function openWin(title: string, note: string): void {
+    if (!game) return;
+    win.hidden = false;
+    winTitle.textContent = title;
+    winNote.textContent = note;
+    // Left on the board rather than in the panel: it is a list to study once
+    // the panel is out of the way, not part of the result.
     closest.textContent = `Closest words: ${game.closest(8).slice(1).join(", ")}.`;
     closest.hidden = false;
+    winPanel.focus();
   }
+
+  function dismissWin(): void {
+    if (win.hidden) return;
+    win.hidden = true;
+    options.onDismiss?.();
+  }
+
+  winClose.addEventListener("click", dismissWin);
+
+  // The scrim, but not the panel sitting on it.
+  win.addEventListener("click", (event) => {
+    if (event.target === win) dismissWin();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") dismissWin();
+  });
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -211,12 +252,10 @@ export function mountContexto(options: ContextoBoardOptions): ContextoBoard {
     giveUp() {
       if (!game || game.won) return;
       close();
-      win.hidden = false;
       // The same panel, so it had better not congratulate you for stopping.
-      winTitle.textContent = "That one got away";
-      winNote.textContent = `The word was “${game.secret}”.`;
-      closest.textContent = `Closest words: ${game.closest(8).slice(1).join(", ")}.`;
-      closest.hidden = false;
+      openWin("That one got away", `The word was “${game.secret}”.`);
     },
+
+    dismiss: dismissWin,
   };
 }

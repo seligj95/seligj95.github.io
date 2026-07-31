@@ -374,4 +374,37 @@ describe("Build output", () => {
     expect(free).toContain('id="contexto-new"');
     expect(free).not.toContain('id="daily-scores"');
   });
+
+  it("lets you give up on either Contexto, and only asks twice on the daily", () => {
+    const daily = readFileSync(join(dist, "daily", "contexto", "index.html"), "utf8");
+    const free = readFileSync(join(dist, "games", "contexto", "index.html"), "utf8");
+
+    // Free play reveals on one click: the cost of a misclick is one more click.
+    expect(free).toContain('id="contexto-reveal"');
+
+    // The daily costs the whole day, so the first press only ever asks.
+    expect(daily).toContain('id="daily-giveup"');
+    expect(daily).toContain('id="daily-giveup-yes"');
+    expect(daily).toContain('id="daily-giveup-no"');
+  });
+
+  it("raises the Contexto win panel in front rather than up the page", () => {
+    const html = readFileSync(join(dist, "daily", "contexto", "index.html"), "utf8");
+    const css = cssFor(html);
+
+    // A long game runs to several screens of guesses. An inline panel arrives
+    // wherever the board starts, which is a long way from where you were.
+    expect(css).toMatch(/\.contexto-win\s*\{[^}]*position:\s*fixed/);
+    expect(html).toContain('id="contexto-win-panel"');
+    // Covering the guesses is only fair if there is a way back to them.
+    expect(html).toContain('id="contexto-win-close"');
+  });
+
+  it("styles the quiet daily badge, which is built in JavaScript", () => {
+    const css = cssFor(readFileSync(join(dist, "daily", "index.html"), "utf8"));
+
+    // Giving up spends the day without earning the filled pill or the tick.
+    expect(css).toContain(".badge.quiet");
+    expect(css).toContain("[data-gave-up]");
+  });
 });

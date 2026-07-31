@@ -167,6 +167,11 @@ const base = import.meta.env.BASE_URL;
     display: grid;
   }
 
+  /* The day is spent either way, but the tick means you finished it. */
+  .row[data-gave-up] .tick {
+    display: none;
+  }
+
   .rows .head:hover .mark {
     transform: translateY(-2px);
   }
@@ -319,6 +324,13 @@ const base = import.meta.env.BASE_URL;
     border-radius: 999px;
   }
 
+  /* Spent, not won. A filled accent pill would read as an achievement. */
+  [data-played] .badge.quiet {
+    color: var(--text-muted);
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
   [data-played] .played-time {
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
@@ -332,6 +344,7 @@ const base = import.meta.env.BASE_URL;
   import {
     drawScoreRows,
     fetchScores,
+    guessText,
     hintText,
     scoreText,
   } from "../../lib/daily-scores";
@@ -364,17 +377,24 @@ const base = import.meta.env.BASE_URL;
       const hints = hintText(done.hints);
 
       const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "\u2713 Played";
+      badge.className = done.gaveUp ? "badge quiet" : "badge";
+      // A day you were shown the answer to is spent, but it is not a result.
+      // The check mark is for finishing, so giving up does not get one.
+      badge.textContent = done.gaveUp ? "Gave up" : "\u2713 Played";
 
-      const yours = scoreText(done.score, game.scoring);
       const time = document.createElement("span");
       time.className = "played-time";
-      time.textContent = hints ? `${yours} with ${hints}` : yours;
+      if (done.gaveUp) {
+        time.textContent = `after ${guessText(done.score)}`;
+      } else {
+        const yours = scoreText(done.score, game.scoring);
+        time.textContent = hints ? `${yours} with ${hints}` : yours;
+      }
 
       played.replaceChildren(badge, time);
       played.hidden = false;
       (row as HTMLElement).dataset.done = "true";
+      if (done.gaveUp) (row as HTMLElement).dataset.gaveUp = "true";
     }
 
     // The board is a nicety on top. One that never answers simply stays

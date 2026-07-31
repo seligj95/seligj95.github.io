@@ -74,6 +74,22 @@ describe("readDone", () => {
     expect(readDone("queens", "2026-07-31")).toBeNull();
   });
 
+  it("round trips a day that was given up on", () => {
+    // The count is guesses spent, not guesses it took, so the flag is the only
+    // thing standing between it and a leaderboard.
+    writeDone("contexto", { score: 7, hints: 0, gaveUp: true }, "2026-07-30");
+    expect(readDone("contexto", "2026-07-30")).toEqual({
+      score: 7,
+      hints: 0,
+      gaveUp: true,
+    });
+  });
+
+  it("leaves the flag off a day that was finished", () => {
+    writeDone("contexto", { score: 7, hints: 0 }, "2026-07-30");
+    expect(readDone("contexto", "2026-07-30")?.gaveUp).toBeUndefined();
+  });
+
   it("ignores a record left over from an older shape", () => {
     const store = fakeStorage();
     store.setItem("daily-queens-2026-07-30", JSON.stringify({ time: 312 }));
