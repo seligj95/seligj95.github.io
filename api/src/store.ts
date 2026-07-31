@@ -1,12 +1,14 @@
 /**
  * One score on one day's board.
  *
- * `seconds` already includes any hint penalty, because that is the number the
- * page shows you and the number you would compare with a friend.
+ * `score` is whatever the game ranks by, and lower is always better: seconds
+ * for Queens, guesses for Contexto. Queens folds its hint penalty in before it
+ * gets here, because that is the number the page shows you and the number you
+ * would compare with a friend.
  */
 export interface Entry {
   name: string;
-  seconds: number;
+  score: number;
   hints: number;
   /** ISO timestamp, set by the server so a client cannot backdate a row. */
   at: string;
@@ -25,9 +27,9 @@ export interface Store {
   count(game: string, day: string): Promise<number>;
 }
 
-/** Fastest first, and an earlier submission wins a tie. */
-export function byTime(a: Entry, b: Entry): number {
-  if (a.seconds !== b.seconds) return a.seconds - b.seconds;
+/** Best first, and an earlier submission wins a tie. */
+export function byScore(a: Entry, b: Entry): number {
+  if (a.score !== b.score) return a.score - b.score;
   return a.at.localeCompare(b.at);
 }
 
@@ -44,7 +46,7 @@ export function memoryStore(): Store {
       days.set(k, rows);
     },
     async list(game, day) {
-      return [...(days.get(key(game, day)) ?? [])].sort(byTime);
+      return [...(days.get(key(game, day)) ?? [])].sort(byScore);
     },
     async count(game, day) {
       return (days.get(key(game, day)) ?? []).length;

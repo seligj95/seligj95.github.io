@@ -73,7 +73,7 @@ describe("isBlockedName", () => {
 });
 
 describe("checkSubmission", () => {
-  const good = { name: "Dave", seconds: 120, hints: 2 };
+  const good = { name: "Dave", score: 120, hints: 2 };
 
   it("passes a plausible submission through", () => {
     const checked = checkSubmission(good);
@@ -88,7 +88,7 @@ describe("checkSubmission", () => {
 
   it("ignores extra fields instead of storing them", () => {
     const checked = checkSubmission({ ...good, admin: true, at: "1999-01-01" });
-    expect(checked.ok && Object.keys(checked.value).sort()).toEqual(["hints", "name", "seconds"]);
+    expect(checked.ok && Object.keys(checked.value).sort()).toEqual(["hints", "name", "score"]);
   });
 
   it("refuses anything that is not an object", () => {
@@ -101,8 +101,27 @@ describe("checkSubmission", () => {
     expect(checkSubmission({ ...good, hints: -1 }).ok).toBe(false);
   });
 
-  it("refuses seconds sent as a string", () => {
-    expect(checkSubmission({ ...good, seconds: "120" }).ok).toBe(false);
+  it("refuses a score sent as a string", () => {
+    expect(checkSubmission({ ...good, score: "120" }).ok).toBe(false);
+  });
+
+  it("still reads a score posted as seconds by an older page", () => {
+    const checked = checkSubmission({ name: "Dave", seconds: 120, hints: 2 });
+    expect(checked.ok && checked.value.score).toBe(120);
+  });
+
+  it("holds a guess count to its own bounds", () => {
+    expect(checkSubmission({ name: "Dave", score: 1, hints: 0 }, "guesses").ok).toBe(true);
+    // One guess is impossibly fast for a race but ordinary for Contexto.
+    expect(checkSubmission({ name: "Dave", score: 1, hints: 0 }, "time").ok).toBe(false);
+    expect(checkSubmission({ name: "Dave", score: 6000, hints: 0 }, "guesses").ok).toBe(false);
+  });
+
+  it("says which number it did not believe", () => {
+    const race = checkSubmission({ name: "Dave", score: 0, hints: 0 }, "time");
+    const words = checkSubmission({ name: "Dave", score: 0, hints: 0 }, "guesses");
+    expect(!race.ok && race.error).toMatch(/time/);
+    expect(!words.ok && words.error).toMatch(/guess/);
   });
 });
 

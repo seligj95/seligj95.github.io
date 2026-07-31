@@ -1,0 +1,272 @@
+---
+/**
+ * The Contexto board: a box to type a word into, and the guesses so far.
+ *
+ * There is no grid and nothing to look at until you have guessed something, so
+ * the whole surface is the list. Guesses sort by how close they were rather
+ * than when they were made, which is what makes the game readable — but that
+ * means your newest guess can land anywhere, so it is also pinned on its own
+ * just above the list.
+ *
+ * The rows are built in JavaScript, so their styles have to be global: Astro
+ * only adds its scoping attribute to markup written in the component itself.
+ * Everything here is in one global block rather than split, because a scoped
+ * rule would quietly win over a global one with the same class.
+ */
+interface Props {
+  /** The daily moves its post-your-score form into the win panel. */
+  winSlot?: boolean;
+  /** Names the play area, which is a list rather than a grid or a canvas. */
+  label?: string;
+}
+
+const { winSlot = false, label = "Contexto board" } = Astro.props;
+---
+
+<div
+  class="contexto"
+  id="contexto"
+  role="group"
+  aria-label={label}
+  aria-describedby="game-instructions"
+>
+  <div class="contexto-win" id="contexto-win" hidden>
+    <p class="contexto-win-title" id="contexto-win-title">Got it</p>
+    <p class="contexto-win-note" id="contexto-win-note"></p>
+    {winSlot && <div class="contexto-win-slot" id="contexto-win-slot" />}
+    <div class="contexto-win-actions"><slot name="win-actions" /></div>
+  </div>
+
+  <form class="contexto-form" id="contexto-form">
+    <label class="contexto-label" for="contexto-input">Your guess</label>
+    <div class="contexto-entry">
+      <input
+        id="contexto-input"
+        name="guess"
+        type="text"
+        inputmode="text"
+        autocomplete="off"
+        autocapitalize="none"
+        autocorrect="off"
+        spellcheck="false"
+        maxlength="24"
+        placeholder="Type a word"
+        disabled
+      />
+      <button type="submit" id="contexto-submit" disabled>Guess</button>
+    </div>
+  </form>
+
+  <p class="contexto-message" id="contexto-message" role="status" hidden></p>
+
+  <!-- The guess just made, held still while the list below reorders itself. -->
+  <ol
+    class="contexto-rows contexto-latest"
+    id="contexto-latest"
+    aria-label="Your last guess"
+  ></ol>
+
+  <ol class="contexto-rows" id="contexto-list" aria-label="Guesses so far, closest first"
+  ></ol>
+
+  <p class="contexto-closest" id="contexto-closest" hidden></p>
+</div>
+
+<style is:global>
+  .contexto {
+    display: grid;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.25rem;
+  }
+
+  .contexto-form {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+  }
+
+  .contexto-form[hidden] {
+    display: none;
+  }
+
+  .contexto-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .contexto-entry {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .contexto-entry input {
+    flex: 1 1 auto;
+    /* Without this the input's default width props the flex row open wider
+       than a phone, and the button falls off the end. */
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+
+  .contexto-entry input:focus-visible,
+  .contexto-entry button:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 1px;
+  }
+
+  .contexto-entry button {
+    flex: 0 0 auto;
+    padding: 0.5rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+
+  .contexto-entry button:disabled,
+  .contexto-entry input:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .contexto-message {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  .contexto-message[hidden] {
+    display: none;
+  }
+
+  .contexto-message[data-tone="bad"] {
+    color: var(--danger);
+  }
+
+  .contexto-rows {
+    display: grid;
+    gap: 0.2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .contexto-rows:empty {
+    display: none;
+  }
+
+  /* The pinned latest guess, kept apart from the sorted list below it. */
+  .contexto-latest {
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .contexto-rows li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.5rem;
+    /*
+      The bar is the row's own background, so its width is the whole signal —
+      which only works if the part it has not reached is visibly empty. The row
+      sits on --bg rather than --surface for exactly that reason: the stage
+      behind it is already a surface tint, and a track the same color as its
+      surroundings makes a short bar look like a highlight on the word instead
+      of a measure of how far off you are.
+    */
+    background:
+      linear-gradient(to right, var(--heat) 0 var(--fill), transparent var(--fill) 100%),
+      var(--bg);
+  }
+
+  /* Near to far, read as accent to danger. Contexto's own palette runs green
+     to red, but the site has no green token and inventing one to match another
+     site's convention is exactly the drift the token rule exists to stop. */
+  .contexto-rows li[data-heat="hot"] {
+    --heat: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+
+  .contexto-rows li[data-heat="warm"] {
+    --heat: color-mix(
+      in srgb,
+      color-mix(in srgb, var(--accent), var(--danger)) 45%,
+      transparent
+    );
+  }
+
+  .contexto-rows li[data-heat="cold"] {
+    --heat: color-mix(in srgb, var(--danger) 32%, transparent);
+  }
+
+  /* The answer, once it has been found. */
+  .contexto-rows li[data-heat="hot"][data-found] {
+    font-weight: 700;
+  }
+
+  .contexto-word {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .contexto-rank {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+  }
+
+  .contexto-win {
+    display: grid;
+    gap: 0.5rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--accent-subtle);
+  }
+
+  .contexto-win[hidden] {
+    display: none;
+  }
+
+  .contexto-win-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .contexto-win-note,
+  .contexto-closest {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .contexto-closest[hidden] {
+    display: none;
+  }
+
+  .contexto-win-actions:empty {
+    display: none;
+  }
+
+  .contexto-win-actions button {
+    padding: 0.45rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+</style>

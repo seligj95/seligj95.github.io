@@ -2,8 +2,15 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import GameMark from "../../components/GameMark.astro";
 import { games } from "../../data/games";
+import { dailies } from "../../data/dailies";
 
 const base = import.meta.env.BASE_URL;
+// Named rather than counted, so the line stays true as dailies are added.
+const dailyTitles = dailies.map((daily) => daily.title);
+const dailyList =
+  dailyTitles.length > 1
+    ? `${dailyTitles.slice(0, -1).join(", ")} and ${dailyTitles.at(-1)}`
+    : dailyTitles[0];
 // One shape for every section: a heading, a note, and a list of rows. The three
 // groups differ in what they are, not in how they are presented.
 const sections = [
@@ -27,15 +34,16 @@ const sections = [
 
 <BaseLayout
   title="Games — Jordan Selig"
-  description="A small arcade of browser games and zen toys built by Jordan Selig — koi pond, falling sand, generative gardens, jigsaw, and more."
+  description="A small arcade of browser games and zen toys built by Jordan Selig — koi pond, falling sand, generative gardens, word and logic puzzles, and more."
 >
   <section class="games">
     <header class="intro">
       <h1>Games</h1>
       <p>
-        Little browser things I build when I should be doing something else. No accounts,
-        no ads, no loading screens &mdash; just canvas and a few hundred lines of
-        JavaScript, running entirely on your machine.
+        Little browser things I build when I should be doing something else. No
+        accounts, no ads, no leaderboards &mdash; every one of them is generated and
+        played out entirely on your own machine, and the only score anyone keeps is
+        the one in your browser.
       </p>
     </header>
 
@@ -72,6 +80,12 @@ const sections = [
         </section>
       ))
     }
+
+    <p class="aside">
+      {dailyList} also come in a daily version: one puzzle a day, the same one for
+      everyone, and a shared board to put your result on. They live on the
+      <a href={`${base}daily/`}>daily tab</a>.
+    </p>
   </section>
 </BaseLayout>
 
@@ -85,6 +99,14 @@ const sections = [
   .intro {
     max-width: 38rem;
     margin-bottom: 3.5rem;
+  }
+
+  .aside {
+    max-width: 38rem;
+    margin-top: 2.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.6;
   }
 
   h1 {

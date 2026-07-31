@@ -1,8 +1,14 @@
 # jordanselig.com
 
-Personal site by Jordan Selig — blog, talks, projects, and a small arcade of
-browser games. Built with [Astro](https://astro.build) and deployed to GitHub
-Pages at [jordanselig.com](https://jordanselig.com).
+Personal site by Jordan Selig — blog, talks, projects, an arcade of eleven
+browser games, and a daily puzzle that is the same for everyone. Built with
+[Astro](https://astro.build) and deployed to GitHub Pages at
+[jordanselig.com](https://jordanselig.com).
+
+The site is a static build. The single exception is the daily leaderboard, which
+posts to a small Node API in [`api/`](#the-scores-api) running on Azure Container
+Apps at `api.jordanselig.com`. Everything else — every game, every board, every
+guess — runs in the browser.
 
 ## Quick start
 
@@ -12,6 +18,14 @@ npm run dev        # dev server at localhost:4321
 npm run build      # static build into dist/
 npm run preview    # serve the built site
 npm test           # vitest run (builds first, then asserts on dist/)
+npm run test:api   # the API's own suite, which needs no build
+```
+
+The API is a separate workspace with its own dependencies:
+
+```bash
+cd api && npm install
+npm run dev        # API at localhost:8080, in-memory store
 ```
 
 ## Tech stack
@@ -22,17 +36,25 @@ npm test           # vitest run (builds first, then asserts on dist/)
 - **Comments:** Giscus, backed by GitHub Discussions
 - **Tests:** Vitest + happy-dom, run against the built `dist/`
 - **Hosting:** GitHub Pages via GitHub Actions
+- **Daily scores API:** Hono on Node, Azure Table Storage, deployed to Azure
+  Container Apps and scaled to zero between requests
 
 ## Project structure
 
 ```
 src/
-├── components/      # Header, Footer, search, comments, KoiPond, GameMark, ...
+├── components/      # Header, Footer, search, comments, GameMark, board and
+│                    # leaderboard partials
 ├── content/blog/    # Markdown posts (the only content collection)
-├── data/games.ts    # Single source of truth for the games arcade
+├── data/            # games.ts and dailies.ts — the two registries
 ├── layouts/         # BaseLayout, BlogPostLayout, GameLayout
-├── pages/           # Routes, including pages/games/*
+├── lib/             # Game logic kept out of the pages: solvers, board
+│                    # controllers, the seeded RNG, the day boundary
+├── pages/           # Routes, including pages/games/* and pages/daily/*
 └── styles/          # global.css — all four themes live here
+api/                 # The scores API. Its own package.json, tsconfig and tests.
+scripts/             # Build tooling run by hand, not by the build
+public/contexto/     # Committed word vectors, downloaded by the Contexto pages
 tests/               # Vitest suites that assert on the built output
 ```
 
@@ -70,16 +92,17 @@ their own page shows the summary plus a banner pointing at the full article.
 
 ## Games
 
-Every game under `/games/` is client-side only: no server, no accounts, no
-persistence beyond `localStorage` for best scores. `src/data/games.ts` is the
-single source of truth — it drives the games index, the header on each game
-page, and `tests/build-output.test.ts`.
+Eleven games under `/games/`, all of them client-side only: no server, no
+accounts, no persistence beyond `localStorage` for best scores. Free play is the
+default everywhere — a fresh random board, unlimited goes, nothing recorded off
+your machine. `src/data/games.ts` is the single source of truth: it drives the
+games index, the header on each game page, and `tests/build-output.test.ts`.
 
 Adding a game:
 
 1. Add an entry to `src/data/games.ts` (`slug`, `title`, `tagline`, `blurb`,
-   `tag`, `instructions`). The `tag` decides which section of the index it
-   lands in: `puzzle` gets a row in the list, `zen` gets a tile on the shelf.
+   `tag`, `instructions`). The `tag` picks the section of the index it lands
+   in: `puzzle`, `arcade`, or `zen`.
 2. Add a matching mark to `src/components/GameMark.astro` keyed on the slug.
 3. Create `src/pages/games/<slug>.astro` wrapping the game in `GameLayout`,
    which supplies the title, instructions, stage, status line, and control bar.
@@ -88,25 +111,157 @@ Adding a game:
 
 Note: Astro's scoped styles do not apply to elements created in JavaScript, so
 games that build their own DOM use `<style is:global>` with every selector
-prefixed by the game's root id.
+prefixed by the game's root id. Watch the direction of that trade — a scoped
+rule beats a global rule of the same specificity, because scoping adds an
+attribute selector, so an override for scoped markup has to live in the scoped
+block.
+
+## Daily puzzles
+
+`/daily/` is the same games under different rules: one puzzle a day, the same one
+for everybody, one attempt, and an optional shared board. There are no accounts,
+no sign-in and no streaks — you type a name if you want your score listed, and
+that name is remembered on the device so the next day is one tap.
+
+Two games have a daily version today. **Queens** ranks by time, with 30 seconds
+added per hint. **Contexto** ranks by number of guesses and offers no hints at
+all.
+
+A few decisions worth knowing before changing any of it:
+
+- **The day rolls over at 00:00 `America/New_York`**, not at the visitor's local
+  midnight, so everyone is on the same puzzle at the same instant. `src/lib/daily.ts`
+  owns that boundary; nothing else should compute a date.
+- **Day arithmetic goes through `dayIndex()`, never through subtracting
+  timestamps.** Consecutive local midnights are 23 or 25 hours apart across a
+  daylight-saving change, so dividing elapsed milliseconds by a day would
+  occasionally repeat or skip a puzzle.
+- **Puzzles are chosen by walking a fixed shuffle, not by drawing at random from
+  a seed.** Independent draws collide surprisingly early, and a word repeating
+  within the first year reads as a bug. Contexto shuffles its 706 secret words
+  once under a versioned seed and steps through the list, so every word appears
+  before any repeats.
+- **The one-attempt lock is advisory.** It is `localStorage`, so clearing the
+  browser lets you replay. That is accepted: cheating is out of scope.
+
+Adding a daily:
+
+1. Add an entry to `src/data/dailies.ts` (`slug`, `title`, `tagline`, `blurb`,
+   `ranking`, `scoring`). `scoring` is `time` or `guesses`; lower wins either
+   way.
+2. Create `src/pages/daily/<slug>.astro`. `src/lib/daily-progress.ts` stores
+   what has been played and any in-progress state, and `DailyLeaderboard.astro`
+   handles fetching, posting and rendering the board.
+3. Add the slug to `GAMES` in `api/src/guards.ts` with its scoring, and give it
+   plausible bounds. **The API has to deploy before the page goes live**, or
+   submissions are rejected and the board silently stays hidden.
+
+The arcade entry, its `GameMark` and its page are all reused, so a daily costs
+roughly a registry line and a page.
+
+### Contexto's word data
+
+Contexto ranks a guess by how close its meaning is to the answer, which needs
+word vectors. `scripts/build-contexto-words.ts` builds them:
+
+```bash
+npm run contexto:words
+```
+
+It range-requests just the 50-dimensional slice out of GloVe 6B — the full
+archive is 862MB, and the slice it reads is about 12MB — keeps the 20,000 most
+common usable words, folds plurals and other inflections onto their base word,
+and writes `public/contexto/vectors.bin` and `vocabulary.json`, together about
+930KB gzipped.
+
+The vectors come from GloVe 6B (Pennington, Socher and Manning, 2014), which is
+released into the public domain under the PDDL. The output is committed, so the
+build never touches the network. Run it by hand only when the vocabulary should
+change. Ranking happens in the browser: 20,000
+dot products, about 5ms, once per game. That is deliberate — a game is 50 to 200
+guesses, and a round trip per guess to a container that scales to zero would
+feel broken.
+
+## The scores API
+
+`api/` is the only server-side code in the repo: a small Hono app holding the
+daily leaderboards. It is a standalone Node workspace with its own
+`package.json` and `tsconfig.json`, deliberately not sharing the root Astro
+config.
+
+```
+GET  /api/health
+GET  /api/daily/:game/:day/scores
+POST /api/daily/:game/:day/scores
+```
+
+Running it locally needs nothing: with no storage account configured it falls
+back to an in-memory store. To see the daily leaderboard end to end, run both
+halves and point the site at the local API.
+
+```bash
+cd api && PORT=8787 npm run dev
+PUBLIC_SCORES_API=http://localhost:8787 npm run dev    # in the site root
+```
+
+Notes:
+
+- **`api/src/guards.ts` is where a new daily is declared.** It holds the map of
+  game to scoring and the plausible bounds for each. The write endpoint is
+  public and unauthenticated, so everything from a browser is treated as a
+  suggestion: names are trimmed and capped, absurd scores are rejected, and
+  writes are rate limited to 20 per IP per hour. None of that stops someone
+  with curl, and it is not meant to.
+- **Storage sits behind a two-method interface**, `add()` and `list()`. Azure
+  Table Storage backs it in production; the row key zero-pads the score so a
+  partition comes back already sorted.
+- **The site and the API deploy from the same push but through separate
+  workflows**, so they are never quite in step. Both sides therefore tolerate
+  the other being a version behind: responses carry a score under both its old
+  and new names, and readers accept either.
+- **Moderation is a CLI**, not an endpoint. `npm run scores -- list` and
+  `npm run scores -- delete <rowKey>` from `api/`, against an Azure login with
+  *Storage Table Data Contributor*.
+
+Any new directory under `api/` containing TypeScript has to be added to the
+`include` list in `api/tsconfig.json`. Files left out of it fall back to the
+root Astro config, which resolves locally and then fails only in CI.
 
 ## Testing
 
 ```bash
-npm test
+npm test           # the site
+npm run test:api   # the API
 ```
 
-The suites build the site once (`tests/global-setup.ts`) and then assert
-against `dist/`: accessibility basics, SEO tags and JSON-LD, the RSS feed,
-GeoCities theme performance budgets, and build output (every game page exists,
-every route renders, no broken internal links).
+The site suites build once (`tests/global-setup.ts`) and then assert against
+`dist/`: accessibility basics, SEO tags and JSON-LD, the RSS feed, GeoCities
+theme performance budgets, and build output (every game page exists, every route
+renders, no broken internal links). Game and daily logic is unit tested directly
+out of `src/lib/`, which is most of what lives there.
+
+The API suite runs against the in-memory store and needs no build and no Azure.
 
 ## Deployment
 
-Pushes to `main` build and deploy automatically via GitHub Actions. The custom
-domain comes from `public/CNAME`, and `site` in `astro.config.mjs` must match
-it since absolute URLs in the sitemap, RSS feed, and Open Graph tags are
-derived from it.
+Two workflows, both on pushes to `main`:
+
+- `.github/workflows/deploy.yml` builds the site and deploys it to GitHub Pages.
+  The custom domain comes from `public/CNAME`, and `site` in `astro.config.mjs`
+  must match it, since the absolute URLs in the sitemap, RSS feed and Open Graph
+  tags are derived from it.
+- `.github/workflows/deploy-api.yml` builds the API image, pushes it to GHCR and
+  updates the container app. It only runs when something under `api/` changes,
+  and it authenticates to Azure with an OIDC federated credential rather than a
+  stored secret.
+
+`.github/workflows/test.yml` runs both suites on pull requests, as two parallel
+jobs. The deploy workflow runs the site suite again before shipping, so a
+failing test stops the deploy either way — new code needs tests.
+
+The API runs on Azure Container Apps, scaled to zero, capped at a low
+`maxReplicas` so nothing can quietly burn through the subscription credit, with
+a budget alert on the resource group as a backstop.
 
 ---
 

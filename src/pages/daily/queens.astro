@@ -453,7 +453,7 @@ const crown = "/images/games/queens-crown.png";
     try {
       const posted = await submitScore("queens", day, {
         name,
-        seconds: done.seconds,
+        score: done.score,
         hints: done.hints,
       });
       mine = posted.entry.at;
@@ -538,7 +538,7 @@ const crown = "/images/games/queens-crown.png";
 
           // Only the first finish counts, so a replay after clearing the lock
           // cannot overwrite a time you already put up.
-          const done = { seconds, hints: hintsUsed };
+          const done = { score: seconds, hints: hintsUsed };
           if (!readDone("queens", day)) writeDone("queens", done, day);
 
           const charged = hintsUsed * HINT_PENALTY;
@@ -569,7 +569,7 @@ const crown = "/images/games/queens-crown.png";
         // police it.
         const hints = hintText(already.hints);
         doneLine.hidden = false;
-        doneLine.textContent = `You finished today in ${clockText(already.seconds)}${
+        doneLine.textContent = `You finished today in ${clockText(already.score)}${
           hints ? ` with ${hints}` : ""
         }. A new board arrives tomorrow.`;
         startButton.textContent = "See your board";
@@ -581,7 +581,7 @@ const crown = "/images/games/queens-crown.png";
         // and leaves it locked, so there is something to look at and nothing
         // to gain from a second attempt.
         if (already) {
-          clock.textContent = clockText(already.seconds);
+          clock.textContent = clockText(already.score);
           board.reveal();
           return;
         }

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type { Store } from "./store.ts";
+import type { Entry, Store } from "./store.ts";
 import { GAMES, checkSubmission, isDay, rateLimiter } from "./guards.ts";
 
 /** Rows kept per game per day. Past this the day stops accepting writes. */
@@ -45,6 +45,15 @@ export function createApp({ store, origins, limiter }: AppOptions) {
     return GAMES.has(game) && isDay(day);
   }
 
+  /**
+   * Rows go out with `seconds` mirroring `score`, so a site build made before
+   * the rename keeps working. The two deploy from the same push but not in the
+   * same instant.
+   */
+  function wire(rows: Entry[]) {
+    return rows.map((row) => ({ ...row, seconds: row.score }));
+  }
+
   app.get("/api/daily/:game/:day/scores", async (c) => {
     const { game, day } = c.req.param();
     if (!target(game, day)) return c.json({ error: "No such board." }, 404);
@@ -54,7 +63,7 @@ export function createApp({ store, origins, limiter }: AppOptions) {
       game,
       day,
       count: rows.length,
-      scores: rows.slice(0, PAGE_SIZE),
+      scores: wire(rows.slice(0, PAGE_SIZE)),
     });
   });
 
@@ -77,7 +86,7 @@ export function createApp({ store, origins, limiter }: AppOptions) {
       return c.json({ error: "Expected a JSON object." }, 400);
     }
 
-    const checked = checkSubmission(body);
+    const checked = checkSubmission(body, GAMES.get(game));
     if (!checked.ok) return c.json({ error: checked.error }, 400);
 
     if ((await store.count(game, day)) >= DAY_CAP) {
@@ -91,7 +100,15 @@ export function createApp({ store, origins, limiter }: AppOptions) {
     const rows = await store.list(game, day);
     const place = rows.findIndex((row) => row.at === entry.at && row.name === entry.name) + 1;
 
-    return c.json({ entry, place, count: rows.length, scores: rows.slice(0, PAGE_SIZE) }, 201);
+    return c.json(
+      {
+        entry: { ...entry, seconds: entry.score },
+        place,
+        count: rows.length,
+        scores: wire(rows.slice(0, PAGE_SIZE)),
+      },
+      201
+    );
   });
 
   app.notFound((c) => c.json({ error: "Not found." }, 404));

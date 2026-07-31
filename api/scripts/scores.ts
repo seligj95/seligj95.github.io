@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { TableClient, odata } from "@azure/data-tables";
 import { DefaultAzureCredential } from "@azure/identity";
 import { partition } from "../src/table-store.ts";
+import { GAMES, type Scoring } from "../src/guards.ts";
 
 /**
  * Moderation for the shared board.
@@ -22,7 +23,7 @@ const DEFAULT_ACCOUNT = "jsdailyscores49afe4";
 export interface Row {
   rowKey: string;
   name: string;
-  seconds: number;
+  score: number;
   hints: number;
   at: string;
 }
@@ -71,11 +72,17 @@ export function clock(seconds: number): string {
   return `${mins}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/** A score as the game means it: a clock for a race, a count for Contexto. */
+export function scoreText(score: number, scoring: Scoring = "time"): string {
+  if (scoring === "time") return clock(score);
+  return `${score} guess${score === 1 ? "" : "es"}`;
+}
+
 /** Row keys are long and easy to mistype, so listing prints them in full. */
-export function formatRow(row: Row, place: number): string {
+export function formatRow(row: Row, place: number, scoring: Scoring = "time"): string {
   const hints = row.hints ? ` (${row.hints} hint${row.hints === 1 ? "" : "s"})` : "";
-  const time = clock(row.seconds).padStart(6);
-  return `${String(place).padStart(3)}. ${row.name.padEnd(22)} ${time}${hints}\n     ${row.rowKey}`;
+  const score = scoreText(row.score, scoring).padStart(10);
+  return `${String(place).padStart(3)}. ${row.name.padEnd(22)} ${score}${hints}\n     ${row.rowKey}`;
 }
 
 function connect(): TableClient {
@@ -97,7 +104,7 @@ async function list(client: TableClient, game: string, day: string): Promise<Row
     rows.push({
       rowKey: String(row.rowKey ?? ""),
       name: String(row.name ?? ""),
-      seconds: Number(row.seconds ?? 0),
+      score: Number(row.score ?? row.seconds ?? 0),
       hints: Number(row.hints ?? 0),
       at: String(row.at ?? ""),
     });
@@ -126,7 +133,8 @@ export async function main() {
 
   if (command === "list") {
     console.log(`${game} — ${day} — ${rows.length} score${rows.length === 1 ? "" : "s"}\n`);
-    rows.forEach((row, index) => console.log(formatRow(row, index + 1)));
+    const scoring = GAMES.get(game) ?? "time";
+    rows.forEach((row, index) => console.log(formatRow(row, index + 1, scoring)));
     return;
   }
 
@@ -146,7 +154,7 @@ export async function main() {
       continue;
     }
     await client.deleteEntity(partition(game, day), rowKey);
-    console.log(`deleted ${row.name} (${clock(row.seconds)})`);
+    console.log(`deleted ${row.name} (${scoreText(row.score, GAMES.get(game) ?? "time")})`);
   }
 }
 
