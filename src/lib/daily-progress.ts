@@ -26,6 +26,13 @@ export interface Done {
    * pick your row out of the list and highlight it.
    */
   posted?: string;
+  /**
+   * Set when the answer was revealed instead of found. The day is spent either
+   * way, which is why this is a `Done` at all, but `score` then counts the
+   * guesses made before stopping rather than the guesses it took — so it is
+   * never offered to the board, and never shown as though it were a result.
+   */
+  gaveUp?: boolean;
 }
 
 export function doneKey(game: string, day: DayString = dayFor()): string {

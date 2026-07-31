@@ -310,6 +310,12 @@ const description = title ? subtitle : game.blurb;
     gap: 0.5rem;
   }
 
+  /* Spelled out because the rule above outranks the user agent's own
+     `display: none`, so a set hidden by script would otherwise stay on screen. */
+  .game-controls .control-set[hidden] {
+    display: none;
+  }
+
   .game-controls .control-label {
     font-size: 0.75rem;
     font-weight: 600;
@@ -367,6 +373,27 @@ const description = title ? subtitle : game.blurb;
     cursor: not-allowed;
     color: var(--text-muted);
     border-color: var(--border);
+  }
+
+  /* A secondary action standing next to a primary one — "Give up" beside "New
+     word". It recedes to the page until reached for, so the pair does not read
+     as two equal choices. */
+  .game-controls button.quiet {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .game-controls button.quiet:hover {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  /* The confirming half of a step that cannot be taken back. Only ever shown
+     once the action has already been asked for, never as a first offer. */
+  .game-controls button.danger,
+  .game-controls button.danger:hover {
+    color: var(--danger);
+    border-color: var(--danger);
   }
 
   .game-controls .control-group button:hover {
