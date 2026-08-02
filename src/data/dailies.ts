@@ -37,9 +37,18 @@ export const dailies: Daily[] = [
     title: "Contexto",
     tagline: "One word, and only warmer or colder to go on.",
     blurb:
-      "Today’s word is the same for everyone. Every guess comes back with its place in a list of twenty thousand, sorted by closeness to the answer. No clock and no hints — only how few guesses it takes.",
+      "Today’s word is the same for everyone. Every guess comes back with its place in a list of thirty thousand, sorted by closeness to the answer. No clock and no hints — only how few guesses it takes.",
     ranking: "Fewest guesses today",
     scoring: "guesses",
+  },
+  {
+    slug: "chess",
+    title: "Chess",
+    tagline: "One position, one mate to find.",
+    blurb:
+      "Today’s puzzle is the same for everyone. White to move and mate; your job is to find it. A legal move off the line is rejected and the position is restored, but it still counts as an attempt — that is what separates scores. No hints.",
+    ranking: "Fewest moves today, ties broken by time",
+    scoring: "moves",
   },
 ];
 

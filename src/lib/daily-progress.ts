@@ -16,7 +16,7 @@ import { dayFor, type DayString } from "./daily";
 export interface Done {
   /**
    * Whatever the game is scored on: seconds for Queens, including any hint
-   * penalty, and guesses for Contexto.
+   * penalty, guesses for Contexto, and move attempts for Chess.
    */
   score: number;
   hints: number;
@@ -33,6 +33,11 @@ export interface Done {
    * never offered to the board, and never shown as though it were a result.
    */
   gaveUp?: boolean;
+  /**
+   * Seconds elapsed when the run finished, for a game scored on moves rather
+   * than time. Absent for games that do not need it.
+   */
+  elapsed?: number;
 }
 
 export function doneKey(game: string, day: DayString = dayFor()): string {
@@ -103,6 +108,35 @@ export function writeGuesses(
     window.localStorage.setItem(progressKey(game, day), JSON.stringify(guesses));
   } catch {
     // Without storage a reload starts the day over. Nothing else breaks.
+  }
+}
+
+/**
+ * Where a game's own structured mid-game state lives - a position, a ply
+ * count, an attempt count, whatever it needs to pick back up after a reload.
+ * Distinct from `progressKey`'s plain array of guesses, and generic rather
+ * than named for one game, so any future daily game that needs more than a
+ * list can reuse it instead of growing its own key format.
+ */
+export function stateKey(game: string, day: DayString = dayFor()): string {
+  return `daily-${game}-${day}-state`;
+}
+
+export function readState<T>(game: string, day: DayString = dayFor()): T | null {
+  try {
+    const raw = window.localStorage.getItem(stateKey(game, day));
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function writeState<T>(game: string, state: T, day: DayString = dayFor()): void {
+  try {
+    window.localStorage.setItem(stateKey(game, day), JSON.stringify(state));
+  } catch {
+    // Without storage a reload starts the puzzle over. Nothing else breaks.
   }
 }
 

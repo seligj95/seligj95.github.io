@@ -100,7 +100,7 @@ const { label = "Queens board", crown, showNext = true } = Astro.props;
 
   .win-title {
     margin: 0;
-    font-size: clamp(1.3rem, 4vw, 1.7rem);
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
     font-weight: 700;
     letter-spacing: -0.02em;
   }
@@ -109,7 +109,7 @@ const { label = "Queens board", crown, showNext = true } = Astro.props;
     margin: 0 0 0.5rem;
     max-width: 22ch;
     color: var(--text-muted);
-    font-size: 0.95rem;
+    font-size: 1rem;
   }
 
   .win-panel button {
@@ -229,9 +229,24 @@ const { label = "Queens board", crown, showNext = true } = Astro.props;
     user-select: none;
   }
 
-  /* Spotlight: while a hint is up, everything it isn't talking about recedes. */
-  #queens-board .cell[data-dim="true"] {
-    filter: saturate(0.25) opacity(0.55);
+  /* A hint separates the evidence from the action instead of lighting every
+     involved square the same way. The distinction survives every color theme. */
+  #queens-board .cell[data-hint-state="dim"] {
+    filter: opacity(0.42);
+  }
+
+  #queens-board .cell[data-hint-state="reason"] {
+    outline: 2px dashed var(--text);
+    outline-offset: -4px;
+    z-index: 1;
+  }
+
+  #queens-board .cell[data-hint-state="target"] {
+    outline: 4px solid var(--text);
+    outline-offset: -5px;
+    box-shadow: inset 0 0 0 7px color-mix(in srgb, var(--accent) 58%, transparent);
+    z-index: 2;
+    animation: queens-hint-target 0.9s ease-in-out infinite alternate;
   }
 
   /* A crown you were given rather than worked out. */
@@ -273,12 +288,22 @@ const { label = "Queens board", crown, showNext = true } = Astro.props;
     }
   }
 
+  @keyframes queens-hint-target {
+    to {
+      box-shadow: inset 0 0 0 9px color-mix(in srgb, var(--accent) 72%, transparent);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     #queens-board .cell {
       transition: none;
     }
 
     #queens-board .cell .crown {
+      animation: none;
+    }
+
+    #queens-board .cell[data-hint-state="target"] {
       animation: none;
     }
   }

@@ -387,7 +387,7 @@ const base = import.meta.env.BASE_URL;
       if (done.gaveUp) {
         time.textContent = `after ${guessText(done.score)}`;
       } else {
-        const yours = scoreText(done.score, game.scoring);
+        const yours = scoreText(done.score, game.scoring, done.elapsed);
         time.textContent = hints ? `${yours} with ${hints}` : yours;
       }
 

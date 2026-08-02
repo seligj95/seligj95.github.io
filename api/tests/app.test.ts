@@ -96,6 +96,50 @@ describe("submitting a score", () => {
     expect(body.entry.seconds).toBe(120);
     expect(body.scores[0].seconds).toBe(120);
   });
+
+  it("takes a move count and elapsed time on the board ranked by moves", async () => {
+    const server = app();
+    const url = `http://api.test/api/daily/chess/${DAY}/scores`;
+    const send = (body: unknown) =>
+      server.fetch(
+        new Request(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      );
+
+    const res = await send({ name: "Solver", score: 2, hints: 0, elapsed: 30 });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.entry.score).toBe(2);
+    expect(body.entry.elapsed).toBe(30);
+    expect(body.place).toBe(1);
+  });
+
+  it("ranks chess by fewest moves, then by the faster elapsed time", async () => {
+    const server = app();
+    const url = `http://api.test/api/daily/chess/${DAY}/scores`;
+    const send = (body: unknown) =>
+      server.fetch(
+        new Request(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      );
+
+    await send({ name: "MoreMoves", score: 5, hints: 0, elapsed: 10 });
+    await send({ name: "Slower", score: 2, hints: 0, elapsed: 90 });
+    const res = await send({ name: "Faster", score: 2, hints: 0, elapsed: 20 });
+
+    const body = await res.json();
+    expect(body.scores.map((row: { name: string }) => row.name)).toEqual([
+      "Faster",
+      "Slower",
+      "MoreMoves",
+    ]);
+  });
 });
 
 describe("what it refuses", () => {
@@ -158,6 +202,17 @@ describe("what it refuses", () => {
     const res = await app(store).fetch(post(ENTRY));
     expect(res.status).toBe(409);
   });
+
+  it("rejects a chess submission with no elapsed time", async () => {
+    const res = await app().fetch(
+      new Request(`http://api.test/api/daily/chess/${DAY}/scores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Dave", score: 2, hints: 0 }),
+      })
+    );
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("reading a leaderboard", () => {
@@ -217,6 +272,24 @@ describe("byScore", () => {
   });
 
   it("breaks a tie by who got there first", () => {
+    const rows = [
+      { name: "Later", score: 100, hints: 0, at: "2026-03-03T09:00:00.000Z" },
+      { name: "Earlier", score: 100, hints: 0, at: "2026-03-03T01:00:00.000Z" },
+    ];
+    expect([...rows].sort(byScore).map((row) => row.name)).toEqual(["Earlier", "Later"]);
+  });
+
+  it("breaks a tied move count by the faster elapsed time", () => {
+    const rows = [
+      { name: "Slower", score: 3, hints: 0, at: "2026-03-03T01:00:00.000Z", elapsed: 90 },
+      { name: "Faster", score: 3, hints: 0, at: "2026-03-03T09:00:00.000Z", elapsed: 20 },
+    ];
+    expect([...rows].sort(byScore).map((row) => row.name)).toEqual(["Faster", "Slower"]);
+  });
+
+  it("still falls back to submission order when neither row has an elapsed", () => {
+    // Old games never set `elapsed`, so both sides compare equal there and
+    // the original tiebreak has to survive untouched.
     const rows = [
       { name: "Later", score: 100, hints: 0, at: "2026-03-03T09:00:00.000Z" },
       { name: "Earlier", score: 100, hints: 0, at: "2026-03-03T01:00:00.000Z" },

@@ -10,7 +10,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   title="Daily Contexto"
   tagline="One word a day, the same for everyone."
   tag="Daily"
-  instructions="Guess the word. Each guess comes back with its place in a list of twenty thousand, sorted by closeness to the answer. No clock, no hints — your score is how few guesses it takes."
+  instructions="Guess the word. Each guess comes back with its place in a list of thirty thousand, sorted by closeness to the answer. No clock, no hints — your score is how few guesses it takes."
   backHref="/daily/"
   backLabel="All daily games"
 >
@@ -292,16 +292,16 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
    * page and it goes where it is most useful.
    */
   async function offerToPost(inWin: boolean) {
-    // Fetch first. If the API is unreachable there is no point offering a form
-    // that cannot submit, so the whole section simply never appears.
-    if (!(await showScores())) return;
-
     if (inWin && !winOverlay.hidden) {
       winSlot.append(scoresForm);
       seeBoard.hidden = false;
     }
     scoresForm.hidden = false;
     fillName();
+    // The form is useful before the scaled-to-zero API wakes, and keeping its
+    // home panel visible means dismissing the win overlay cannot hide it again.
+    scoresPanel.hidden = false;
+    await showScores();
   }
 
   scoresForm.addEventListener("submit", async (event) => {

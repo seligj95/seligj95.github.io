@@ -7,12 +7,13 @@
  */
 
 /** How a game's leaderboard is ranked. Lower is better either way. */
-export type Scoring = "time" | "guesses";
+export type Scoring = "time" | "guesses" | "moves";
 
 /** Only games that actually have a daily board, and what they rank by. */
 export const GAMES = new Map<string, Scoring>([
   ["queens", "time"],
   ["contexto", "guesses"],
+  ["chess", "moves"],
 ]);
 
 export const NAME_MAX = 20;
@@ -27,7 +28,16 @@ export const BOUNDS: Record<Scoring, { min: number; max: number }> = {
   // One guess means you opened with the answer, which does happen. The ceiling
   // is far above the vocabulary anyone would work through by hand.
   guesses: { min: 1, max: 5000 },
+  // A mate-in-3 is five plies; the ceiling is generous for anyone still
+  // hunting rather than a sign the client sent nonsense.
+  moves: { min: 1, max: 500 },
 };
+
+/**
+ * Bounds for the elapsed-seconds field a "moves" board requires alongside the
+ * move count, since fewest moves is the ranking but elapsed time breaks ties.
+ */
+export const ELAPSED_BOUNDS = { min: 1, max: 86400 };
 
 export const MAX_HINTS = 500;
 
@@ -97,6 +107,8 @@ export interface Submission {
   name: string;
   score: number;
   hints: number;
+  /** Required, and only present, for a "moves" scoring - see BOUNDS/ELAPSED_BOUNDS. */
+  elapsed?: number;
 }
 
 export type Checked = { ok: true; value: Submission } | { ok: false; error: string };
@@ -105,7 +117,7 @@ export function checkSubmission(body: unknown, scoring: Scoring = "time"): Check
   if (typeof body !== "object" || body === null) {
     return { ok: false, error: "Expected a JSON object." };
   }
-  const { name, score, seconds, hints } = body as Record<string, unknown>;
+  const { name, score, seconds, hints, elapsed } = body as Record<string, unknown>;
 
   const cleaned = cleanName(name);
   if (!cleaned) return { ok: false, error: "Pick a name." };
@@ -120,11 +132,24 @@ export function checkSubmission(body: unknown, scoring: Scoring = "time"): Check
       error:
         scoring === "time"
           ? "That time does not look real."
-          : "That guess count does not look real.",
+          : scoring === "moves"
+            ? "That move count does not look real."
+            : "That guess count does not look real.",
     };
   }
   if (!isCount(hints, 0, MAX_HINTS)) {
     return { ok: false, error: "That hint count does not look real." };
+  }
+
+  // Only a "moves" board ranks by move count with time as the tiebreaker, so
+  // only it requires - and only it carries - an elapsed field. A submission
+  // to any other board can send whatever it likes in `elapsed`; it is simply
+  // never read.
+  if (scoring === "moves") {
+    if (!isCount(elapsed, ELAPSED_BOUNDS.min, ELAPSED_BOUNDS.max)) {
+      return { ok: false, error: "That time does not look real." };
+    }
+    return { ok: true, value: { name: cleaned, score: value, hints, elapsed } };
   }
 
   return { ok: true, value: { name: cleaned, score: value, hints } };

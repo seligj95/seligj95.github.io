@@ -48,7 +48,7 @@ export interface ContextoBoard {
   dismiss: () => void;
 }
 
-/** How far along the row the bar reaches: near-1 fills it, 20,000 barely shows. */
+/** How far along the row the bar reaches: near-1 fills it, 30,000 barely shows. */
 export function fillFor(rank: number, total: number): number {
   const share = 1 - Math.log(rank) / Math.log(total);
   return Math.max(1.5, Math.min(100, share * 100));

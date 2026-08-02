@@ -32,17 +32,17 @@ const ARCHIVE = "https://huggingface.co/stanfordnlp/glove/resolve/main/glove.6B.
 const ENTRY_OFFSET = 792999805;
 const ENTRY_HEADER = 74;
 
-/** Enough compressed bytes for roughly seventy thousand words. */
-const SLICE_BYTES = 12_000_000;
+/** Enough compressed bytes for well over one hundred thousand words. */
+const SLICE_BYTES = 20_000_000;
 
 const DIMS = 50;
 
 /** How many words a guess is ranked against. */
-const VOCABULARY = 20_000;
+const VOCABULARY = 30_000;
 
 /**
  * GloVe is trained on news, which knows far more about policy than about
- * kitchens. Twenty thousand words by frequency still misses things anyone would
+ * kitchens. Thirty thousand words by frequency still misses things anyone would
  * think to guess, so these are pulled in regardless of where they place.
  */
 const EVERYDAY = [
@@ -80,7 +80,7 @@ const EVERYDAY = [
  * Candidates considered before folding inflections. Wider than the vocabulary
  * so that folding "mountains" away still leaves a full twenty thousand words.
  */
-const CANDIDATES = 60_000;
+const CANDIDATES = 100_000;
 
 /**
  * How alike an inflection has to be to its base before we treat them as one

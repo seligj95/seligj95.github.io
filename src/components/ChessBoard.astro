@@ -1,0 +1,260 @@
+---
+/**
+ * The chess board and its win panel.
+ *
+ * Shared by free play and the daily so the two cannot drift apart. The
+ * squares are built in JavaScript - `chess-board.ts` populates 64 buttons on
+ * every `build()` - so they never pick up a scoped-style hash, which is why
+ * their colors and states live in the global block below, keyed to
+ * `#chess-board`. Everything here is the chrome around them.
+ */
+
+interface Props {
+  /** Spoken name of the board, for screen readers. */
+  label?: string;
+  /** Whether the win panel offers another puzzle. The daily does not. */
+  showNext?: boolean;
+}
+
+const { label = "Chess board", showNext = true } = Astro.props;
+---
+
+<div class="wrap">
+  <div class="frame">
+    <div
+      id="chess-board"
+      class="board"
+      role="grid"
+      aria-label={label}
+      aria-describedby="game-instructions"
+    >
+    </div>
+
+    <slot />
+
+    <div id="chess-win" class="win" aria-hidden="true" hidden>
+      <div class="win-panel">
+        <p class="win-title">Checkmate</p>
+        <p class="win-note" id="chess-win-note">Found it.</p>
+        <slot name="win-extra" />
+        {showNext && <button id="chess-next" type="button">New puzzle</button>}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .wrap {
+    display: grid;
+    place-items: center;
+    padding: clamp(0.6rem, 2vw, 1.1rem);
+  }
+
+  .frame {
+    position: relative;
+    width: min(100%, 28rem);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 0;
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid var(--text);
+    border-radius: 0.25rem;
+    overflow: hidden;
+  }
+
+  .win {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    border-radius: 0.25rem;
+    animation: chess-win-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .win[hidden] {
+    display: none;
+  }
+
+  .win-panel {
+    display: grid;
+    justify-items: center;
+    box-sizing: border-box;
+    gap: 0.4rem;
+    padding: 1.1rem 1.6rem 1.3rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  .win-title {
+    margin: 0;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .win-note {
+    margin: 0 0 0.5rem;
+    max-width: 24ch;
+    color: var(--text-muted);
+    font-size: 1rem;
+  }
+
+  .win-panel button {
+    padding: 0.45rem 1.1rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .win-panel button:hover {
+    opacity: 0.85;
+  }
+
+  /* Same rescue as Queens: a phone-sized panel that has picked up a form
+     must never grow taller than the board it covers. */
+  @media (max-width: 30rem) {
+    .win-panel {
+      gap: 0.25rem;
+      padding: 0.85rem 1rem 1rem;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+
+    .win-note {
+      margin-bottom: 0.25rem;
+    }
+  }
+
+  @keyframes chess-win-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .win {
+      animation: none;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Cells are generated in JS, so they never pick up the scoped-style hash. */
+  #chess-board {
+    /*
+      Only the site's own tokens - no second "board" palette. A light square
+      is a soft tint of the text color into the page background, a dark
+      square a stronger one; the two stay readable against each other in
+      every theme without a single theme-specific override.
+    */
+    --chess-light: color-mix(in srgb, var(--text) 8%, var(--bg));
+    --chess-dark: color-mix(in srgb, var(--text) 24%, var(--bg));
+    container-type: inline-size;
+  }
+
+  #chess-board .cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    background: var(--chess-light);
+    color: var(--text);
+    line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+    /* A safe fallback for browsers without container query units; the rule
+       below silently fails to apply in that case, leaving this in place. */
+    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 9cqw, 3rem);
+  }
+
+  #chess-board .cell[data-shade="dark"] {
+    background: var(--chess-dark);
+  }
+
+  /* The square a piece is picked up from. */
+  #chess-board .cell[data-selected="true"] {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+    z-index: 2;
+  }
+
+  /* An empty legal destination: a dot, so it never competes with a piece. */
+  #chess-board .cell[data-legal="move"]::after {
+    content: "";
+    position: absolute;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+    pointer-events: none;
+  }
+
+  /* A legal capture: a ring around the square, so the piece stays visible. */
+  #chess-board .cell[data-legal="capture"] {
+    box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  /* Both squares of the move just played. */
+  #chess-board .cell[data-last="true"] {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
+  /* The king in check. Comes after `data-last` so a mating move that leaves
+     the same square as both "last" and "check" reads as check. */
+  #chess-board .cell[data-check="true"] {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--danger) 32%, transparent);
+  }
+
+  /* A legal move that was not the answer: a brief flash before it reverts. */
+  #chess-board .cell[data-rejected="true"] {
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--danger) 45%, transparent);
+    animation: chess-reject 0.4s ease-out;
+  }
+
+  #chess-board .cell:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -3px;
+    z-index: 3;
+  }
+
+  @keyframes chess-reject {
+    0%,
+    100% {
+      transform: none;
+    }
+
+    25% {
+      transform: translateX(-3%);
+    }
+
+    75% {
+      transform: translateX(3%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #chess-board .cell[data-rejected="true"] {
+      animation: none;
+    }
+  }
+</style>

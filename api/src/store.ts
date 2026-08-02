@@ -12,6 +12,8 @@ export interface Entry {
   hints: number;
   /** ISO timestamp, set by the server so a client cannot backdate a row. */
   at: string;
+  /** Seconds elapsed. Only present for a "moves" scoring - see byScore. */
+  elapsed?: number;
 }
 
 /**
@@ -27,9 +29,16 @@ export interface Store {
   count(game: string, day: string): Promise<number>;
 }
 
-/** Best first, and an earlier submission wins a tie. */
+/**
+ * Best first. A "moves" board's tiebreaker is elapsed time, so that is
+ * checked next; entries without one (every other game) all compare equal
+ * there and simply fall through to the submission-order tiebreak untouched.
+ */
 export function byScore(a: Entry, b: Entry): number {
   if (a.score !== b.score) return a.score - b.score;
+  const aElapsed = a.elapsed ?? Infinity;
+  const bElapsed = b.elapsed ?? Infinity;
+  if (aElapsed !== bElapsed) return aElapsed - bElapsed;
   return a.at.localeCompare(b.at);
 }
 

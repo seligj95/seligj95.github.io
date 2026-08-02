@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  GAMES,
   NAME_MAX,
   checkSubmission,
   cleanName,
@@ -7,6 +8,17 @@ import {
   isDay,
   rateLimiter,
 } from "../src/guards.ts";
+
+describe("GAMES", () => {
+  it("ranks chess by moves", () => {
+    expect(GAMES.get("chess")).toBe("moves");
+  });
+
+  it("leaves the existing games ranked as before", () => {
+    expect(GAMES.get("queens")).toBe("time");
+    expect(GAMES.get("contexto")).toBe("guesses");
+  });
+});
 
 describe("isDay", () => {
   it("takes a real date", () => {
@@ -122,6 +134,52 @@ describe("checkSubmission", () => {
     const words = checkSubmission({ name: "Dave", score: 0, hints: 0 }, "guesses");
     expect(!race.ok && race.error).toMatch(/time/);
     expect(!words.ok && words.error).toMatch(/guess/);
+  });
+
+  it("requires elapsed for a moves scoring, and rejects it silently for others", () => {
+    const withoutElapsed = checkSubmission({ name: "Dave", score: 2, hints: 0 }, "moves");
+    expect(withoutElapsed.ok).toBe(false);
+
+    const withElapsed = checkSubmission(
+      { name: "Dave", score: 2, hints: 0, elapsed: 45 },
+      "moves",
+    );
+    expect(withElapsed.ok).toBe(true);
+    expect(withElapsed.ok && withElapsed.value).toEqual({
+      name: "Dave",
+      score: 2,
+      hints: 0,
+      elapsed: 45,
+    });
+  });
+
+  it("holds elapsed to its own bounds for a moves scoring", () => {
+    expect(
+      checkSubmission({ name: "Dave", score: 2, hints: 0, elapsed: 0 }, "moves").ok,
+    ).toBe(false);
+    expect(
+      checkSubmission({ name: "Dave", score: 2, hints: 0, elapsed: 86401 }, "moves").ok,
+    ).toBe(false);
+    expect(
+      checkSubmission({ name: "Dave", score: 2, hints: 0, elapsed: 86400 }, "moves").ok,
+    ).toBe(true);
+  });
+
+  it("ignores an elapsed field sent to a non-moves board", () => {
+    const checked = checkSubmission({ ...good, elapsed: 45 });
+    expect(checked.ok && Object.keys(checked.value).sort()).toEqual(["hints", "name", "score"]);
+  });
+
+  it("holds a move count to its own bounds", () => {
+    expect(
+      checkSubmission({ name: "Dave", score: 1, hints: 0, elapsed: 10 }, "moves").ok,
+    ).toBe(true);
+    expect(
+      checkSubmission({ name: "Dave", score: 0, hints: 0, elapsed: 10 }, "moves").ok,
+    ).toBe(false);
+    expect(
+      checkSubmission({ name: "Dave", score: 501, hints: 0, elapsed: 10 }, "moves").ok,
+    ).toBe(false);
   });
 });
 

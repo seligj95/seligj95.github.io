@@ -3,8 +3,8 @@
  * The shared board for a daily game, and the offer to add your own result.
  *
  * Hidden until there is something to show: either you have finished and can
- * post, or there are already results up. If the API cannot be reached it stays
- * hidden entirely — the game is complete without it.
+ * post, or there are already results up. The form appears before the board
+ * request finishes, because the scaled-to-zero API can take a moment to wake.
  *
  * The wording follows what the game is ranked by, because "add your time" is
  * wrong on a board that counts guesses and "add your score" is vague on one
@@ -28,6 +28,7 @@ const { scoring = "time" } = Astro.props;
 const words = {
   time: { heading: "Today’s times", prompt: "Add your time", thing: "a time" },
   guesses: { heading: "Today’s scores", prompt: "Add your score", thing: "a score" },
+  moves: { heading: "Today’s scores", prompt: "Add your score", thing: "a score" },
 }[scoring];
 ---
 

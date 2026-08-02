@@ -269,8 +269,23 @@ describe("Build output", () => {
       join(dist, "daily", "queens", "index.html"),
     ]) {
       // The cells are built in JS, so these rules have to be global to land.
-      expect(readFileSync(page, "utf8")).toContain("region-sat");
+      const html = readFileSync(page, "utf8");
+      expect(cssFor(html)).toContain("region-sat");
     }
+  });
+
+  it("gives Queens hints separate pattern and action markings", () => {
+    const page = readFileSync(join(dist, "games", "queens", "index.html"), "utf8");
+    const css = cssFor(page);
+    const scripts = scriptsFor(page);
+    const source = readFileSync(join(process.cwd(), "src", "lib", "queens-board.ts"), "utf8");
+
+    expect(css).toContain("[data-hint-state=reason]");
+    expect(css).toContain("[data-hint-state=target]");
+    expect(scripts).toContain("hintState");
+    expect(source).toContain("hintReason.clear()");
+    expect(source).toContain("hintTarget.clear()");
+    expect(source).not.toContain("focus.clear()");
   });
 
   it("ships the leaderboard panel, and styles for its JS-built rows", () => {
@@ -406,5 +421,58 @@ describe("Build output", () => {
     // Giving up spends the day without earning the filled pill or the tick.
     expect(css).toContain(".badge.quiet");
     expect(css).toContain("[data-gave-up]");
+  });
+
+  it("gives the daily chess board no free-play controls", () => {
+    const daily = readFileSync(join(dist, "daily", "chess", "index.html"), "utf8");
+    const free = readFileSync(join(dist, "games", "chess", "index.html"), "utf8");
+
+    // Free play deals as many puzzles as you like; the daily deals exactly one.
+    expect(free).toContain('id="chess-next"');
+    expect(daily).not.toContain('id="chess-next"');
+    expect(daily).toContain('id="daily-gate"');
+    expect(daily).toContain('id="daily-clock"');
+    expect(daily).toContain('id="daily-moves"');
+  });
+
+  it("ships the board squares and highlight states, which are built in JavaScript", () => {
+    for (const page of [
+      join(dist, "games", "chess", "index.html"),
+      join(dist, "daily", "chess", "index.html"),
+    ]) {
+      const css = cssFor(readFileSync(page, "utf8"));
+      expect(css).toContain("chess-light");
+      expect(css).toContain("chess-dark");
+      // The build minifies quoted attribute selectors down to their bare
+      // form when the value needs no quoting, so match what actually ships.
+      expect(css).toContain("[data-selected=true]");
+      expect(css).toContain("[data-legal=move]");
+      expect(css).toContain("[data-legal=capture]");
+      expect(css).toContain("[data-check=true]");
+      expect(css).toContain("[data-rejected=true]");
+    }
+  });
+
+  it("scores daily Chess on moves and time, and keeps free play unscored", () => {
+    const daily = readFileSync(join(dist, "daily", "chess", "index.html"), "utf8");
+    const free = readFileSync(join(dist, "games", "chess", "index.html"), "utf8");
+
+    expect(daily).toContain('id="daily-scores"');
+    expect(free).not.toContain('id="daily-scores"');
+  });
+
+  it("opens the Chess win panel and wires its next-puzzle action", () => {
+    const source = readFileSync(join(process.cwd(), "src", "lib", "chess-board.ts"), "utf8");
+
+    expect(source).toContain("win.hidden = false");
+    expect(source).toContain("if (options.onNext) options.onNext()");
+    expect(source).toContain("else build()");
+  });
+
+  it("points the daily chess board at the real API, not a local override", () => {
+    const scripts = scriptsFor(readFileSync(join(dist, "daily", "chess", "index.html"), "utf8"));
+
+    expect(scripts).toContain("https://api.jordanselig.com");
+    expect(scripts).not.toContain("localhost");
   });
 });

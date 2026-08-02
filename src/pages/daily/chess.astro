@@ -1,32 +1,29 @@
 ---
 import GameLayout from "../../layouts/GameLayout.astro";
-import QueensBoard from "../../components/QueensBoard.astro";
+import ChessBoard from "../../components/ChessBoard.astro";
 import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
-
-// The site's own mascot stands in for the crown, same as free play.
-const crown = "/images/games/queens-crown.png";
 ---
 
 <GameLayout
-  slug="queens"
+  slug="chess"
   ratio="auto"
-  title="Daily Queens"
-  tagline="One board a day, the same for everyone."
+  title="Daily Chess"
+  tagline="One position a day, the same for everyone."
   tag="Daily"
-  instructions="One crown per row, per column and per color, and no two crowns may touch. The clock starts on your first move, and each hint costs 30 seconds."
+  instructions="White to move and mate. The clock starts on your first attempted move, and a legal move off the line still counts as an attempt."
   backHref="/daily/"
   backLabel="All daily games"
 >
-  <span slot="status" id="queens-status" aria-live="polite">Not started</span>
+  <span slot="status" id="chess-status" aria-live="polite">Not started</span>
 
-  <QueensBoard crown={crown} label="Daily Queens board" showNext={false}>
+  <ChessBoard label="Daily chess board" showNext={false}>
     <div id="daily-gate" class="gate">
       <div class="gate-panel">
         <p class="gate-day" id="daily-date">Today</p>
-        <p class="gate-title" id="daily-difficulty">Dealing today&rsquo;s board&hellip;</p>
+        <p class="gate-title" id="daily-title">Dealing today&rsquo;s puzzle&hellip;</p>
         <p class="gate-note" id="daily-blurb">
-          Everyone gets this same board today. One go at it, and the clock starts
-          when you make your first move.
+          Everyone gets this same position today. One go at it, and the clock
+          starts on your first attempted move.
         </p>
         <button id="daily-start" type="button" disabled>Start</button>
         <p class="gate-small" id="daily-done" hidden></p>
@@ -36,9 +33,9 @@ const crown = "/images/games/queens-crown.png";
     <p class="win-time" id="daily-result" slot="win-extra"></p>
     <p class="win-posted" id="daily-posted" slot="win-extra" hidden></p>
     <button id="daily-see-board" type="button" slot="win-extra" hidden>
-      See today&rsquo;s times
+      See today&rsquo;s scores
     </button>
-  </QueensBoard>
+  </ChessBoard>
 
   <div slot="controls">
     <div class="control-set">
@@ -47,43 +44,60 @@ const crown = "/images/games/queens-crown.png";
     </div>
 
     <div class="control-set">
-      <button id="queens-hint" type="button" disabled>Hint &plus;30s</button>
-      <button id="queens-undo" type="button" disabled>Undo</button>
+      <span class="control-label" id="daily-moves-label">Moves</span>
+      <output class="clock" id="daily-moves" aria-labelledby="daily-moves-label">0</output>
+    </div>
+
+    <div class="control-set">
+      <button id="daily-reset" type="button">Reset</button>
     </div>
   </div>
 
   <div slot="extras">
-    <DailyLeaderboard />
+    <DailyLeaderboard scoring="moves" />
   </div>
 
   <div slot="notes">
     <p>
-      Tap a square once to cross it out, again for a crown, again to clear it.
-      Drag across the board to cross out a run of squares in one go.
+      Tap a piece to see where it can legally go, then tap a highlighted
+      square to move it there. Every move is checked by
+      <a href="https://github.com/jhlywa/chess.js">chess.js</a>, so nothing
+      illegal ever gets through &mdash; but a move that is legal without being
+      the one the puzzle wants still counts as an attempt. It flashes, then
+      the position is put straight back. Fewer attempts is better;
+      time only breaks a tie. There are no hints.
     </p>
     <p>
-      The board is built in your browser from today&rsquo;s date, so everyone
-      playing today gets exactly the same one, and it is checked to have a single
-      solution. Difficulty follows a fixed weekly rhythm &mdash; gentle early in
-      the week, hardest at the weekend &mdash; so a slow Saturday is the board,
-      not you.
+      Reset puts the position back to the start of today&rsquo;s puzzle
+      without losing your move count or your time so far &mdash; it undoes
+      the board, not the attempt. Closing the tab does not lose your place
+      either: reopening it picks the position, your attempts, and the clock
+      back up right where you left them.
     </p>
     <p>
-      Each hint adds 30 seconds to your time, so the cost is visible before you
-      take one. Dashed outlines show the pattern behind a hint; the solid outline
-      shows what it will change. Want as many boards as you like instead?
-      <a href="/games/queens/">Free play Queens</a> has every size and no clock.
+      Once you find the right move, the defense replies on its own. It is not
+      claimed to be an engine's best defense anywhere in this game &mdash;
+      only that the automated reply is what the position was built around,
+      and every line here is checked by
+      <a href="https://github.com/jhlywa/chess.js">chess.js</a> to actually
+      end in checkmate.
+    </p>
+    <p>
+      Want as many positions as you like instead, with no clock and no
+      leaderboard? <a href="/games/chess/">Free play Chess</a> shuffles through
+      the same puzzle set without repeating one twice in a row.
     </p>
   </div>
 </GameLayout>
 
 <style is:global>
-  /* The gate sits inside the board frame, which belongs to QueensBoard. */
+  /* The gate sits inside the board frame, which belongs to ChessBoard. */
   #daily-gate {
     position: absolute;
     inset: 0;
     display: grid;
     place-items: center;
+    box-sizing: border-box;
     padding: 1rem;
     background: color-mix(in srgb, var(--bg) 88%, transparent);
     border-radius: 0.25rem;
@@ -156,11 +170,42 @@ const crown = "/images/games/queens-crown.png";
     cursor: default;
   }
 
-  #daily-clock {
+  @media (max-width: 640px) {
+    #daily-gate {
+      padding: 0.6rem;
+    }
+
+    #daily-gate .gate-panel {
+      gap: 0.25rem;
+      max-width: 26ch;
+      padding: 0.65rem 0.8rem 0.75rem;
+    }
+
+    #daily-gate .gate-title {
+      font-size: 1.25rem;
+    }
+
+    #daily-gate .gate-note,
+    #daily-gate .gate-small {
+      font-size: 0.85rem;
+      line-height: 1.25;
+    }
+
+    #daily-gate .gate-note {
+      margin-bottom: 0.15rem;
+    }
+
+    #daily-gate button {
+      padding: 0.35rem 1.2rem;
+    }
+  }
+
+  #daily-clock,
+  #daily-moves {
     font-variant-numeric: tabular-nums;
     font-size: 1.25rem;
     font-weight: 600;
-    min-width: 5ch;
+    min-width: 3ch;
     text-align: center;
   }
 
@@ -176,23 +221,18 @@ const crown = "/images/games/queens-crown.png";
 
   /*
     The win panel with the post form in it.
-    
-    The panel is authored in QueensBoard and the form in DailyLeaderboard, so
+
+    The panel is authored in ChessBoard and the form in DailyLeaderboard, so
     neither carries this page's scoping attribute and these rules have to be
     global. Widths are set here because the panel was built to hold two short
     lines and now holds a form as well.
   */
-  #queens-win .win-panel {
+  #chess-win .win-panel {
     width: min(100%, 21rem);
-    /*
-      The panel is an auto-sized grid, so without this the name field and its
-      button size the column by their natural width and push their way out of
-      the panel's own border.
-    */
     grid-template-columns: minmax(0, 1fr);
   }
 
-  #queens-win #scores-form {
+  #chess-win #scores-form {
     justify-items: center;
     width: 100%;
     margin: 0.35rem 0 0;
@@ -201,33 +241,22 @@ const crown = "/images/games/queens-crown.png";
     text-align: center;
   }
 
-  #queens-win #scores-form .scores-row,
-  #queens-win #scores-form .scores-known {
+  #chess-win #scores-form .scores-row,
+  #chess-win #scores-form .scores-known {
     width: 100%;
     justify-content: center;
   }
 
-  #queens-win #scores-prompt {
+  #chess-win #scores-prompt {
     font-size: 1rem;
   }
 
-  /*
-    The panel is a moment, not a page: it has to fit over the board it covers.
-    The reassurance about accounts still belongs on the page, so it is hidden
-    only while the form is up here — moving the form back down restores it.
-  */
-  #queens-win #scores-fineprint {
+  #chess-win #scores-fineprint {
     display: none;
   }
 
-  /*
-    On a phone the board is barely 300px square and the panel has to live
-    inside it. The note is the one line that can go: the result underneath it
-    already carries the time and the hint cost, and the day's size and
-    difficulty are printed above the board.
-  */
   @media (max-width: 30rem) {
-    #queens-win .win-note {
+    #chess-win .win-note {
       display: none;
     }
   }
@@ -242,7 +271,6 @@ const crown = "/images/games/queens-crown.png";
     display: none;
   }
 
-  /* Quieter than the panel's primary button: the board is not the prize. */
   #daily-see-board {
     margin-top: 0.5rem;
     padding: 0.4rem 1.1rem;
@@ -259,68 +287,106 @@ const crown = "/images/games/queens-crown.png";
   #daily-see-board:hover {
     background: var(--surface);
   }
+
+  @media (max-width: 640px) {
+    #chess-win .win-panel {
+      gap: 0.2rem;
+      padding: 0.5rem 0.65rem 0.6rem;
+    }
+
+    #chess-win #scores-form {
+      margin-top: 0.1rem;
+      padding-top: 0.35rem;
+    }
+
+    #chess-win #scores-form .scores-row input,
+    #chess-win #scores-form .scores-row button {
+      padding: 0.35rem 0.55rem;
+    }
+
+    #daily-see-board {
+      margin-top: 0.15rem;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+  }
 </style>
 
 <script>
-  import { mountQueens } from "../../lib/queens-board";
-  import {
-    dailyPuzzle,
-    DIFFICULTY_LABEL,
-    DIFFICULTY_BLURB,
-  } from "../../lib/queens-daily";
+  import { mountChess } from "../../lib/chess-board";
+  import { dailyPuzzle } from "../../lib/chess-daily";
   import { dayFor, formatDay } from "../../lib/daily";
   import {
     readDone,
     writeDone,
     readName,
     writeName,
+    readState,
+    writeState,
     type Done,
   } from "../../lib/daily-progress";
   import {
     clockText as formatClock,
     drawScoreRows,
     fetchScores,
-    hintText,
+    moveText,
     ordinal,
     submitScore,
     type Score,
   } from "../../lib/daily-scores";
 
+  const GAME = "chess";
+
+  /** Mid-game progress: where the puzzle is, how many attempts, when it began. */
+  interface ChessState {
+    ply: number;
+    attempts: number;
+    /** Wall-clock ms of the first attempted move, or 0 before one has happened. */
+    startedAt: number;
+  }
+
   const gate = document.getElementById("daily-gate") as HTMLDivElement;
   const startButton = document.getElementById("daily-start") as HTMLButtonElement;
   const dateLine = document.getElementById("daily-date") as HTMLParagraphElement;
-  const difficultyLine = document.getElementById("daily-difficulty") as HTMLParagraphElement;
-  const blurbLine = document.getElementById("daily-blurb") as HTMLParagraphElement;
+  const titleLine = document.getElementById("daily-title") as HTMLParagraphElement;
   const doneLine = document.getElementById("daily-done") as HTMLParagraphElement;
   const clock = document.getElementById("daily-clock") as HTMLOutputElement;
+  const movesOut = document.getElementById("daily-moves") as HTMLOutputElement;
+  const resetButton = document.getElementById("daily-reset") as HTMLButtonElement;
   const result = document.getElementById("daily-result") as HTMLParagraphElement;
 
-  /** What a hint costs, in seconds, charged whether or not it finishes you. */
-  const HINT_PENALTY = 30;
-
   const day = dayFor();
+  const today = dailyPuzzle(day);
 
-  /** Wall-clock start of the run, or 0 when the clock is not running. */
-  let startedAt = 0;
-  let penalty = 0;
+  const state: ChessState = readState<ChessState>(GAME, day) ?? {
+    ply: 0,
+    attempts: 0,
+    startedAt: 0,
+  };
+
   let ticking = false;
 
   function elapsed(): number {
-    if (!startedAt) return penalty;
-    return Math.floor((Date.now() - startedAt) / 1000) + penalty;
+    return state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : 0;
   }
 
-  // The leaderboard formats times the same way, so both sides share one.
-  const clockText = formatClock;
+  function persist() {
+    writeState(GAME, state, day);
+  }
 
   function tick() {
     if (!ticking) return;
-    clock.textContent = clockText(elapsed());
+    clock.textContent = formatClock(elapsed());
     requestAnimationFrame(tick);
   }
 
   dateLine.textContent = formatDay(day);
-  const already = readDone("queens", day);
+  titleLine.textContent = `Mate in ${today.mateIn}`;
+  movesOut.textContent = String(state.attempts);
+  clock.textContent = formatClock(elapsed());
+
+  const already = readDone(GAME, day);
 
   // ---------------------------------------------------------------------------
   // The shared board
@@ -341,7 +407,7 @@ const crown = "/images/games/queens-crown.png";
   const postKnown = document.getElementById("scores-post-known") as HTMLButtonElement;
   const renameButton = document.getElementById("scores-rename") as HTMLButtonElement;
 
-  const winOverlay = document.getElementById("queens-win") as HTMLDivElement;
+  const winOverlay = document.getElementById("chess-win") as HTMLDivElement;
   const winPanel = winOverlay.querySelector(".win-panel") as HTMLDivElement;
   const postedLine = document.getElementById("daily-posted") as HTMLParagraphElement;
   const seeBoard = document.getElementById("daily-see-board") as HTMLButtonElement;
@@ -353,10 +419,8 @@ const crown = "/images/games/queens-crown.png";
 
   function drawScores(scores: Score[], total: number) {
     scoresEmpty.hidden = scores.length > 0;
-    drawScoreRows(scoresList, scores, mine);
+    drawScoreRows(scoresList, scores, mine, "moves");
 
-    // Where you stand is more useful than how much of the board is showing, so
-    // it wins the one line under the list when both could be said.
     const youIndex = scores.findIndex((score) => score.at === mine);
     const yourPlace = youIndex >= 0 ? youIndex + 1 : minePlace;
     if (yourPlace) {
@@ -364,25 +428,18 @@ const crown = "/images/games/queens-crown.png";
       scoresCount.textContent = `You are ${ordinal(yourPlace)} of ${total} today.`;
     } else {
       scoresCount.hidden = total <= scores.length;
-      scoresCount.textContent = `Showing the fastest ${scores.length} of ${total} today.`;
+      scoresCount.textContent = `Showing the fewest-move ${scores.length} of ${total} today.`;
     }
   }
 
-  /** Shows the panel with whatever the API has. False means it never answered. */
   async function showScores(): Promise<boolean> {
-    const board = await fetchScores("queens", day);
+    const board = await fetchScores(GAME, day);
     if (!board) return false;
     drawScores(board.scores, board.count);
     scoresPanel.hidden = false;
     return true;
   }
 
-  /**
-   * Puts the name controls into one of two states: a single button for anyone
-   * who has posted before, on this game or any other daily, and a box for
-   * everyone else. The stored name lives in the input either way, so submitting
-   * reads one field whichever state is showing.
-   */
   function fillName() {
     const stored = readName();
     scoresName.value = stored;
@@ -398,11 +455,8 @@ const crown = "/images/games/queens-crown.png";
     scoresName.focus();
   });
 
-  /** Sends the overlay away and leaves you looking at the board it covered. */
   function dismissWin() {
     winOverlay.hidden = true;
-    // The offer follows you down rather than leaving with the overlay, so
-    // dismissing without posting does not cost you the chance.
     if (!scoresForm.hidden && scoresForm.parentElement === winPanel) {
       scoresPanel.insertBefore(scoresForm, scoresEmpty);
     }
@@ -413,21 +467,12 @@ const crown = "/images/games/queens-crown.png";
 
   seeBoard.addEventListener("click", dismissWin);
 
-  /**
-   * Offers to put a finished time on the board.
-   *
-   * `inWin` moves the form into the win panel so the offer arrives with the
-   * congratulations. The node is moved, not copied: there is one form on the
-   * page and it goes where it is most useful.
-   */
   async function offerToPost(done: Done, inWin: boolean) {
     if (inWin && !winOverlay.hidden) {
       winPanel.insertBefore(scoresForm, postedLine);
     }
     scoresForm.hidden = false;
     fillName();
-    // The form is useful before the scaled-to-zero API wakes, and keeping its
-    // home panel visible means dismissing the win overlay cannot hide it again.
     scoresPanel.hidden = false;
     await showScores();
   }
@@ -437,14 +482,13 @@ const crown = "/images/games/queens-crown.png";
 
     const name = scoresName.value.trim();
     if (!name) {
-      // Only reachable if a stored name was whitespace. Ask properly.
       scoresKnown.hidden = true;
       scoresAsk.hidden = false;
       scoresName.focus();
       return;
     }
 
-    const done = readDone("queens", day);
+    const done = readDone(GAME, day);
     if (!done) return;
 
     const buttons = Array.from(scoresForm.querySelectorAll("button"));
@@ -452,22 +496,22 @@ const crown = "/images/games/queens-crown.png";
     scoresError.hidden = true;
 
     try {
-      const posted = await submitScore("queens", day, {
+      const posted = await submitScore(GAME, day, {
         name,
         score: done.score,
         hints: done.hints,
+        elapsed: done.elapsed,
       });
       mine = posted.entry.at;
       minePlace = posted.place;
       writeName(name);
-      writeDone("queens", { ...done, posted: posted.entry.at }, day);
+      writeDone(GAME, { ...done, posted: posted.entry.at }, day);
 
       const inWin = scoresForm.parentElement === winPanel;
       scoresForm.hidden = true;
       drawScores(posted.scores, posted.count);
 
       if (inWin) {
-        // The panel has just lost the form, so it needs to say what happened.
         postedLine.textContent = `You are ${ordinal(posted.place)} of ${posted.count} today.`;
         postedLine.hidden = false;
       }
@@ -479,20 +523,12 @@ const crown = "/images/games/queens-crown.png";
     }
   });
 
-  /**
-   * Arriving from the daily index, which links straight at the times. The panel
-   * is hidden until it has something in it, so the browser cannot honor the
-   * hash on its own: fetch first, then go there.
-   */
   const wantsScores = location.hash === "#daily-scores";
 
   function revealScores(shown: boolean) {
     if (shown && wantsScores) scoresPanel.scrollIntoView({ block: "start" });
   }
 
-  // A day already finished either shows the board, or still offers to post.
-  // Either way the offer stays below: the win panel belongs to the moment you
-  // solved it, not to a later visit.
   if (already) {
     if (already.posted) {
       mine = already.posted;
@@ -504,90 +540,109 @@ const crown = "/images/games/queens-crown.png";
     void showScores().then(revealScores);
   }
 
-  /**
-   * Building the board costs a few hundred milliseconds on the harder days, so
-   * doing it inline would hold up the first paint. Let the gate render, then
-   * build behind it: by the time anyone has read the panel and reached for
-   * Start, the board is waiting.
-   */
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      const today = dailyPuzzle(day);
+  // ---------------------------------------------------------------------------
+  // The board itself. Unlike Queens, there is nothing to compute here - the
+  // puzzle is a plain lookup - so it can build right away instead of waiting a
+  // frame for a heavy generation step.
+  // ---------------------------------------------------------------------------
 
-      const board = mountQueens({
-        deal: () => today.puzzle,
-        statusFor: ({ placed, size, solved }) => {
-          if (solved) return undefined;
-          return startedAt || penalty ? `${placed} of ${size} crowns` : "Not started";
-        },
-        onFirstMove: () => {
-          startedAt = Date.now();
-          ticking = true;
-          tick();
-        },
-        onHint: () => {
-          penalty += HINT_PENALTY;
-          clock.textContent = clockText(elapsed());
-        },
-        onSolved: ({ hintsUsed }) => {
-          const seconds = elapsed();
-          ticking = false;
-          startedAt = 0;
-          penalty = seconds;
-          clock.textContent = clockText(seconds);
-          board.freeze();
-
-          // Only the first finish counts, so a replay after clearing the lock
-          // cannot overwrite a time you already put up.
-          const done = { score: seconds, hints: hintsUsed };
-          if (!readDone("queens", day)) writeDone("queens", done, day);
-
-          const charged = hintsUsed * HINT_PENALTY;
-          result.textContent = charged
-            ? `${clockText(seconds)}, including ${clockText(charged)} of hints`
-            : clockText(seconds);
-
-          // The overlay covers the board and has nothing to dismiss it on the
-          // daily, where there is no next puzzle to move on to.
-          seeBoard.hidden = false;
-
-          if (!already) void offerToPost(done, true);
-        },
-      });
-
-      // Nothing is playable until Start: the gate covers the squares, and
-      // freezing covers the hint button, which sits outside it.
+  const board = mountChess({
+    statusFor: ({ attempts, solved }) =>
+      !solved && attempts === 0 ? "Not started" : undefined,
+    onFirstMove: () => {
+      if (!state.startedAt) {
+        state.startedAt = Date.now();
+        persist();
+      }
+      ticking = true;
+      tick();
+    },
+    onAttempt: ({ attempts }) => {
+      state.attempts = attempts;
+      state.ply = board.ply();
+      persist();
+      movesOut.textContent = String(attempts);
+    },
+    onReply: () => {
+      state.ply = board.ply();
+      persist();
+    },
+    onSolved: ({ attempts }) => {
+      // A quick mate-in-one can land inside the first second. The leaderboard's
+      // tiebreaker starts at one second, so never persist an impossible zero.
+      const seconds = Math.max(1, elapsed());
+      ticking = false;
+      clock.textContent = formatClock(seconds);
+      movesOut.textContent = String(attempts);
       board.freeze();
 
-      const label = DIFFICULTY_LABEL[today.difficulty];
-      difficultyLine.textContent = `${label} \u00b7 ${today.puzzle.size}\u00d7${today.puzzle.size}`;
-      blurbLine.textContent = DIFFICULTY_BLURB[today.difficulty];
-      startButton.disabled = false;
+      // Only the first finish counts, so a replay after clearing the lock
+      // cannot overwrite a result you already put up.
+      const done: Done = { score: attempts, hints: 0, elapsed: seconds };
+      if (!readDone(GAME, day)) writeDone(GAME, done, day);
 
-      if (already) {
-        // The lock is advisory: it lives in localStorage, so clearing your
-        // browser gets you another go. It keeps the day honest, it does not
-        // police it.
-        const hints = hintText(already.hints);
-        doneLine.hidden = false;
-        doneLine.textContent = `You finished today in ${clockText(already.score)}${
-          hints ? ` with ${hints}` : ""
-        }. A new board arrives tomorrow.`;
-        startButton.textContent = "See your board";
-      }
+      result.textContent = `${moveText(attempts)} \u00b7 ${formatClock(seconds)}`;
+      seeBoard.hidden = false;
 
-      startButton.addEventListener("click", () => {
-        gate.hidden = true;
-        // Coming back to a day you already finished lays the answer back out
-        // and leaves it locked, so there is something to look at and nothing
-        // to gain from a second attempt.
-        if (already) {
-          clock.textContent = clockText(already.score);
-          board.reveal();
-          return;
-        }
-        board.thaw();
-      });
-    }, 0);
+      if (!already) void offerToPost(done, true);
+    },
+  });
+
+  board.build(today, { ply: state.ply, attempts: state.attempts });
+  // A reload can land in the half-second between the player's move and the
+  // automated reply. The board settles that reply immediately; settle storage
+  // too so another reload starts from the same position.
+  if (state.ply !== board.ply()) {
+    state.ply = board.ply();
+    persist();
+  }
+  board.freeze();
+
+  // A day already finished lays the answer back out and leaves it locked, so
+  // there is something to look at and nothing to gain from a second attempt.
+  if (already) {
+    doneLine.hidden = false;
+    const withTime = already.elapsed !== undefined ? ` and ${formatClock(already.elapsed)}` : "";
+    doneLine.textContent = `You finished today in ${moveText(already.score)}${withTime}. A new puzzle arrives tomorrow.`;
+    startButton.textContent = "See today's puzzle";
+  }
+
+  startButton.disabled = false;
+
+  // A started game resumes immediately. Its clock measures wall time, so
+  // leaving a gate over the restored position would only block play while time
+  // continued to pass.
+  if (!already && state.startedAt) {
+    gate.hidden = true;
+    ticking = true;
+    tick();
+    board.thaw();
+  }
+
+  startButton.addEventListener("click", () => {
+    gate.hidden = true;
+    if (already) {
+      clock.textContent = already.elapsed !== undefined ? formatClock(already.elapsed) : "0:00";
+      movesOut.textContent = String(already.score);
+      board.reveal();
+      return;
+    }
+    // If a first move already happened in a previous visit, the clock keeps
+    // counting real wall-clock time whether or not this tab was open for it.
+    if (state.startedAt) {
+      ticking = true;
+      tick();
+    }
+    board.thaw();
+  });
+
+  // Puts the position back to the start of today's puzzle. Attempts and the
+  // clock are untouched - resetting the board is not the same as forgiving
+  // the attempts it took.
+  resetButton.addEventListener("click", () => {
+    if (already) return;
+    board.resetPosition();
+    state.ply = 0;
+    persist();
   });
 </script>
