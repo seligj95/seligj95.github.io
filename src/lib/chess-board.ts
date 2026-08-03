@@ -22,6 +22,8 @@ export interface ChessResume {
   ply: number;
   /** Move attempts already spent on this puzzle, right or wrong. */
   attempts: number;
+  /** Solution plies whose hints were already charged before a reload. */
+  hintedPlies?: number[];
 }
 
 export interface ChessBoardOptions {
@@ -37,6 +39,8 @@ export interface ChessBoardOptions {
   onFirstMove?: () => void;
   /** Runs after every attempted legal move, right or wrong, with the running total. */
   onAttempt?: (info: { attempts: number; correct: boolean }) => void;
+  /** Runs when a hint is shown. The hint itself has already added one attempt. */
+  onHint?: (info: { attempts: number; ply: number }) => void;
   /**
    * Runs after the scripted reply lands, once a correct move has advanced
    * the puzzle but not yet solved it. A page that persists mid-game progress
@@ -73,7 +77,13 @@ export interface ChessBoard {
    * Lays the solved position out instantly, without announcing a win. For
    * coming back to a daily you already finished.
    */
-  reveal: () => void;
+  reveal: (gaveUp?: boolean) => void;
+  /** Highlights the next authored move and charges one attempt. */
+  hint: () => boolean;
+  /** Whether the current solution ply still has an unused hint. */
+  canHint: () => boolean;
+  /** Reveals the authored solution and locks the board. */
+  giveUp: () => boolean;
   /** Locks the board so no further moves register. */
   freeze: () => void;
   /** Unlocks it again. */
@@ -156,6 +166,10 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
   /** Whether the first-move callback has already fired for this puzzle. */
   let started = false;
   let lastMove: { from: string; to: string } | null = null;
+  let hintMove: { from: string; to: string } | null = null;
+  const hintedPlies = new Set<number>();
+  let feedback = "";
+  let gaveUp = false;
   let replyTimer: ReturnType<typeof setTimeout> | null = null;
   let focusSquare = "a8";
 
@@ -185,13 +199,17 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
 
   function setStatus() {
     const check = chess.isCheck();
+    if (feedback) {
+      status.textContent = feedback;
+      return;
+    }
     const message = options.statusFor?.({ toMove: chess.turn(), attempts, solved, check });
     if (message !== undefined) {
       status.textContent = message;
       return;
     }
     if (solved) {
-      status.textContent = "Checkmate \u2014 solved!";
+      status.textContent = gaveUp ? "Solution revealed." : "Checkmate \u2014 solved!";
       return;
     }
     const side = chess.turn() === "w" ? "White" : "Black";
@@ -229,7 +247,18 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
         if (check === square) button.dataset.check = "true";
         else delete button.dataset.check;
 
-        button.setAttribute("aria-label", describe(square, piece));
+        const hintRole =
+          hintMove?.from === square
+            ? ", hint: move this piece"
+            : hintMove?.to === square
+              ? ", hint destination"
+              : "";
+        if (hintMove?.from === square) button.dataset.hint = "from";
+        else if (hintMove?.to === square) button.dataset.hint = "to";
+        else delete button.dataset.hint;
+
+        button.draggable = Boolean(piece && piece.color === chess.turn() && !frozen && !solved && !busy);
+        button.setAttribute("aria-label", `${describe(square, piece)}${hintRole}`);
       }
     }
 
@@ -274,6 +303,8 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     const correct = played === expected || checkmate;
 
     if (correct) {
+      hintMove = null;
+      feedback = "";
       ply += 1;
       lastMove = { from: move.from, to: move.to };
 
@@ -306,6 +337,7 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
       // The position is exactly what it was - the attempt still counts.
       chess.undo();
       flashReject(move.to);
+      feedback = "That move is legal, but it is not the puzzle's answer. The board reset; try another move.";
       paint();
       options.onAttempt?.({ attempts, correct: false });
     }
@@ -322,6 +354,7 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
 
     const piece = chess.get(square as Square);
     if (piece && piece.color === chess.turn()) {
+      feedback = "";
       selected = square;
       paint();
       return;
@@ -335,6 +368,7 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
       // Not a legal destination for the piece you had selected - cancels the
       // selection quietly. Only an actually-legal move counts as an attempt.
       selected = null;
+      feedback = "That piece cannot move there. Pick it up again and use a highlighted square.";
       paint();
       return;
     }
@@ -418,6 +452,11 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     frozen = false;
     busy = false;
     lastMove = null;
+    hintMove = null;
+    hintedPlies.clear();
+    for (const hintedPly of resume?.hintedPlies ?? []) hintedPlies.add(hintedPly);
+    feedback = "";
+    gaveUp = false;
     win.hidden = true;
     win.setAttribute("aria-hidden", "true");
 
@@ -440,12 +479,15 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     solved = false;
     busy = false;
     lastMove = null;
+    hintMove = null;
+    feedback = "";
+    gaveUp = false;
     win.hidden = true;
     win.setAttribute("aria-hidden", "true");
     paint();
   }
 
-  function reveal() {
+  function reveal(asGiveUp = false) {
     if (!puzzle) return;
     if (replyTimer !== null) {
       clearTimeout(replyTimer);
@@ -461,6 +503,9 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     }
     selected = null;
     busy = false;
+    hintMove = null;
+    feedback = "";
+    gaveUp = asGiveUp;
     // Set before painting so paint treats this as an already-won board and
     // does not run through attemptMove's win path (which is not called here
     // at all, but this keeps setStatus's "solved" branch showing).
@@ -470,12 +515,83 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     paint();
   }
 
+  function canHint(): boolean {
+    return !frozen && !solved && !busy && Boolean(puzzle?.solution[ply]) && !hintedPlies.has(ply);
+  }
+
+  function hint(): boolean {
+    if (!canHint() || !puzzle) return false;
+    const uci = puzzle.solution[ply];
+    if (!uci) return false;
+
+    const { from, to } = fromUci(uci);
+    const piece = chess.get(from as Square);
+    if (!piece) return false;
+
+    attempts += 1;
+    const firstEver = !started;
+    started = true;
+    if (firstEver) options.onFirstMove?.();
+
+    selected = null;
+    hintMove = { from, to };
+    hintedPlies.add(ply);
+    feedback = `Hint: move the ${pieceName(piece.type)} from ${from} to ${to}.`;
+    paint();
+    options.onHint?.({ attempts, ply });
+    return true;
+  }
+
+  function giveUp(): boolean {
+    if (frozen || solved || busy || !puzzle) return false;
+    frozen = true;
+    reveal(true);
+    return true;
+  }
+
   board.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
     const square = button?.dataset.square;
     if (!square) return;
     setRoving(square);
     handleActivate(square);
+  });
+
+  board.addEventListener("dragstart", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
+    const square = button?.dataset.square;
+    const piece = square ? chess.get(square as Square) : undefined;
+    if (!square || !piece || piece.color !== chess.turn() || frozen || solved || busy) {
+      event.preventDefault();
+      return;
+    }
+    feedback = "";
+    selected = square;
+    event.dataTransfer?.setData("text/plain", square);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    paint();
+  });
+
+  board.addEventListener("dragover", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
+    const square = button?.dataset.square;
+    if (!selected || !square) return;
+    event.preventDefault();
+  });
+
+  board.addEventListener("drop", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".cell");
+    const square = button?.dataset.square;
+    if (!square) return;
+    event.preventDefault();
+    setRoving(square);
+    handleActivate(square);
+  });
+
+  board.addEventListener("dragend", () => {
+    if (!selected) return;
+    selected = null;
+    paint();
   });
 
   board.addEventListener("keydown", (event) => {
@@ -507,6 +623,9 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     ply: () => ply,
     resetPosition,
     reveal,
+    hint,
+    canHint,
+    giveUp,
     freeze: () => {
       frozen = true;
     },

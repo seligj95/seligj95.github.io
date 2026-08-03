@@ -128,8 +128,9 @@ that name is remembered on the device so the next day is one tap.
 Three games have a daily version today. **Queens** ranks by time, with 30
 seconds added per hint. **Contexto** ranks by number of guesses and offers no
 hints at all. **Chess** ranks by moves — how many attempts it takes to find
-the mating line — with elapsed time as the tiebreaker, and offers no hints
-either. A "move" only counts against you if it was actually legal; the board
+the mating line — with elapsed time as the tiebreaker. Its hint marks the next
+move and adds one move plus 30 seconds; giving up forfeits posting. A "move"
+only counts against you if it was actually legal; the board
 is checked by [chess.js](https://github.com/jhlywa/chess.js), so nothing
 illegal ever gets played, but a legal move off the puzzle's line still gets
 flashed on the board and put back — that is what makes it count as an

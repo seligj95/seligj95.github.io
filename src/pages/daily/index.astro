@@ -344,7 +344,6 @@ const base = import.meta.env.BASE_URL;
   import {
     drawScoreRows,
     fetchScores,
-    guessText,
     hintText,
     scoreText,
   } from "../../lib/daily-scores";
@@ -385,7 +384,7 @@ const base = import.meta.env.BASE_URL;
       const time = document.createElement("span");
       time.className = "played-time";
       if (done.gaveUp) {
-        time.textContent = `after ${guessText(done.score)}`;
+        time.textContent = `after ${scoreText(done.score, game.scoring, done.elapsed)}`;
       } else {
         const yours = scoreText(done.score, game.scoring, done.elapsed);
         time.textContent = hints ? `${yours} with ${hints}` : yours;

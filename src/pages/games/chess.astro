@@ -20,6 +20,11 @@ import ChessBoard from "../../components/ChessBoard.astro";
     </div>
 
     <div class="control-set">
+      <button id="chess-hint" type="button">Hint +1 move, +30s</button>
+      <button id="chess-giveup" type="button" class="quiet">Give up</button>
+    </div>
+
+    <div class="control-set">
       <button id="chess-new" type="button">New puzzle</button>
       <button id="chess-reset" type="button">Reset</button>
     </div>
@@ -35,16 +40,20 @@ import ChessBoard from "../../components/ChessBoard.astro";
     </p>
     <p>
       A move that <em>is</em> legal but is not the one the puzzle is looking
-      for flashes on the board, then the position is put straight back &mdash;
-      and it still counts against your move total, the same as a right one would.
-      That is what the counter is for: it is not just moves played, it is
-      moves attempted. Once you find the right move, the defense replies on
-      its own, and it keeps going until you deliver mate.
+      for flashes on the board, explains what happened in the status line, then
+      puts the position straight back. It still counts against your move total,
+      the same as a right one would. That is what the counter is for: it is not
+      just moves played, it is moves attempted. Once you find the right move,
+      the defense replies on its own, and it keeps going until you deliver mate.
     </p>
     <p>
-      Reset puts the position back to the start of the puzzle without losing
-      your move count or your time &mdash; it undoes the board, not the
-      attempt. New puzzle deals a fresh position and starts the count over.
+      Hint marks the piece and destination for the next move, adding one move
+      and 30 seconds. Give up reveals the full line. Reset puts the position
+      back to the start without losing your move count or your time &mdash; it
+      undoes the board, not the attempt.
+    </p>
+    <p>
+      New puzzle deals a fresh position and starts the count over.
     </p>
     <p>
       Keyboard: arrow keys move focus around the board, Enter or Space picks
@@ -73,6 +82,9 @@ import ChessBoard from "../../components/ChessBoard.astro";
   const attemptsOut = document.getElementById("chess-attempts") as HTMLOutputElement;
   const newButton = document.getElementById("chess-new") as HTMLButtonElement;
   const resetButton = document.getElementById("chess-reset") as HTMLButtonElement;
+  const hintButton = document.getElementById("chess-hint") as HTMLButtonElement;
+  const giveUpButton = document.getElementById("chess-giveup") as HTMLButtonElement;
+  const HINT_PENALTY_MS = 30_000;
 
   /** Wall-clock start of the run, or 0 when the clock is not running. */
   let startedAt = 0;
@@ -104,9 +116,20 @@ import ChessBoard from "../../components/ChessBoard.astro";
     onAttempt: ({ attempts }) => {
       attemptsOut.textContent = String(attempts);
     },
+    onHint: ({ attempts }) => {
+      startedAt -= HINT_PENALTY_MS;
+      attemptsOut.textContent = String(attempts);
+      clock.textContent = clockText(elapsedSeconds());
+    },
+    onReply: () => {
+      hintButton.disabled = !board.canHint();
+    },
     onSolved: () => {
       ticking = false;
       clock.textContent = clockText(elapsedSeconds());
+      hintButton.disabled = true;
+      giveUpButton.disabled = true;
+      resetButton.disabled = true;
     },
     onNext: fresh,
   });
@@ -117,13 +140,29 @@ import ChessBoard from "../../components/ChessBoard.astro";
     startedAt = 0;
     clock.textContent = clockText(0);
     attemptsOut.textContent = "0";
+    hintButton.disabled = false;
+    giveUpButton.disabled = false;
+    resetButton.disabled = false;
     board.build();
   }
 
   newButton.addEventListener("click", fresh);
   // Puts the position back, on purpose, without touching the count or clock:
   // resetting the board is not the same as forgiving the attempts it took.
-  resetButton.addEventListener("click", () => board.resetPosition());
+  resetButton.addEventListener("click", () => {
+    board.resetPosition();
+    hintButton.disabled = !board.canHint();
+  });
+  hintButton.addEventListener("click", () => {
+    if (board.hint()) hintButton.disabled = true;
+  });
+  giveUpButton.addEventListener("click", () => {
+    if (!board.giveUp()) return;
+    ticking = false;
+    hintButton.disabled = true;
+    giveUpButton.disabled = true;
+    resetButton.disabled = true;
+  });
 
   fresh();
 </script>

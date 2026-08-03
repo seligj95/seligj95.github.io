@@ -46,7 +46,7 @@ export const dailies: Daily[] = [
     title: "Chess",
     tagline: "One position, one mate to find.",
     blurb:
-      "Today’s puzzle is the same for everyone. White to move and mate; your job is to find it. A legal move off the line is rejected and the position is restored, but it still counts as an attempt — that is what separates scores. No hints.",
+      "Today’s puzzle is the same for everyone. White to move and mate; your job is to find it. A legal move off the line is rejected and restored, but still counts. A hint adds one move and 30 seconds; giving up reveals the line but forfeits posting.",
     ranking: "Fewest moves today, ties broken by time",
     scoring: "moves",
   },

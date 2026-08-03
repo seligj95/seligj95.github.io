@@ -10,7 +10,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   title="Daily Chess"
   tagline="One position a day, the same for everyone."
   tag="Daily"
-  instructions="White to move and mate. The clock starts on your first attempted move, and a legal move off the line still counts as an attempt."
+  instructions="White to move and mate. The clock starts on your first attempted move. Hint costs one move and 30 seconds."
   backHref="/daily/"
   backLabel="All daily games"
 >
@@ -49,7 +49,21 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     </div>
 
     <div class="control-set">
-      <button id="daily-reset" type="button">Reset</button>
+      <button id="daily-hint" type="button" disabled>Hint +1 move, +30s</button>
+      <button id="daily-reset" type="button" disabled>Reset</button>
+    </div>
+
+    <div class="control-set" id="daily-giveup-set">
+      <button id="daily-giveup" type="button" class="quiet" disabled>Give up</button>
+      <span class="control-label" id="daily-giveup-ask" hidden>
+        Show the line? That forfeits today&rsquo;s score.
+      </span>
+      <button id="daily-giveup-yes" type="button" class="danger" hidden>
+        Show me
+      </button>
+      <button id="daily-giveup-no" type="button" class="quiet" hidden>
+        Keep playing
+      </button>
     </div>
   </div>
 
@@ -63,9 +77,15 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       square to move it there. Every move is checked by
       <a href="https://github.com/jhlywa/chess.js">chess.js</a>, so nothing
       illegal ever gets through &mdash; but a move that is legal without being
-      the one the puzzle wants still counts as an attempt. It flashes, then
-      the position is put straight back. Fewer attempts is better;
-      time only breaks a tie. There are no hints.
+      the one the puzzle wants still counts as an attempt. It flashes, explains
+      what happened in the status line, then puts the position back. Fewer
+      attempts is better; time only breaks a tie.
+    </p>
+    <p>
+      Hint marks the piece and destination for the next move. Each hint adds one
+      move and 30 seconds, and the leaderboard shows how many hints were used.
+      Give up reveals the full line, spends today&rsquo;s puzzle, and cannot be
+      posted to the leaderboard.
     </p>
     <p>
       Reset puts the position back to the start of today&rsquo;s puzzle
@@ -330,6 +350,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     clockText as formatClock,
     drawScoreRows,
     fetchScores,
+    hintText,
     moveText,
     ordinal,
     submitScore,
@@ -342,6 +363,8 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   interface ChessState {
     ply: number;
     attempts: number;
+    hints: number;
+    hintedPlies: number[];
     /** Wall-clock ms of the first attempted move, or 0 before one has happened. */
     startedAt: number;
   }
@@ -354,15 +377,26 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   const clock = document.getElementById("daily-clock") as HTMLOutputElement;
   const movesOut = document.getElementById("daily-moves") as HTMLOutputElement;
   const resetButton = document.getElementById("daily-reset") as HTMLButtonElement;
+  const hintButton = document.getElementById("daily-hint") as HTMLButtonElement;
+  const giveUpButton = document.getElementById("daily-giveup") as HTMLButtonElement;
+  const giveUpAsk = document.getElementById("daily-giveup-ask") as HTMLSpanElement;
+  const giveUpYes = document.getElementById("daily-giveup-yes") as HTMLButtonElement;
+  const giveUpNo = document.getElementById("daily-giveup-no") as HTMLButtonElement;
   const result = document.getElementById("daily-result") as HTMLParagraphElement;
+  const HINT_PENALTY_MS = 30_000;
 
   const day = dayFor();
   const today = dailyPuzzle(day);
 
-  const state: ChessState = readState<ChessState>(GAME, day) ?? {
-    ply: 0,
-    attempts: 0,
-    startedAt: 0,
+  const storedState = readState<Partial<ChessState>>(GAME, day);
+  const state: ChessState = {
+    ply: storedState?.ply ?? 0,
+    attempts: storedState?.attempts ?? 0,
+    hints: storedState?.hints ?? 0,
+    hintedPlies: Array.isArray(storedState?.hintedPlies)
+      ? storedState.hintedPlies.filter((ply): ply is number => Number.isInteger(ply) && ply >= 0)
+      : [],
+    startedAt: storedState?.startedAt ?? 0,
   };
 
   let ticking = false;
@@ -467,7 +501,9 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
 
   seeBoard.addEventListener("click", dismissWin);
 
-  async function offerToPost(done: Done, inWin: boolean) {
+  async function offerToPost(inWin: boolean) {
+    const current = readDone(GAME, day);
+    if (!current || current.gaveUp || current.posted) return;
     if (inWin && !winOverlay.hidden) {
       winPanel.insertBefore(scoresForm, postedLine);
     }
@@ -490,6 +526,11 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
 
     const done = readDone(GAME, day);
     if (!done) return;
+    if (done.gaveUp) {
+      scoresError.textContent = "This puzzle was given up and cannot be posted.";
+      scoresError.hidden = false;
+      return;
+    }
 
     const buttons = Array.from(scoresForm.querySelectorAll("button"));
     buttons.forEach((button) => (button.disabled = true));
@@ -530,11 +571,13 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   }
 
   if (already) {
-    if (already.posted) {
+    if (already.gaveUp) {
+      if (wantsScores) void showScores().then(revealScores);
+    } else if (already.posted) {
       mine = already.posted;
       void showScores().then(revealScores);
     } else {
-      void offerToPost(already, false).then(() => revealScores(!scoresPanel.hidden));
+      void offerToPost(false).then(() => revealScores(!scoresPanel.hidden));
     }
   } else if (wantsScores) {
     void showScores().then(revealScores);
@@ -563,9 +606,19 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       persist();
       movesOut.textContent = String(attempts);
     },
+    onHint: ({ attempts, ply }) => {
+      state.attempts = attempts;
+      state.hints += 1;
+      state.hintedPlies.push(ply);
+      state.startedAt -= HINT_PENALTY_MS;
+      persist();
+      movesOut.textContent = String(attempts);
+      clock.textContent = formatClock(elapsed());
+    },
     onReply: () => {
       state.ply = board.ply();
       persist();
+      hintButton.disabled = state.hintedPlies.includes(board.ply());
     },
     onSolved: ({ attempts }) => {
       // A quick mate-in-one can land inside the first second. The leaderboard's
@@ -576,19 +629,35 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       movesOut.textContent = String(attempts);
       board.freeze();
 
-      // Only the first finish counts, so a replay after clearing the lock
-      // cannot overwrite a result you already put up.
-      const done: Done = { score: attempts, hints: 0, elapsed: seconds };
-      if (!readDone(GAME, day)) writeDone(GAME, done, day);
+      // Another tab may have finished or forfeited while this one was open.
+      // Its result won the race, so reload the canonical state instead of
+      // replacing it with this tab's finish.
+      if (readDone(GAME, day)) {
+        location.reload();
+        return;
+      }
 
-      result.textContent = `${moveText(attempts)} \u00b7 ${formatClock(seconds)}`;
+      const done: Done = { score: attempts, hints: state.hints, elapsed: seconds };
+      writeDone(GAME, done, day);
+
+      const withHints = hintText(state.hints);
+      result.textContent =
+        `${moveText(attempts)} \u00b7 ${formatClock(seconds)}` +
+        (withHints ? ` \u00b7 ${withHints}` : "");
       seeBoard.hidden = false;
+      hintButton.disabled = true;
+      giveUpButton.disabled = true;
+      resetButton.disabled = true;
 
-      if (!already) void offerToPost(done, true);
+      if (!already) void offerToPost(true);
     },
   });
 
-  board.build(today, { ply: state.ply, attempts: state.attempts });
+  board.build(today, {
+    ply: state.ply,
+    attempts: state.attempts,
+    hintedPlies: state.hintedPlies,
+  });
   // A reload can land in the half-second between the player's move and the
   // automated reply. The board settles that reply immediately; settle storage
   // too so another reload starts from the same position.
@@ -602,9 +671,18 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   // there is something to look at and nothing to gain from a second attempt.
   if (already) {
     doneLine.hidden = false;
-    const withTime = already.elapsed !== undefined ? ` and ${formatClock(already.elapsed)}` : "";
-    doneLine.textContent = `You finished today in ${moveText(already.score)}${withTime}. A new puzzle arrives tomorrow.`;
-    startButton.textContent = "See today's puzzle";
+    if (already.gaveUp) {
+      doneLine.textContent = "You revealed today’s solution. A new puzzle arrives tomorrow.";
+      startButton.textContent = "See the solution";
+    } else {
+      const withTime = already.elapsed !== undefined ? ` and ${formatClock(already.elapsed)}` : "";
+      const withHints = hintText(already.hints);
+      doneLine.textContent =
+        `You finished today in ${moveText(already.score)}${withTime}` +
+        (withHints ? ` with ${withHints}` : "") +
+        ". A new puzzle arrives tomorrow.";
+      startButton.textContent = "See today's puzzle";
+    }
   }
 
   startButton.disabled = false;
@@ -617,6 +695,9 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     ticking = true;
     tick();
     board.thaw();
+    hintButton.disabled = state.hintedPlies.includes(board.ply());
+    giveUpButton.disabled = false;
+    resetButton.disabled = false;
   }
 
   startButton.addEventListener("click", () => {
@@ -624,7 +705,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     if (already) {
       clock.textContent = already.elapsed !== undefined ? formatClock(already.elapsed) : "0:00";
       movesOut.textContent = String(already.score);
-      board.reveal();
+      board.reveal(Boolean(already.gaveUp));
       return;
     }
     // If a first move already happened in a previous visit, the clock keeps
@@ -634,6 +715,9 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       tick();
     }
     board.thaw();
+    hintButton.disabled = state.hintedPlies.includes(board.ply());
+    giveUpButton.disabled = false;
+    resetButton.disabled = false;
   });
 
   // Puts the position back to the start of today's puzzle. Attempts and the
@@ -644,5 +728,45 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     board.resetPosition();
     state.ply = 0;
     persist();
+    hintButton.disabled = state.hintedPlies.includes(0);
+  });
+
+  hintButton.addEventListener("click", () => {
+    if (board.hint()) hintButton.disabled = true;
+  });
+
+  function showGiveUpConfirm(show: boolean) {
+    giveUpButton.hidden = show;
+    giveUpAsk.hidden = !show;
+    giveUpYes.hidden = !show;
+    giveUpNo.hidden = !show;
+  }
+
+  giveUpButton.addEventListener("click", () => showGiveUpConfirm(true));
+  giveUpNo.addEventListener("click", () => showGiveUpConfirm(false));
+  giveUpYes.addEventListener("click", () => {
+    if (already) return;
+    if (readDone(GAME, day)) {
+      location.reload();
+      return;
+    }
+    if (!board.giveUp()) return;
+    ticking = false;
+    const seconds = elapsed();
+    const done: Done = {
+      score: state.attempts,
+      hints: state.hints,
+      elapsed: seconds,
+      gaveUp: true,
+    };
+    writeDone(GAME, done, day);
+    state.ply = board.ply();
+    persist();
+    clock.textContent = formatClock(seconds);
+    hintButton.disabled = true;
+    resetButton.disabled = true;
+    showGiveUpConfirm(false);
+    giveUpButton.disabled = true;
+    giveUpButton.textContent = "Solution revealed";
   });
 </script>
