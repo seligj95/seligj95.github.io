@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
+import { ai } from "js-chess-engine";
 
 import { puzzleById, puzzles, randomPuzzle, type ChessPuzzle } from "../src/data/chess-puzzles";
 import { dailyPuzzle, order } from "../src/lib/chess-daily";
@@ -35,6 +36,55 @@ describe("chess puzzles", () => {
   it("starts every puzzle with White to move", () => {
     for (const puzzle of puzzles) {
       expect(new Chess(puzzle.fen).turn(), puzzle.id).toBe("w");
+    }
+  });
+
+  it("never starts with Black already in check", () => {
+    for (const puzzle of puzzles) {
+      const fields = puzzle.fen.split(" ");
+      fields[1] = "b";
+      expect(new Chess(fields.join(" ")).isCheck(), puzzle.id).toBe(false);
+    }
+  });
+
+  it("keeps known engine-incompatible positions out of rotation", () => {
+    const invalidFamilies = [
+      "rook-rollercoaster",
+      "diagonal-strike",
+      "corner-trap",
+      "knight-assisted-rook",
+      "queen-rook-tandem",
+    ];
+    const drawnPositions = [
+      "lawnmower-finish-flip",
+      "queen-bishop-cross-turn-right",
+      "triple-rook-maneuver-flip",
+      "knight-king-rook-turn-around",
+      "knight-king-rook-diagonal",
+      "queen-knight-corner-turn-around",
+    ];
+
+    for (const family of invalidFamilies) {
+      expect(
+        puzzles.some((puzzle) => puzzle.id === family || puzzle.id.startsWith(`${family}-`)),
+        family,
+      ).toBe(false);
+    }
+    for (const id of drawnPositions) {
+      expect(puzzles.some((puzzle) => puzzle.id === id), id).toBe(false);
+    }
+  });
+
+  it("gives the browser engine a legal hint from every starting position", () => {
+    for (const puzzle of puzzles) {
+      const chess = new Chess(puzzle.fen);
+      const entry = Object.entries(
+        ai(puzzle.fen, { level: 1, play: false, ttSizeMB: 0.25 }).move,
+      )[0];
+      expect(entry, puzzle.id).toBeTruthy();
+      const [from, to] = entry!;
+      const legal = chess.moves({ square: from.toLowerCase() as never, verbose: true });
+      expect(legal.some((move) => move.to === to.toLowerCase()), puzzle.id).toBe(true);
     }
   });
 

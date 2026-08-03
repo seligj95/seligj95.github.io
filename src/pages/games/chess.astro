@@ -39,18 +39,15 @@ import ChessBoard from "../../components/ChessBoard.astro";
       you try that is not actually legal is simply refused.
     </p>
     <p>
-      A move that <em>is</em> legal but is not the one the puzzle is looking
-      for flashes on the board, explains what happened in the status line, then
-      puts the position straight back. It still counts against your move total,
-      the same as a right one would. That is what the counter is for: it is not
-      just moves played, it is moves attempted. Once you find the right move,
-      the defense replies on its own, and it keeps going until you deliver mate.
+      Every legal move stays played. Black uses a lightweight chess engine to
+      choose its strongest reply, so you can leave the position&rsquo;s known
+      line and find a different route to checkmate. Only your moves count.
     </p>
     <p>
-      Hint marks the piece and destination for the next move, adding one move
-      and 30 seconds. Give up reveals the full line. Reset puts the position
-      back to the start without losing your move count or your time &mdash; it
-      undoes the board, not the attempt.
+      Hint asks the engine for its best move from the board as it stands, adding
+      one move and 30 seconds. Give up resets the board and reveals one known
+      checkmate line. Reset puts the starting position back without losing your
+      move count or your time.
     </p>
     <p>
       New puzzle deals a fresh position and starts the count over.

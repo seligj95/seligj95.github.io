@@ -449,7 +449,9 @@ describe("Build output", () => {
       expect(css).toContain("[data-legal=move]");
       expect(css).toContain("[data-legal=capture]");
       expect(css).toContain("[data-check=true]");
-      expect(css).toContain("[data-rejected=true]");
+      expect(css).toContain("[data-hint=from]");
+      expect(css).toContain("[data-hint=to]");
+      expect(css).toContain("[data-last=true]");
     }
   });
 

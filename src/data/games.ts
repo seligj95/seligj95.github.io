@@ -101,9 +101,9 @@ export const games: Game[] = [
     slug: "chess",
     title: "Chess",
     tagline: "White to move and mate.",
-    blurb: "A curated position, always won for White. Find the mate, move by move, while chess.js checks every move you try.",
+    blurb: "Start from a curated winning position, play any legal move, and find checkmate while Black chooses its strongest defense.",
     tag: "puzzle",
-    instructions: "Tap a piece, then a highlighted square to move it. A legal move off the line is rejected but still counts as an attempt.",
+    instructions: "Tap a piece, then a highlighted square. Every legal move stays played, and Black answers automatically.",
   },
 ];
 

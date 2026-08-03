@@ -4,25 +4,29 @@
  * Two pages want this board: free play, which deals an unlimited stream of
  * puzzles, and the daily, which hands over one fixed puzzle and keeps a
  * leaderboard. The board itself - painting the position, handling a
- * click/tap/keyboard move, checking it against the puzzle's solution line,
- * and auto-playing the reply - is identical in both, so it lives here and
+ * click/tap/keyboard move, choosing the defense's reply, and detecting mate -
+ * is identical in both, so it lives here and
  * each page supplies the parts that differ (deal, callbacks, resume state).
  *
- * chess.js owns every rule of chess. This file only ever asks it "is this
- * legal" and "did this end in checkmate" - it never re-implements movement,
- * check, or mate detection itself.
+ * chess.js owns every rule of chess. js-chess-engine chooses moves for the
+ * defense and powers hints from positions the authored line never visited.
  */
 
 import { Chess, type Square } from "chess.js";
+import { ai } from "js-chess-engine";
 import type { ChessPuzzle } from "../data/chess-puzzles";
 
-/** How far into the puzzle a resumed board should fast-forward. */
+/** Everything needed to reconstruct a board after a reload. */
 export interface ChessResume {
-  /** How many plies of the solution (player and reply both) are already played. */
-  ply: number;
-  /** Move attempts already spent on this puzzle, right or wrong. */
+  /** Legal moves already played, player and defense alternating, in UCI. */
+  moves?: string[];
+  /** Move attempts already spent on this puzzle. */
   attempts: number;
-  /** Solution plies whose hints were already charged before a reload. */
+  /** Positions whose hints were already charged before a reload. */
+  hintedPositions?: string[];
+  /** Legacy authored-line progress, migrated to `moves` when read. */
+  ply?: number;
+  /** Legacy authored-line positions whose hints were already charged. */
   hintedPlies?: number[];
 }
 
@@ -32,20 +36,18 @@ export interface ChessBoardOptions {
   /** Runs after a puzzle is built and painted. */
   onBuild?: (puzzle: ChessPuzzle) => void;
   /**
-   * Runs once, on the very first legal move you attempt on this puzzle -
-   * right or wrong either way counts as starting. Starts the daily clock.
+   * Runs once, on the very first legal move you make on this puzzle. Starts
+   * the daily clock.
    * Never fires again for a board resumed with attempts already spent.
    */
   onFirstMove?: () => void;
-  /** Runs after every attempted legal move, right or wrong, with the running total. */
-  onAttempt?: (info: { attempts: number; correct: boolean }) => void;
+  /** Runs after every legal player move with the running total. */
+  onAttempt?: (info: { attempts: number }) => void;
   /** Runs when a hint is shown. The hint itself has already added one attempt. */
-  onHint?: (info: { attempts: number; ply: number }) => void;
+  onHint?: (info: { attempts: number; position: string }) => void;
   /**
-   * Runs after the scripted reply lands, once a correct move has advanced
-   * the puzzle but not yet solved it. A page that persists mid-game progress
-   * across a reload wants this in addition to `onAttempt`, since the ply the
-   * board is sitting on only reaches its settled, even value here.
+   * Runs after the defense's reply lands. A page that persists mid-game
+   * progress wants this in addition to `onAttempt`.
    */
   onReply?: () => void;
   /** Runs once when the puzzle is actually solved (the mating move lands). */
@@ -69,8 +71,8 @@ export interface ChessBoard {
   build: (puzzle?: ChessPuzzle, resume?: ChessResume) => void;
   /** The puzzle on screen right now. */
   current: () => ChessPuzzle | null;
-  /** How many solution plies (player and reply both) are applied right now. */
-  ply: () => number;
+  /** Legal moves applied right now, player and defense alternating, in UCI. */
+  moves: () => string[];
   /** Puts the current puzzle's position back to the start. Keeps the attempt count. */
   resetPosition: () => void;
   /**
@@ -78,10 +80,12 @@ export interface ChessBoard {
    * coming back to a daily you already finished.
    */
   reveal: (gaveUp?: boolean) => void;
-  /** Highlights the next authored move and charges one attempt. */
+  /** Highlights the engine's best move from the current position and charges one attempt. */
   hint: () => boolean;
-  /** Whether the current solution ply still has an unused hint. */
+  /** Whether the current position still has an unused hint. */
   canHint: () => boolean;
+  /** Position keys whose hints have already been charged. */
+  hintHistory: () => string[];
   /** Reveals the authored solution and locks the board. */
   giveUp: () => boolean;
   /** Locks the board so no further moves register. */
@@ -107,6 +111,32 @@ function rowColOf(square: string): [number, number] {
 /** Splits a UCI move ("e2e4", "e7e8q") into the shape chess.js's move() wants. */
 function fromUci(uci: string): { from: string; to: string; promotion?: string } {
   return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4) || undefined };
+}
+
+function toUci(move: { from: string; to: string; promotion?: string }): string {
+  return `${move.from}${move.to}${move.promotion ?? ""}`;
+}
+
+/** Repetition-sensitive enough for charging one hint per actual position. */
+function positionKey(chess: Chess): string {
+  return chess.fen().split(" ").slice(0, 4).join(" ");
+}
+
+/** The strongest deterministic move the lightweight browser engine finds. */
+function engineMove(chess: Chess): { from: string; to: string; promotion?: string } {
+  const result = ai(chess.fen(), AI_OPTIONS);
+  const entry = Object.entries(result.move)[0];
+  if (!entry) throw new Error("Chess engine returned no move for a playable position.");
+
+  const from = entry[0].toLowerCase();
+  const to = entry[1].toLowerCase();
+  const candidates = chess
+    .moves({ square: from as Square, verbose: true })
+    .filter((move) => move.to === to);
+  const move = candidates.find((candidate) => candidate.promotion === "q") ?? candidates[0];
+  if (!move) throw new Error(`Chess engine returned an illegal move: ${from}${to}.`);
+
+  return { from: move.from, to: move.to, promotion: move.promotion };
 }
 
 const GLYPH: Record<string, string> = {
@@ -142,8 +172,12 @@ const ARROW_DELTAS: Record<string, [number, number]> = {
 
 /** A pause long enough to see your own move land before the board answers. */
 const REPLY_DELAY_MS = 550;
-/** How long a rejected move flashes before the highlight clears. */
-const REJECT_FLASH_MS = 450;
+const AI_OPTIONS = {
+  level: 4,
+  play: false,
+  randomness: 0,
+  ttSizeMB: 0.25,
+} as const;
 
 export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
   const board = document.getElementById("chess-board") as HTMLDivElement;
@@ -154,9 +188,9 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
 
   let chess = new Chess();
   let puzzle: ChessPuzzle | null = null;
-  /** How many of the puzzle's solution plies (player and reply both) are applied. */
-  let ply = 0;
-  /** Move attempts spent on the current puzzle, right or wrong. */
+  /** Legal moves played, player and defense alternating, in UCI. */
+  let moveHistory: string[] = [];
+  /** Player moves and hints spent on the current puzzle. */
   let attempts = 0;
   let selected: string | null = null;
   let solved = false;
@@ -167,7 +201,7 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
   let started = false;
   let lastMove: { from: string; to: string } | null = null;
   let hintMove: { from: string; to: string } | null = null;
-  const hintedPlies = new Set<number>();
+  const hintedPositions = new Set<string>();
   let feedback = "";
   let gaveUp = false;
   let replyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -265,24 +299,34 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     setStatus();
   }
 
-  function flashReject(square: string) {
-    const button = board.querySelector<HTMLButtonElement>(`[data-square="${square}"]`);
-    if (!button) return;
-    button.dataset.rejected = "true";
-    setTimeout(() => {
-      delete button.dataset.rejected;
-    }, REJECT_FLASH_MS);
+  function stopWithoutMate() {
+    frozen = true;
+    busy = false;
+    hintMove = null;
+    if (chess.isCheckmate()) {
+      feedback = "Checkmate \u2014 Black defended the position. Reset to try again.";
+    } else if (chess.isStalemate()) {
+      feedback = "Stalemate \u2014 reset to try for checkmate again.";
+    } else {
+      feedback = "Draw \u2014 reset to try for checkmate again.";
+    }
+    paint();
+  }
+
+  function applyEngineReply() {
+    const move = engineMove(chess);
+    const played = chess.move(move);
+    moveHistory.push(toUci(played));
+    lastMove = { from: played.from, to: played.to };
   }
 
   function playReply() {
     replyTimer = null;
-    if (!puzzle) return;
-    const { from, to, promotion } = fromUci(puzzle.solution[ply]!);
-    chess.move({ from, to, promotion });
-    ply += 1;
-    lastMove = { from, to };
+    if (!puzzle || chess.isGameOver()) return;
+    applyEngineReply();
     busy = false;
-    paint();
+    if (chess.isGameOver()) stopWithoutMate();
+    else paint();
     options.onReply?.();
   }
 
@@ -290,57 +334,40 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     if (!puzzle) return;
     selected = null;
 
-    const expected = puzzle.solution[ply];
-    const played = `${move.from}${move.to}${move.promotion ?? ""}`;
-
     attempts += 1;
     const firstEver = !started;
     started = true;
     if (firstEver) options.onFirstMove?.();
 
-    chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+    const played = chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+    moveHistory.push(toUci(played));
     const checkmate = chess.isCheckmate();
-    const correct = played === expected || checkmate;
+    hintMove = null;
+    feedback = "";
+    lastMove = { from: played.from, to: played.to };
 
-    if (correct) {
-      hintMove = null;
-      feedback = "";
-      ply += 1;
-      lastMove = { from: move.from, to: move.to };
-
-      // A position can have more than one mating move. The authored line tells
-      // the board how to answer before mate, but chess.js is authoritative once
-      // the player has actually ended the game.
-      if (checkmate) {
-        ply = puzzle.solution.length;
-        solved = true;
-        paint();
-        winNote.textContent = `Checkmate found in ${attempts} move${attempts === 1 ? "" : "s"}.`;
-        win.hidden = false;
-        win.setAttribute("aria-hidden", "false");
-        nextButton?.focus();
-        options.onAttempt?.({ attempts, correct: true });
-        options.onSolved?.({ attempts });
-        return;
-      }
-
+    if (checkmate) {
+      solved = true;
       paint();
-      options.onAttempt?.({ attempts, correct: true });
-
-      // The reply is scripted, not computed, so there is nothing to wait on -
-      // the pause is purely so the player's own move is visible for a beat
-      // before the board answers it.
-      busy = true;
-      replyTimer = setTimeout(playReply, REPLY_DELAY_MS);
-    } else {
-      // Legal, but off the line: play it to prove it was legal, then undo it.
-      // The position is exactly what it was - the attempt still counts.
-      chess.undo();
-      flashReject(move.to);
-      feedback = "That move is legal, but it is not the puzzle's answer. The board reset; try another move.";
-      paint();
-      options.onAttempt?.({ attempts, correct: false });
+      winNote.textContent = `Checkmate found in ${attempts} move${attempts === 1 ? "" : "s"}.`;
+      win.hidden = false;
+      win.setAttribute("aria-hidden", "false");
+      nextButton?.focus();
+      options.onAttempt?.({ attempts });
+      options.onSolved?.({ attempts });
+      return;
     }
+
+    options.onAttempt?.({ attempts });
+    if (chess.isGameOver()) {
+      stopWithoutMate();
+      return;
+    }
+
+    // The pause is purely so the player's move is visible before Black answers.
+    busy = true;
+    paint();
+    replyTimer = setTimeout(playReply, REPLY_DELAY_MS);
   }
 
   function handleActivate(square: string) {
@@ -406,30 +433,56 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     focusSquare = "a8";
   }
 
-  /** Mechanically replays the first `count` solution plies - no callbacks, no delay. */
-  function fastForward(count: number) {
+  /** Replays saved UCI moves without callbacks or animation. */
+  function replayMoves(moves: string[]): boolean {
+    for (const uci of moves) {
+      const move = fromUci(uci);
+      const legal = chess
+        .moves({ square: move.from as Square, verbose: true })
+        .find(
+          (candidate) =>
+            candidate.to === move.to &&
+            (candidate.promotion ?? undefined) === move.promotion,
+        );
+      if (!legal) return false;
+      const played = chess.move({
+        from: legal.from,
+        to: legal.to,
+        promotion: legal.promotion,
+      });
+      moveHistory.push(toUci(played));
+      lastMove = { from: played.from, to: played.to };
+    }
+    return true;
+  }
+
+  /** Migrates progress saved before arbitrary legal moves were supported. */
+  function fastForwardLegacy(count: number) {
     if (!puzzle) return;
     const target = Math.min(Math.max(count, 0), puzzle.solution.length);
-    for (let i = 0; i < target; i += 1) {
-      const { from, to, promotion } = fromUci(puzzle.solution[i]!);
-      chess.move({ from, to, promotion });
-      lastMove = { from, to };
-    }
-    ply = target;
-
-    if (ply === puzzle.solution.length) {
-      solved = true;
-      return;
-    }
+    replayMoves(puzzle.solution.slice(0, target));
 
     // An odd ply means the reload landed between the player's move and the
-    // scripted reply. The pause already happened before the reload, so there
-    // is no reason to make the player sit through it again.
-    if (ply % 2 === 1) {
-      const { from, to, promotion } = fromUci(puzzle.solution[ply]!);
-      chess.move({ from, to, promotion });
-      ply += 1;
-      lastMove = { from, to };
+    // old scripted reply. Settle that historical reply before switching the
+    // position to engine play.
+    if (target < puzzle.solution.length && target % 2 === 1) {
+      replayMoves([puzzle.solution[target]!]);
+    }
+  }
+
+  function migrateLegacyHints(plies: number[]) {
+    if (!puzzle) return;
+    const wanted = new Set(plies.filter((ply) => Number.isInteger(ply) && ply >= 0));
+    if (wanted.size === 0) return;
+
+    const position = new Chess(puzzle.fen);
+    for (let ply = 0; ply <= puzzle.solution.length; ply += 1) {
+      if (wanted.has(ply) && position.turn() === "w" && !position.isGameOver()) {
+        hintedPositions.add(positionKey(position));
+      }
+      const uci = puzzle.solution[ply];
+      if (!uci) break;
+      position.move(fromUci(uci));
     }
   }
 
@@ -444,7 +497,7 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
 
     puzzle = next;
     chess = new Chess(puzzle.fen);
-    ply = 0;
+    moveHistory = [];
     attempts = resume?.attempts ?? 0;
     started = attempts > 0;
     selected = null;
@@ -453,15 +506,35 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
     busy = false;
     lastMove = null;
     hintMove = null;
-    hintedPlies.clear();
-    for (const hintedPly of resume?.hintedPlies ?? []) hintedPlies.add(hintedPly);
+    hintedPositions.clear();
+    for (const position of resume?.hintedPositions ?? []) hintedPositions.add(position);
+    migrateLegacyHints(resume?.hintedPlies ?? []);
     feedback = "";
     gaveUp = false;
     win.hidden = true;
     win.setAttribute("aria-hidden", "true");
 
     renderGrid();
-    if (resume && resume.ply > 0) fastForward(resume.ply);
+    if (resume?.moves?.length && !replayMoves(resume.moves)) {
+      chess = new Chess(puzzle.fen);
+      moveHistory = [];
+      lastMove = null;
+      feedback = "The saved board no longer matched this puzzle, so the position returned to the start.";
+    } else if (resume?.ply) {
+      fastForwardLegacy(resume.ply);
+    }
+
+    if (chess.isCheckmate()) {
+      if (chess.turn() === "b") solved = true;
+      else stopWithoutMate();
+    } else if (chess.isGameOver()) {
+      stopWithoutMate();
+    } else if (chess.turn() === "b") {
+      // A reload can land during the reply pause. Settle the deterministic
+      // defense immediately so reopening never leaves Black waiting on input.
+      applyEngineReply();
+      if (chess.isGameOver()) stopWithoutMate();
+    }
 
     paint();
     options.onBuild?.(puzzle);
@@ -474,9 +547,10 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
       replyTimer = null;
     }
     chess = new Chess(puzzle.fen);
-    ply = 0;
+    moveHistory = [];
     selected = null;
     solved = false;
+    frozen = false;
     busy = false;
     lastMove = null;
     hintMove = null;
@@ -494,12 +568,11 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
       replyTimer = null;
     }
     chess = new Chess(puzzle.fen);
-    ply = 0;
+    moveHistory = [];
     for (const uci of puzzle.solution) {
-      const { from, to, promotion } = fromUci(uci);
-      chess.move({ from, to, promotion });
-      ply += 1;
-      lastMove = { from, to };
+      const played = chess.move(fromUci(uci));
+      moveHistory.push(toUci(played));
+      lastMove = { from: played.from, to: played.to };
     }
     selected = null;
     busy = false;
@@ -516,17 +589,22 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
   }
 
   function canHint(): boolean {
-    return !frozen && !solved && !busy && Boolean(puzzle?.solution[ply]) && !hintedPlies.has(ply);
+    return (
+      !frozen &&
+      !solved &&
+      !busy &&
+      chess.turn() === "w" &&
+      !chess.isGameOver() &&
+      !hintedPositions.has(positionKey(chess))
+    );
   }
 
   function hint(): boolean {
     if (!canHint() || !puzzle) return false;
-    const uci = puzzle.solution[ply];
-    if (!uci) return false;
-
-    const { from, to } = fromUci(uci);
+    const position = positionKey(chess);
+    const { from, to } = engineMove(chess);
     const piece = chess.get(from as Square);
-    if (!piece) return false;
+    if (!piece) throw new Error(`Chess engine selected an empty square: ${from}.`);
 
     attempts += 1;
     const firstEver = !started;
@@ -535,15 +613,15 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
 
     selected = null;
     hintMove = { from, to };
-    hintedPlies.add(ply);
+    hintedPositions.add(position);
     feedback = `Hint: move the ${pieceName(piece.type)} from ${from} to ${to}.`;
     paint();
-    options.onHint?.({ attempts, ply });
+    options.onHint?.({ attempts, position });
     return true;
   }
 
   function giveUp(): boolean {
-    if (frozen || solved || busy || !puzzle) return false;
+    if (solved || busy || !puzzle) return false;
     frozen = true;
     reveal(true);
     return true;
@@ -620,17 +698,18 @@ export function mountChess(options: ChessBoardOptions = {}): ChessBoard {
   return {
     build,
     current: () => puzzle,
-    ply: () => ply,
+    moves: () => [...moveHistory],
     resetPosition,
     reveal,
     hint,
     canHint,
+    hintHistory: () => [...hintedPositions],
     giveUp,
     freeze: () => {
       frozen = true;
     },
     thaw: () => {
-      frozen = false;
+      if (!chess.isGameOver()) frozen = false;
     },
     attempts: () => attempts,
   };

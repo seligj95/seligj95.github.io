@@ -40,6 +40,8 @@ npm run dev        # API at localhost:8080, in-memory store
   Container Apps and scaled to zero between requests
 - **Chess legality:** [chess.js](https://github.com/jhlywa/chess.js), so the
   board never has to reimplement check, pins or mate detection
+- **Chess defense:** [js-chess-engine](https://github.com/josefjadrny/js-chess-engine),
+  a deterministic browser-side opponent and hint evaluator
 
 ## Project structure
 
@@ -127,14 +129,11 @@ that name is remembered on the device so the next day is one tap.
 
 Three games have a daily version today. **Queens** ranks by time, with 30
 seconds added per hint. **Contexto** ranks by number of guesses and offers no
-hints at all. **Chess** ranks by moves — how many attempts it takes to find
-the mating line — with elapsed time as the tiebreaker. Its hint marks the next
-move and adds one move plus 30 seconds; giving up forfeits posting. A "move"
-only counts against you if it was actually legal; the board
-is checked by [chess.js](https://github.com/jhlywa/chess.js), so nothing
-illegal ever gets played, but a legal move off the puzzle's line still gets
-flashed on the board and put back — that is what makes it count as an
-attempt rather than a keystroke.
+hints at all. **Chess** ranks by legal player moves, with elapsed time as the
+tiebreaker. Every legal move stays played and a browser engine chooses Black's
+reply, so players can find checkmate outside the curated line. Its hint evaluates
+the current position and adds one move plus 30 seconds; giving up forfeits
+posting and reveals one known solution.
 
 A few decisions worth knowing before changing any of it:
 
@@ -209,12 +208,12 @@ feel broken.
 Chess has no generator: `src/data/chess-puzzles.ts` is a hand-curated list of
 mate-in-1, mate-in-2 and mate-in-3 positions, each stored as a starting FEN
 plus its full solution line in UCI (`e2e4`, `e7e8q`, ...), alternating player
-move and automated reply. `tests/chess-puzzles.test.ts` replays every line
+move and authored reply. `tests/chess-puzzles.test.ts` replays every line
 through chess.js and asserts the final position is checkmate, so a broken or
-mistyped line fails the suite rather than silently shipping. Calling the
-automated reply "the defense" in the UI is intentional phrasing — these lines
-are verified legal and forcing, not engine-proven best play, so the copy never
-claims more than the tests can prove. The arcade cycles through the list at
+mistyped line fails the suite rather than silently shipping. During live play,
+js-chess-engine evaluates the actual position for Black's replies and hints;
+the curated line is retained as a guaranteed solution for Give up to reveal.
+The arcade cycles through the list at
 random without an immediate repeat; the daily picks one deterministically per
 day the same way Contexto steps through its word list.
 

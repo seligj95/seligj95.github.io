@@ -10,7 +10,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   title="Daily Chess"
   tagline="One position a day, the same for everyone."
   tag="Daily"
-  instructions="White to move and mate. The clock starts on your first attempted move. Hint costs one move and 30 seconds."
+  instructions="White to move and find checkmate. Every legal move stays played, and Black answers with its strongest defense. Hint costs one move and 30 seconds."
   backHref="/daily/"
   backLabel="All daily games"
 >
@@ -22,8 +22,8 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
         <p class="gate-day" id="daily-date">Today</p>
         <p class="gate-title" id="daily-title">Dealing today&rsquo;s puzzle&hellip;</p>
         <p class="gate-note" id="daily-blurb">
-          Everyone gets this same position today. One go at it, and the clock
-          starts on your first attempted move.
+          Everyone gets this same position today. Find checkmate against
+          Black&rsquo;s defense; the clock starts on your first move.
         </p>
         <button id="daily-start" type="button" disabled>Start</button>
         <p class="gate-small" id="daily-done" hidden></p>
@@ -76,16 +76,15 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       Tap a piece to see where it can legally go, then tap a highlighted
       square to move it there. Every move is checked by
       <a href="https://github.com/jhlywa/chess.js">chess.js</a>, so nothing
-      illegal ever gets through &mdash; but a move that is legal without being
-      the one the puzzle wants still counts as an attempt. It flashes, explains
-      what happened in the status line, then puts the position back. Fewer
-      attempts is better; time only breaks a tie.
+      illegal ever gets through. Every legal move stays played, Black chooses
+      its strongest reply, and play continues from the position you created.
+      Fewer moves is better; time only breaks a tie.
     </p>
     <p>
-      Hint marks the piece and destination for the next move. Each hint adds one
-      move and 30 seconds, and the leaderboard shows how many hints were used.
-      Give up reveals the full line, spends today&rsquo;s puzzle, and cannot be
-      posted to the leaderboard.
+      Hint asks the engine for its best move from the current position and marks
+      its piece and destination. Each hint adds one move and 30 seconds, and the
+      leaderboard shows how many hints were used. Give up reveals one known
+      checkmate line, spends today&rsquo;s puzzle, and cannot be posted.
     </p>
     <p>
       Reset puts the position back to the start of today&rsquo;s puzzle
@@ -95,12 +94,10 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       back up right where you left them.
     </p>
     <p>
-      Once you find the right move, the defense replies on its own. It is not
-      claimed to be an engine's best defense anywhere in this game &mdash;
-      only that the automated reply is what the position was built around,
-      and every line here is checked by
-      <a href="https://github.com/jhlywa/chess.js">chess.js</a> to actually
-      end in checkmate.
+      Black&rsquo;s replies and hints come from
+      <a href="https://github.com/josefjadrny/js-chess-engine">js-chess-engine</a>.
+      If a move allows checkmate, stalemate, or another draw, the board says so;
+      Reset lets you take another route without forgiving moves or time.
     </p>
     <p>
       Want as many positions as you like instead, with no clock and no
@@ -361,12 +358,17 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
 
   /** Mid-game progress: where the puzzle is, how many attempts, when it began. */
   interface ChessState {
-    ply: number;
+    puzzleId: string;
+    moves: string[];
     attempts: number;
     hints: number;
-    hintedPlies: number[];
+    hintedPositions: string[];
     /** Wall-clock ms of the first attempted move, or 0 before one has happened. */
     startedAt: number;
+    /** Progress written before arbitrary legal moves were persisted. */
+    ply?: number;
+    /** Hint charges written before positions replaced authored-line plies. */
+    hintedPlies?: number[];
   }
 
   const gate = document.getElementById("daily-gate") as HTMLDivElement;
@@ -389,14 +391,22 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   const today = dailyPuzzle(day);
 
   const storedState = readState<Partial<ChessState>>(GAME, day);
+  const puzzleMatches =
+    typeof storedState?.puzzleId === "string"
+      ? storedState.puzzleId === today.id
+      : !Array.isArray(storedState?.moves);
+  const legacyPly = puzzleMatches ? storedState?.ply : undefined;
   const state: ChessState = {
-    ply: storedState?.ply ?? 0,
-    attempts: storedState?.attempts ?? 0,
-    hints: storedState?.hints ?? 0,
-    hintedPlies: Array.isArray(storedState?.hintedPlies)
-      ? storedState.hintedPlies.filter((ply): ply is number => Number.isInteger(ply) && ply >= 0)
+    puzzleId: today.id,
+    moves: puzzleMatches && Array.isArray(storedState?.moves)
+      ? storedState.moves.filter((move): move is string => /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move))
       : [],
-    startedAt: storedState?.startedAt ?? 0,
+    attempts: puzzleMatches ? (storedState?.attempts ?? 0) : 0,
+    hints: puzzleMatches ? (storedState?.hints ?? 0) : 0,
+    hintedPositions: puzzleMatches && Array.isArray(storedState?.hintedPositions)
+      ? storedState.hintedPositions.filter((position): position is string => typeof position === "string")
+      : [],
+    startedAt: puzzleMatches ? (storedState?.startedAt ?? 0) : 0,
   };
 
   let ticking = false;
@@ -416,7 +426,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   }
 
   dateLine.textContent = formatDay(day);
-  titleLine.textContent = `Mate in ${today.mateIn}`;
+  titleLine.textContent = "Find checkmate";
   movesOut.textContent = String(state.attempts);
   clock.textContent = formatClock(elapsed());
 
@@ -602,23 +612,23 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     },
     onAttempt: ({ attempts }) => {
       state.attempts = attempts;
-      state.ply = board.ply();
+      state.moves = board.moves();
       persist();
       movesOut.textContent = String(attempts);
     },
-    onHint: ({ attempts, ply }) => {
+    onHint: ({ attempts, position }) => {
       state.attempts = attempts;
       state.hints += 1;
-      state.hintedPlies.push(ply);
+      state.hintedPositions.push(position);
       state.startedAt -= HINT_PENALTY_MS;
       persist();
       movesOut.textContent = String(attempts);
       clock.textContent = formatClock(elapsed());
     },
     onReply: () => {
-      state.ply = board.ply();
+      state.moves = board.moves();
       persist();
-      hintButton.disabled = state.hintedPlies.includes(board.ply());
+      hintButton.disabled = !board.canHint();
     },
     onSolved: ({ attempts }) => {
       // A quick mate-in-one can land inside the first second. The leaderboard's
@@ -654,15 +664,22 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   });
 
   board.build(today, {
-    ply: state.ply,
+    moves: state.moves,
+    ply: legacyPly,
     attempts: state.attempts,
-    hintedPlies: state.hintedPlies,
+    hintedPositions: state.hintedPositions,
+    hintedPlies: puzzleMatches ? storedState?.hintedPlies : undefined,
   });
-  // A reload can land in the half-second between the player's move and the
-  // automated reply. The board settles that reply immediately; settle storage
-  // too so another reload starts from the same position.
-  if (state.ply !== board.ply()) {
-    state.ply = board.ply();
+  // A reload can land during the reply pause, or on legacy authored-line
+  // progress. The board settles or migrates it immediately; settle storage too.
+  const restoredMoves = board.moves();
+  const restoredHints = board.hintHistory();
+  if (
+    state.moves.join(",") !== restoredMoves.join(",") ||
+    state.hintedPositions.join(",") !== restoredHints.join(",")
+  ) {
+    state.moves = restoredMoves;
+    state.hintedPositions = restoredHints;
     persist();
   }
   board.freeze();
@@ -695,7 +712,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
     ticking = true;
     tick();
     board.thaw();
-    hintButton.disabled = state.hintedPlies.includes(board.ply());
+    hintButton.disabled = !board.canHint();
     giveUpButton.disabled = false;
     resetButton.disabled = false;
   }
@@ -715,7 +732,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       tick();
     }
     board.thaw();
-    hintButton.disabled = state.hintedPlies.includes(board.ply());
+    hintButton.disabled = !board.canHint();
     giveUpButton.disabled = false;
     resetButton.disabled = false;
   });
@@ -726,9 +743,9 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
   resetButton.addEventListener("click", () => {
     if (already) return;
     board.resetPosition();
-    state.ply = 0;
+    state.moves = board.moves();
     persist();
-    hintButton.disabled = state.hintedPlies.includes(0);
+    hintButton.disabled = !board.canHint();
   });
 
   hintButton.addEventListener("click", () => {
@@ -760,7 +777,7 @@ import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
       gaveUp: true,
     };
     writeDone(GAME, done, day);
-    state.ply = board.ply();
+    state.moves = board.moves();
     persist();
     clock.textContent = formatClock(seconds);
     hintButton.disabled = true;

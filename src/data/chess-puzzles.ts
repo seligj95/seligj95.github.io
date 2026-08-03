@@ -3,9 +3,9 @@
  *
  * Each one is a FEN plus a solution line in UCI (`e2e4`, or `e7e8q` for a
  * promotion) - the player's moves and the automated reply, alternating,
- * player first. There is no engine attached to this game: the reply is not
- * "best play", it is whichever legal reply the puzzle was authored with. Every
- * line is a genuine mate against that reply, and the copy never claims more.
+ * player first. Live play may leave this line: a browser chess engine then
+ * chooses Black's defense and powers hints from the resulting position. The
+ * authored line remains a verified solution for Give up to reveal.
  *
  * `tests/chess-puzzles.test.ts` replays every line with chess.js and asserts
  * the final position is checkmate, so a typo here fails a test rather than
@@ -208,6 +208,36 @@ function transformPuzzle(
   };
 }
 
+/*
+ * The original scripted board could display positions that were useful as
+ * diagrams but impossible in a legal game (Black already in check while White
+ * had the move). A real opponent correctly refuses those. Six more transformed
+ * positions let the level-four engine force a draw against its own best White
+ * play, so they are also withheld from live rotation.
+ */
+const INVALID_START_FAMILIES = [
+  "rook-rollercoaster",
+  "diagonal-strike",
+  "corner-trap",
+  "knight-assisted-rook",
+  "queen-rook-tandem",
+];
+const ENGINE_DRAW_POSITIONS = new Set([
+  "lawnmower-finish-flip",
+  "queen-bishop-cross-turn-right",
+  "triple-rook-maneuver-flip",
+  "knight-king-rook-turn-around",
+  "knight-king-rook-diagonal",
+  "queen-knight-corner-turn-around",
+]);
+
+function enginePlayable(puzzle: ChessPuzzle): boolean {
+  const invalidFamily = INVALID_START_FAMILIES.some(
+    (family) => puzzle.id === family || puzzle.id.startsWith(`${family}-`),
+  );
+  return !invalidFamily && !ENGINE_DRAW_POSITIONS.has(puzzle.id);
+}
+
 const seen = new Set<string>();
 export const puzzles: ChessPuzzle[] = BASE_PUZZLES.flatMap((puzzle) =>
   // A file mirror preserves pawn direction and keeps pawns off the first and
@@ -215,6 +245,7 @@ export const puzzles: ChessPuzzle[] = BASE_PUZZLES.flatMap((puzzle) =>
   (/[pP]/.test(puzzle.fen.split(" ")[0]!) ? [TRANSFORMS[0], TRANSFORMS[4]] : TRANSFORMS)
     .map((transform) => transformPuzzle(puzzle, transform)),
 ).filter((puzzle) => {
+  if (!enginePlayable(puzzle)) return false;
   if (seen.has(puzzle.fen)) return false;
   seen.add(puzzle.fen);
   return true;
