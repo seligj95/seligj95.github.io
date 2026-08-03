@@ -82,8 +82,9 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
   let history: CellState[][] = [];
   /** Crowns that came from a hint rather than from you. */
   const hinted = new Set<number>();
-  /** Squares the current hint is spotlighting. */
-  const focus = new Set<number>();
+  /** Squares that explain the current hint, and the ones it will change. */
+  const hintReason = new Set<number>();
+  const hintTarget = new Set<number>();
   /** The advice showing right now, so pressing hint twice plays it. */
   let lastHint = "";
   let hintsUsed = 0;
@@ -172,7 +173,12 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
       const button = board.children[index] as HTMLButtonElement;
       const state = cells[index];
       button.dataset.state = state;
-      button.setAttribute("aria-label", describe(index));
+      const hintRole = hintTarget.has(index)
+        ? ", hint target"
+        : hintReason.has(index)
+          ? ", part of the hint pattern"
+          : "";
+      button.setAttribute("aria-label", `${describe(index)}${hintRole}`);
 
       const isBad = state === "queen" && bad.has(index);
       if (isBad) button.dataset.conflict = "true";
@@ -181,9 +187,17 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
       if (state === "queen" && hinted.has(index)) button.dataset.hint = "true";
       else delete button.dataset.hint;
 
-      // Spotlight: the squares a hint is talking about stay lit, the rest dim.
-      if (focus.size && !focus.has(index)) button.dataset.dim = "true";
-      else delete button.dataset.dim;
+      // The pattern and the action need different marks: one says why, the
+      // other says exactly what a second press of Hint will change.
+      const hintState = hintTarget.has(index)
+        ? "target"
+        : hintReason.has(index)
+          ? "reason"
+          : hintReason.size || hintTarget.size
+            ? "dim"
+            : "";
+      if (hintState) button.dataset.hintState = hintState;
+      else delete button.dataset.hintState;
 
       // Only touch the DOM when the square actually changed, otherwise every
       // repaint would restart the crown drop on squares that never moved.
@@ -240,7 +254,8 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
 
   /** Any move of your own retires the advice currently on screen. */
   function moveOn() {
-    focus.clear();
+    hintReason.clear();
+    hintTarget.clear();
     lastHint = "";
   }
 
@@ -252,8 +267,10 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
   interface Deduction {
     /** Identity of this step, so a second press knows it's the same advice. */
     key: string;
-    /** Squares to spotlight. Whole units, never the answer square alone. */
-    focus: number[];
+    /** The pattern that makes the deduction true. */
+    reason: number[];
+    /** The square or squares a second press will change. */
+    target: number[];
     message: string;
     /** Plays the step; returns what to say afterwards. */
     act: () => string;
@@ -308,7 +325,8 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
   function placeStep(index: number, unit: string, focus: number[]): Deduction {
     return {
       key: `place:${index}`,
-      focus,
+      reason: focus.filter((square) => square !== index),
+      target: [index],
       message: `Only one square in ${unit} can still take a crown.`,
       act: () => {
         cells[index] = "queen";
@@ -321,7 +339,8 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
   function crossStep(victims: number[], reason: string, focus: number[]): Deduction {
     return {
       key: `cross:${victims.join(",")}`,
-      focus,
+      reason: focus.filter((square) => !victims.includes(square)),
+      target: victims,
       message: reason,
       act: () => {
         for (const index of victims) cells[index] = "mark";
@@ -532,7 +551,8 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
     if (crown >= 0) {
       return {
         key: `uncrown:${crown}`,
-        focus: [crown],
+        reason: [],
+        target: [crown],
         message: "This crown can't be part of the answer.",
         act: () => {
           cells[crown] = "empty";
@@ -549,7 +569,10 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
       const row = Math.floor(mark / size);
       return {
         key: `uncross:${mark}`,
-        focus: cells.map((_, index) => index).filter((index) => Math.floor(index / size) === row),
+        reason: cells
+          .map((_, index) => index)
+          .filter((index) => Math.floor(index / size) === row && index !== mark),
+        target: [mark],
         message: `Row ${row + 1} has a square crossed out that has to hold a crown.`,
         act: () => {
           cells[mark] = "empty";
@@ -571,7 +594,8 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
     const pick = missing[Math.floor(Math.random() * missing.length)];
     return {
       key: "gift",
-      focus: [],
+      reason: [],
+      target: [pick],
       message: "Nothing follows from the board on its own.",
       act: () => {
         cells[pick] = "queen";
@@ -589,7 +613,8 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
   function hint() {
     if (solved) return;
 
-    focus.clear();
+    hintReason.clear();
+    hintTarget.clear();
     const step = findCorrection() ?? findDeduction() ?? findGift();
     if (!step) {
       paint();
@@ -598,9 +623,12 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
 
     if (lastHint !== step.key) {
       lastHint = step.key;
-      for (const index of step.focus) focus.add(index);
+      for (const index of step.reason) hintReason.add(index);
+      for (const index of step.target) hintTarget.add(index);
       paint();
-      setStatus(`${step.message} Press hint again to play it.`);
+      const targets = step.target.length === 1 ? "The solid square is" : "The solid squares are";
+      const reason = step.reason.length ? " Dashed squares show why." : "";
+      setStatus(`${step.message}${reason} ${targets} what Hint will change. Press Hint again to play it.`);
       return;
     }
 
@@ -611,6 +639,7 @@ export function mountQueens(options: QueensBoardOptions = {}): QueensBoard {
     // this hint happens to finish the board.
     options.onHint?.(hintsUsed);
     const said = step.act();
+    moveOn();
     paint();
     if (!solved) setStatus(said);
   }

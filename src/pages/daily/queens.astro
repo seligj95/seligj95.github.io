@@ -70,7 +70,8 @@ const crown = "/images/games/queens-crown.png";
     </p>
     <p>
       Each hint adds 30 seconds to your time, so the cost is visible before you
-      take one. Want as many boards as you like instead?
+      take one. Dashed outlines show the pattern behind a hint; the solid outline
+      shows what it will change. Want as many boards as you like instead?
       <a href="/games/queens/">Free play Queens</a> has every size and no clock.
     </p>
   </div>
@@ -420,15 +421,15 @@ const crown = "/images/games/queens-crown.png";
    * page and it goes where it is most useful.
    */
   async function offerToPost(done: Done, inWin: boolean) {
-    // Fetch first. If the API is unreachable there is no point offering a form
-    // that cannot submit, so the whole section simply never appears.
-    if (!(await showScores())) return;
-
     if (inWin && !winOverlay.hidden) {
       winPanel.insertBefore(scoresForm, postedLine);
     }
     scoresForm.hidden = false;
     fillName();
+    // The form is useful before the scaled-to-zero API wakes, and keeping its
+    // home panel visible means dismissing the win overlay cannot hide it again.
+    scoresPanel.hidden = false;
+    await showScores();
   }
 
   scoresForm.addEventListener("submit", async (event) => {

@@ -1,0 +1,165 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+import ChessBoard from "../../components/ChessBoard.astro";
+---
+
+<GameLayout slug="chess" ratio="auto">
+  <span slot="status" id="chess-status" aria-live="polite">White to move</span>
+
+  <ChessBoard />
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="chess-clock-label">Time</span>
+      <output class="clock" id="chess-clock" aria-labelledby="chess-clock-label">0:00</output>
+    </div>
+
+    <div class="control-set">
+      <span class="control-label" id="chess-attempts-label">Moves</span>
+      <output class="clock" id="chess-attempts" aria-labelledby="chess-attempts-label">0</output>
+    </div>
+
+    <div class="control-set">
+      <button id="chess-hint" type="button">Hint +1 move, +30s</button>
+      <button id="chess-giveup" type="button" class="quiet">Give up</button>
+    </div>
+
+    <div class="control-set">
+      <button id="chess-new" type="button">New puzzle</button>
+      <button id="chess-reset" type="button">Reset</button>
+    </div>
+  </div>
+
+  <div slot="notes">
+    <p>
+      White to move and mate. Tap a piece to see where it can legally go, then
+      tap a highlighted square to move it there &mdash; or tap the piece again
+      to put it back down. Every move is checked against real chess rules by
+      <a href="https://github.com/jhlywa/chess.js">chess.js</a>, so anything
+      you try that is not actually legal is simply refused.
+    </p>
+    <p>
+      Every legal move stays played. Black uses a lightweight chess engine to
+      choose its strongest reply, so you can leave the position&rsquo;s known
+      line and find a different route to checkmate. Only your moves count.
+    </p>
+    <p>
+      Hint asks the engine for its best move from the board as it stands, adding
+      one move and 30 seconds. Give up resets the board and reveals one known
+      checkmate line. Reset puts the starting position back without losing your
+      move count or your time.
+    </p>
+    <p>
+      New puzzle deals a fresh position and starts the count over.
+    </p>
+    <p>
+      Keyboard: arrow keys move focus around the board, Enter or Space picks
+      up or drops a piece, and Escape clears whatever you had selected.
+    </p>
+  </div>
+</GameLayout>
+
+<style is:global>
+  #chess-clock,
+  #chess-attempts {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.25rem;
+    font-weight: 600;
+    min-width: 3ch;
+    text-align: center;
+  }
+</style>
+
+<script>
+  import { mountChess } from "../../lib/chess-board";
+  import { randomPuzzle } from "../../data/chess-puzzles";
+  import { clockText } from "../../lib/daily-scores";
+
+  const clock = document.getElementById("chess-clock") as HTMLOutputElement;
+  const attemptsOut = document.getElementById("chess-attempts") as HTMLOutputElement;
+  const newButton = document.getElementById("chess-new") as HTMLButtonElement;
+  const resetButton = document.getElementById("chess-reset") as HTMLButtonElement;
+  const hintButton = document.getElementById("chess-hint") as HTMLButtonElement;
+  const giveUpButton = document.getElementById("chess-giveup") as HTMLButtonElement;
+  const HINT_PENALTY_MS = 30_000;
+
+  /** Wall-clock start of the run, or 0 when the clock is not running. */
+  let startedAt = 0;
+  let ticking = false;
+  /** The puzzle just dealt, so "New puzzle" never repeats it immediately. */
+  let lastId: string | undefined;
+
+  function elapsedSeconds(): number {
+    return startedAt ? Math.floor((Date.now() - startedAt) / 1000) : 0;
+  }
+
+  function tick() {
+    if (!ticking) return;
+    clock.textContent = clockText(elapsedSeconds());
+    requestAnimationFrame(tick);
+  }
+
+  const board = mountChess({
+    deal: () => {
+      const puzzle = randomPuzzle(lastId);
+      lastId = puzzle.id;
+      return puzzle;
+    },
+    onFirstMove: () => {
+      startedAt = Date.now();
+      ticking = true;
+      tick();
+    },
+    onAttempt: ({ attempts }) => {
+      attemptsOut.textContent = String(attempts);
+    },
+    onHint: ({ attempts }) => {
+      startedAt -= HINT_PENALTY_MS;
+      attemptsOut.textContent = String(attempts);
+      clock.textContent = clockText(elapsedSeconds());
+    },
+    onReply: () => {
+      hintButton.disabled = !board.canHint();
+    },
+    onSolved: () => {
+      ticking = false;
+      clock.textContent = clockText(elapsedSeconds());
+      hintButton.disabled = true;
+      giveUpButton.disabled = true;
+      resetButton.disabled = true;
+    },
+    onNext: fresh,
+  });
+
+  /** A wholly new puzzle: the count and clock start over with it. */
+  function fresh() {
+    ticking = false;
+    startedAt = 0;
+    clock.textContent = clockText(0);
+    attemptsOut.textContent = "0";
+    hintButton.disabled = false;
+    giveUpButton.disabled = false;
+    resetButton.disabled = false;
+    board.build();
+  }
+
+  newButton.addEventListener("click", fresh);
+  // Puts the position back, on purpose, without touching the count or clock:
+  // resetting the board is not the same as forgiving the attempts it took.
+  resetButton.addEventListener("click", () => {
+    board.resetPosition();
+    hintButton.disabled = !board.canHint();
+  });
+  hintButton.addEventListener("click", () => {
+    if (board.hint()) hintButton.disabled = true;
+  });
+  giveUpButton.addEventListener("click", () => {
+    if (!board.giveUp()) return;
+    ticking = false;
+    hintButton.disabled = true;
+    giveUpButton.disabled = true;
+    resetButton.disabled = true;
+  });
+
+  fresh();
+</script>

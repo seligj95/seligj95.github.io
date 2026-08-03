@@ -7,14 +7,20 @@
  */
 
 /** What a board ranks by. Lower is better either way. */
-export type Scoring = "time" | "guesses";
+export type Scoring = "time" | "guesses" | "moves";
 
 export interface Score {
   name: string;
-  /** Seconds for a race, guesses for a word game. */
+  /** Seconds for a race, guesses for a word game, moves for a puzzle. */
   score: number;
   hints: number;
   at: string;
+  /**
+   * Seconds elapsed, for a "moves" board where move count alone can tie.
+   * Absent for games that do not rank by moves - reading it back is always
+   * safe either way, since `scoreText` only looks at it for that scoring.
+   */
+  elapsed?: number;
 }
 
 /**
@@ -77,7 +83,7 @@ export async function fetchScores(game: string, day: string): Promise<Board | nu
 export async function submitScore(
   game: string,
   day: string,
-  entry: { name: string; score: number; hints: number }
+  entry: { name: string; score: number; hints: number; elapsed?: number }
 ): Promise<Submitted> {
   const result = (await call(url(game, day), {
     method: "POST",
@@ -98,9 +104,23 @@ export function guessText(guesses: number): string {
   return `${guesses} guess${guesses === 1 ? "" : "es"}`;
 }
 
-/** A score written the way its own game means it. */
-export function scoreText(score: number, scoring: Scoring = "time"): string {
-  return scoring === "time" ? clockText(score) : guessText(score);
+/** "3 moves", or "1 move". */
+export function moveText(moves: number): string {
+  return `${moves} move${moves === 1 ? "" : "s"}`;
+}
+
+/**
+ * A score written the way its own game means it.
+ *
+ * A "moves" board also carries an elapsed time, which is the tiebreaker, so
+ * it prints alongside the move count rather than replacing it.
+ */
+export function scoreText(score: number, scoring: Scoring = "time", elapsed?: number): string {
+  if (scoring === "guesses") return guessText(score);
+  if (scoring === "moves") {
+    return elapsed === undefined ? moveText(score) : `${moveText(score)} \u00b7 ${clockText(elapsed)}`;
+  }
+  return clockText(score);
 }
 
 /** "2 hints", "1 hint", or nothing at all when none were taken. */
@@ -139,7 +159,7 @@ export function drawScoreRows(
 
     const time = document.createElement("span");
     time.className = "scores-time";
-    time.textContent = scoreText(score.score, scoring);
+    time.textContent = scoreText(score.score, scoring, score.elapsed);
 
     const hints = hintText(score.hints);
     if (hints) {

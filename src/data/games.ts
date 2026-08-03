@@ -93,9 +93,17 @@ export const games: Game[] = [
     slug: "contexto",
     title: "Contexto",
     tagline: "Guess the word by getting warmer.",
-    blurb: "Every guess comes back with its place in a list of twenty thousand words, ordered by how close each one is to the secret. No letters, no clues, only warmer and colder.",
+    blurb: "Every guess comes back with its place in a list of thirty thousand words, ordered by how close each one is to the secret. No letters, no clues, only warmer and colder.",
     tag: "puzzle",
-    instructions: "Type any word. It comes back with its rank: 1 is the answer, 20,000 is as far away as a word gets.",
+    instructions: "Type any word. It comes back with its rank: 1 is the answer, 30,000 is as far away as a word gets.",
+  },
+  {
+    slug: "chess",
+    title: "Chess",
+    tagline: "White to move and mate.",
+    blurb: "Start from a curated winning position, play any legal move, and find checkmate while Black chooses its strongest defense.",
+    tag: "puzzle",
+    instructions: "Tap a piece, then a highlighted square. Every legal move stays played, and Black answers automatically.",
   },
 ];
 

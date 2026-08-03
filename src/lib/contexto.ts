@@ -2,7 +2,7 @@
  * Contexto: guess the secret word, and every guess comes back with its rank.
  *
  * Rank 1 is the answer. Rank 2 is the word the model thinks is closest to it,
- * and so on down a vocabulary of twenty thousand. There are no hints and no
+ * and so on down a vocabulary of thirty thousand. There are no hints and no
  * letter feedback - the only information is how near your last guess landed.
  *
  * The whole thing runs in the browser. Ranking a guess is a lookup in a table

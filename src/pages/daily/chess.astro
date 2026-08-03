@@ -1,0 +1,789 @@
+---
+import GameLayout from "../../layouts/GameLayout.astro";
+import ChessBoard from "../../components/ChessBoard.astro";
+import DailyLeaderboard from "../../components/DailyLeaderboard.astro";
+---
+
+<GameLayout
+  slug="chess"
+  ratio="auto"
+  title="Daily Chess"
+  tagline="One position a day, the same for everyone."
+  tag="Daily"
+  instructions="White to move and find checkmate. Every legal move stays played, and Black answers with its strongest defense. Hint costs one move and 30 seconds."
+  backHref="/daily/"
+  backLabel="All daily games"
+>
+  <span slot="status" id="chess-status" aria-live="polite">Not started</span>
+
+  <ChessBoard label="Daily chess board" showNext={false}>
+    <div id="daily-gate" class="gate">
+      <div class="gate-panel">
+        <p class="gate-day" id="daily-date">Today</p>
+        <p class="gate-title" id="daily-title">Dealing today&rsquo;s puzzle&hellip;</p>
+        <p class="gate-note" id="daily-blurb">
+          Everyone gets this same position today. Find checkmate against
+          Black&rsquo;s defense; the clock starts on your first move.
+        </p>
+        <button id="daily-start" type="button" disabled>Start</button>
+        <p class="gate-small" id="daily-done" hidden></p>
+      </div>
+    </div>
+
+    <p class="win-time" id="daily-result" slot="win-extra"></p>
+    <p class="win-posted" id="daily-posted" slot="win-extra" hidden></p>
+    <button id="daily-see-board" type="button" slot="win-extra" hidden>
+      See today&rsquo;s scores
+    </button>
+  </ChessBoard>
+
+  <div slot="controls">
+    <div class="control-set">
+      <span class="control-label" id="daily-clock-label">Time</span>
+      <output class="clock" id="daily-clock" aria-labelledby="daily-clock-label">0:00</output>
+    </div>
+
+    <div class="control-set">
+      <span class="control-label" id="daily-moves-label">Moves</span>
+      <output class="clock" id="daily-moves" aria-labelledby="daily-moves-label">0</output>
+    </div>
+
+    <div class="control-set">
+      <button id="daily-hint" type="button" disabled>Hint +1 move, +30s</button>
+      <button id="daily-reset" type="button" disabled>Reset</button>
+    </div>
+
+    <div class="control-set" id="daily-giveup-set">
+      <button id="daily-giveup" type="button" class="quiet" disabled>Give up</button>
+      <span class="control-label" id="daily-giveup-ask" hidden>
+        Show the line? That forfeits today&rsquo;s score.
+      </span>
+      <button id="daily-giveup-yes" type="button" class="danger" hidden>
+        Show me
+      </button>
+      <button id="daily-giveup-no" type="button" class="quiet" hidden>
+        Keep playing
+      </button>
+    </div>
+  </div>
+
+  <div slot="extras">
+    <DailyLeaderboard scoring="moves" />
+  </div>
+
+  <div slot="notes">
+    <p>
+      Tap a piece to see where it can legally go, then tap a highlighted
+      square to move it there. Every move is checked by
+      <a href="https://github.com/jhlywa/chess.js">chess.js</a>, so nothing
+      illegal ever gets through. Every legal move stays played, Black chooses
+      its strongest reply, and play continues from the position you created.
+      Fewer moves is better; time only breaks a tie.
+    </p>
+    <p>
+      Hint asks the engine for its best move from the current position and marks
+      its piece and destination. Each hint adds one move and 30 seconds, and the
+      leaderboard shows how many hints were used. Give up reveals one known
+      checkmate line, spends today&rsquo;s puzzle, and cannot be posted.
+    </p>
+    <p>
+      Reset puts the position back to the start of today&rsquo;s puzzle
+      without losing your move count or your time so far &mdash; it undoes
+      the board, not the attempt. Closing the tab does not lose your place
+      either: reopening it picks the position, your attempts, and the clock
+      back up right where you left them.
+    </p>
+    <p>
+      Black&rsquo;s replies and hints come from
+      <a href="https://github.com/josefjadrny/js-chess-engine">js-chess-engine</a>.
+      If a move allows checkmate, stalemate, or another draw, the board says so;
+      Reset lets you take another route without forgiving moves or time.
+    </p>
+    <p>
+      Want as many positions as you like instead, with no clock and no
+      leaderboard? <a href="/games/chess/">Free play Chess</a> shuffles through
+      the same puzzle set without repeating one twice in a row.
+    </p>
+  </div>
+</GameLayout>
+
+<style is:global>
+  /* The gate sits inside the board frame, which belongs to ChessBoard. */
+  #daily-gate {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    border-radius: 0.25rem;
+    z-index: 2;
+  }
+
+  #daily-gate[hidden] {
+    display: none;
+  }
+
+  #daily-gate .gate-panel {
+    display: grid;
+    justify-items: center;
+    gap: 0.45rem;
+    max-width: 24ch;
+    padding: 1.1rem 1.4rem 1.3rem;
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--text);
+    border-radius: 0.5rem;
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+
+  #daily-gate .gate-day {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #daily-gate .gate-title {
+    margin: 0;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  #daily-gate .gate-note {
+    margin: 0 0 0.35rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  #daily-gate .gate-small {
+    margin: 0.5rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  #daily-gate button {
+    padding: 0.45rem 1.4rem;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bg);
+    background: var(--text);
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: opacity 0.15s ease-out;
+  }
+
+  #daily-gate button:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  #daily-gate button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  @media (max-width: 640px) {
+    #daily-gate {
+      padding: 0.6rem;
+    }
+
+    #daily-gate .gate-panel {
+      gap: 0.25rem;
+      max-width: 26ch;
+      padding: 0.65rem 0.8rem 0.75rem;
+    }
+
+    #daily-gate .gate-title {
+      font-size: 1.25rem;
+    }
+
+    #daily-gate .gate-note,
+    #daily-gate .gate-small {
+      font-size: 0.85rem;
+      line-height: 1.25;
+    }
+
+    #daily-gate .gate-note {
+      margin-bottom: 0.15rem;
+    }
+
+    #daily-gate button {
+      padding: 0.35rem 1.2rem;
+    }
+  }
+
+  #daily-clock,
+  #daily-moves {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.25rem;
+    font-weight: 600;
+    min-width: 3ch;
+    text-align: center;
+  }
+
+  #daily-result {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  #daily-result:empty {
+    display: none;
+  }
+
+  /*
+    The win panel with the post form in it.
+
+    The panel is authored in ChessBoard and the form in DailyLeaderboard, so
+    neither carries this page's scoping attribute and these rules have to be
+    global. Widths are set here because the panel was built to hold two short
+    lines and now holds a form as well.
+  */
+  #chess-win .win-panel {
+    width: min(100%, 21rem);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #chess-win #scores-form {
+    justify-items: center;
+    width: 100%;
+    margin: 0.35rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  #chess-win #scores-form .scores-row,
+  #chess-win #scores-form .scores-known {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #chess-win #scores-prompt {
+    font-size: 1rem;
+  }
+
+  #chess-win #scores-fineprint {
+    display: none;
+  }
+
+  @media (max-width: 30rem) {
+    #chess-win .win-note {
+      display: none;
+    }
+  }
+
+  #daily-posted {
+    margin: 0.35rem 0 0;
+    font-weight: 600;
+  }
+
+  #daily-posted[hidden],
+  #daily-see-board[hidden] {
+    display: none;
+  }
+
+  #daily-see-board {
+    margin-top: 0.5rem;
+    padding: 0.4rem 1.1rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  #daily-see-board:hover {
+    background: var(--surface);
+  }
+
+  @media (max-width: 640px) {
+    #chess-win .win-panel {
+      gap: 0.2rem;
+      padding: 0.5rem 0.65rem 0.6rem;
+    }
+
+    #chess-win #scores-form {
+      margin-top: 0.1rem;
+      padding-top: 0.35rem;
+    }
+
+    #chess-win #scores-form .scores-row input,
+    #chess-win #scores-form .scores-row button {
+      padding: 0.35rem 0.55rem;
+    }
+
+    #daily-see-board {
+      margin-top: 0.15rem;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+  }
+</style>
+
+<script>
+  import { mountChess } from "../../lib/chess-board";
+  import { dailyPuzzle } from "../../lib/chess-daily";
+  import { dayFor, formatDay } from "../../lib/daily";
+  import {
+    readDone,
+    writeDone,
+    readName,
+    writeName,
+    readState,
+    writeState,
+    type Done,
+  } from "../../lib/daily-progress";
+  import {
+    clockText as formatClock,
+    drawScoreRows,
+    fetchScores,
+    hintText,
+    moveText,
+    ordinal,
+    submitScore,
+    type Score,
+  } from "../../lib/daily-scores";
+
+  const GAME = "chess";
+
+  /** Mid-game progress: where the puzzle is, how many attempts, when it began. */
+  interface ChessState {
+    puzzleId: string;
+    moves: string[];
+    attempts: number;
+    hints: number;
+    hintedPositions: string[];
+    /** Wall-clock ms of the first attempted move, or 0 before one has happened. */
+    startedAt: number;
+    /** Progress written before arbitrary legal moves were persisted. */
+    ply?: number;
+    /** Hint charges written before positions replaced authored-line plies. */
+    hintedPlies?: number[];
+  }
+
+  const gate = document.getElementById("daily-gate") as HTMLDivElement;
+  const startButton = document.getElementById("daily-start") as HTMLButtonElement;
+  const dateLine = document.getElementById("daily-date") as HTMLParagraphElement;
+  const titleLine = document.getElementById("daily-title") as HTMLParagraphElement;
+  const doneLine = document.getElementById("daily-done") as HTMLParagraphElement;
+  const clock = document.getElementById("daily-clock") as HTMLOutputElement;
+  const movesOut = document.getElementById("daily-moves") as HTMLOutputElement;
+  const resetButton = document.getElementById("daily-reset") as HTMLButtonElement;
+  const hintButton = document.getElementById("daily-hint") as HTMLButtonElement;
+  const giveUpButton = document.getElementById("daily-giveup") as HTMLButtonElement;
+  const giveUpAsk = document.getElementById("daily-giveup-ask") as HTMLSpanElement;
+  const giveUpYes = document.getElementById("daily-giveup-yes") as HTMLButtonElement;
+  const giveUpNo = document.getElementById("daily-giveup-no") as HTMLButtonElement;
+  const result = document.getElementById("daily-result") as HTMLParagraphElement;
+  const HINT_PENALTY_MS = 30_000;
+
+  const day = dayFor();
+  const today = dailyPuzzle(day);
+
+  const storedState = readState<Partial<ChessState>>(GAME, day);
+  const puzzleMatches =
+    typeof storedState?.puzzleId === "string"
+      ? storedState.puzzleId === today.id
+      : !Array.isArray(storedState?.moves);
+  const legacyPly = puzzleMatches ? storedState?.ply : undefined;
+  const state: ChessState = {
+    puzzleId: today.id,
+    moves: puzzleMatches && Array.isArray(storedState?.moves)
+      ? storedState.moves.filter((move): move is string => /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move))
+      : [],
+    attempts: puzzleMatches ? (storedState?.attempts ?? 0) : 0,
+    hints: puzzleMatches ? (storedState?.hints ?? 0) : 0,
+    hintedPositions: puzzleMatches && Array.isArray(storedState?.hintedPositions)
+      ? storedState.hintedPositions.filter((position): position is string => typeof position === "string")
+      : [],
+    startedAt: puzzleMatches ? (storedState?.startedAt ?? 0) : 0,
+  };
+
+  let ticking = false;
+
+  function elapsed(): number {
+    return state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : 0;
+  }
+
+  function persist() {
+    writeState(GAME, state, day);
+  }
+
+  function tick() {
+    if (!ticking) return;
+    clock.textContent = formatClock(elapsed());
+    requestAnimationFrame(tick);
+  }
+
+  dateLine.textContent = formatDay(day);
+  titleLine.textContent = "Find checkmate";
+  movesOut.textContent = String(state.attempts);
+  clock.textContent = formatClock(elapsed());
+
+  const already = readDone(GAME, day);
+
+  // ---------------------------------------------------------------------------
+  // The shared board
+  //
+  // Everything below is optional. The game is complete without it, so a slow or
+  // unreachable API only means the section stays hidden.
+  // ---------------------------------------------------------------------------
+
+  const scoresPanel = document.getElementById("daily-scores") as HTMLElement;
+  const scoresForm = document.getElementById("scores-form") as HTMLFormElement;
+  const scoresName = document.getElementById("scores-name") as HTMLInputElement;
+  const scoresList = document.getElementById("scores-list") as HTMLOListElement;
+  const scoresEmpty = document.getElementById("scores-empty") as HTMLParagraphElement;
+  const scoresError = document.getElementById("scores-error") as HTMLParagraphElement;
+  const scoresCount = document.getElementById("scores-count") as HTMLParagraphElement;
+  const scoresKnown = document.getElementById("scores-known") as HTMLDivElement;
+  const scoresAsk = document.getElementById("scores-ask") as HTMLDivElement;
+  const postKnown = document.getElementById("scores-post-known") as HTMLButtonElement;
+  const renameButton = document.getElementById("scores-rename") as HTMLButtonElement;
+
+  const winOverlay = document.getElementById("chess-win") as HTMLDivElement;
+  const winPanel = winOverlay.querySelector(".win-panel") as HTMLDivElement;
+  const postedLine = document.getElementById("daily-posted") as HTMLParagraphElement;
+  const seeBoard = document.getElementById("daily-see-board") as HTMLButtonElement;
+
+  /** Identifies your own row, so it can be highlighted after a reload. */
+  let mine: string | null = null;
+  /** Your place, for the rare day busy enough to push you off the first page. */
+  let minePlace: number | null = null;
+
+  function drawScores(scores: Score[], total: number) {
+    scoresEmpty.hidden = scores.length > 0;
+    drawScoreRows(scoresList, scores, mine, "moves");
+
+    const youIndex = scores.findIndex((score) => score.at === mine);
+    const yourPlace = youIndex >= 0 ? youIndex + 1 : minePlace;
+    if (yourPlace) {
+      scoresCount.hidden = false;
+      scoresCount.textContent = `You are ${ordinal(yourPlace)} of ${total} today.`;
+    } else {
+      scoresCount.hidden = total <= scores.length;
+      scoresCount.textContent = `Showing the fewest-move ${scores.length} of ${total} today.`;
+    }
+  }
+
+  async function showScores(): Promise<boolean> {
+    const board = await fetchScores(GAME, day);
+    if (!board) return false;
+    drawScores(board.scores, board.count);
+    scoresPanel.hidden = false;
+    return true;
+  }
+
+  function fillName() {
+    const stored = readName();
+    scoresName.value = stored;
+    scoresKnown.hidden = !stored;
+    scoresAsk.hidden = Boolean(stored);
+    if (stored) postKnown.textContent = `Post as ${stored}`;
+  }
+
+  renameButton.addEventListener("click", () => {
+    scoresKnown.hidden = true;
+    scoresAsk.hidden = false;
+    scoresName.value = "";
+    scoresName.focus();
+  });
+
+  function dismissWin() {
+    winOverlay.hidden = true;
+    if (!scoresForm.hidden && scoresForm.parentElement === winPanel) {
+      scoresPanel.insertBefore(scoresForm, scoresEmpty);
+    }
+    if (!scoresPanel.hidden) {
+      scoresPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  seeBoard.addEventListener("click", dismissWin);
+
+  async function offerToPost(inWin: boolean) {
+    const current = readDone(GAME, day);
+    if (!current || current.gaveUp || current.posted) return;
+    if (inWin && !winOverlay.hidden) {
+      winPanel.insertBefore(scoresForm, postedLine);
+    }
+    scoresForm.hidden = false;
+    fillName();
+    scoresPanel.hidden = false;
+    await showScores();
+  }
+
+  scoresForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const name = scoresName.value.trim();
+    if (!name) {
+      scoresKnown.hidden = true;
+      scoresAsk.hidden = false;
+      scoresName.focus();
+      return;
+    }
+
+    const done = readDone(GAME, day);
+    if (!done) return;
+    if (done.gaveUp) {
+      scoresError.textContent = "This puzzle was given up and cannot be posted.";
+      scoresError.hidden = false;
+      return;
+    }
+
+    const buttons = Array.from(scoresForm.querySelectorAll("button"));
+    buttons.forEach((button) => (button.disabled = true));
+    scoresError.hidden = true;
+
+    try {
+      const posted = await submitScore(GAME, day, {
+        name,
+        score: done.score,
+        hints: done.hints,
+        elapsed: done.elapsed,
+      });
+      mine = posted.entry.at;
+      minePlace = posted.place;
+      writeName(name);
+      writeDone(GAME, { ...done, posted: posted.entry.at }, day);
+
+      const inWin = scoresForm.parentElement === winPanel;
+      scoresForm.hidden = true;
+      drawScores(posted.scores, posted.count);
+
+      if (inWin) {
+        postedLine.textContent = `You are ${ordinal(posted.place)} of ${posted.count} today.`;
+        postedLine.hidden = false;
+      }
+    } catch (error) {
+      scoresError.textContent =
+        error instanceof Error ? error.message : "That did not go through.";
+      scoresError.hidden = false;
+      buttons.forEach((button) => (button.disabled = false));
+    }
+  });
+
+  const wantsScores = location.hash === "#daily-scores";
+
+  function revealScores(shown: boolean) {
+    if (shown && wantsScores) scoresPanel.scrollIntoView({ block: "start" });
+  }
+
+  if (already) {
+    if (already.gaveUp) {
+      if (wantsScores) void showScores().then(revealScores);
+    } else if (already.posted) {
+      mine = already.posted;
+      void showScores().then(revealScores);
+    } else {
+      void offerToPost(false).then(() => revealScores(!scoresPanel.hidden));
+    }
+  } else if (wantsScores) {
+    void showScores().then(revealScores);
+  }
+
+  // ---------------------------------------------------------------------------
+  // The board itself. Unlike Queens, there is nothing to compute here - the
+  // puzzle is a plain lookup - so it can build right away instead of waiting a
+  // frame for a heavy generation step.
+  // ---------------------------------------------------------------------------
+
+  const board = mountChess({
+    statusFor: ({ attempts, solved }) =>
+      !solved && attempts === 0 ? "Not started" : undefined,
+    onFirstMove: () => {
+      if (!state.startedAt) {
+        state.startedAt = Date.now();
+        persist();
+      }
+      ticking = true;
+      tick();
+    },
+    onAttempt: ({ attempts }) => {
+      state.attempts = attempts;
+      state.moves = board.moves();
+      persist();
+      movesOut.textContent = String(attempts);
+    },
+    onHint: ({ attempts, position }) => {
+      state.attempts = attempts;
+      state.hints += 1;
+      state.hintedPositions.push(position);
+      state.startedAt -= HINT_PENALTY_MS;
+      persist();
+      movesOut.textContent = String(attempts);
+      clock.textContent = formatClock(elapsed());
+    },
+    onReply: () => {
+      state.moves = board.moves();
+      persist();
+      hintButton.disabled = !board.canHint();
+    },
+    onSolved: ({ attempts }) => {
+      // A quick mate-in-one can land inside the first second. The leaderboard's
+      // tiebreaker starts at one second, so never persist an impossible zero.
+      const seconds = Math.max(1, elapsed());
+      ticking = false;
+      clock.textContent = formatClock(seconds);
+      movesOut.textContent = String(attempts);
+      board.freeze();
+
+      // Another tab may have finished or forfeited while this one was open.
+      // Its result won the race, so reload the canonical state instead of
+      // replacing it with this tab's finish.
+      if (readDone(GAME, day)) {
+        location.reload();
+        return;
+      }
+
+      const done: Done = { score: attempts, hints: state.hints, elapsed: seconds };
+      writeDone(GAME, done, day);
+
+      const withHints = hintText(state.hints);
+      result.textContent =
+        `${moveText(attempts)} \u00b7 ${formatClock(seconds)}` +
+        (withHints ? ` \u00b7 ${withHints}` : "");
+      seeBoard.hidden = false;
+      hintButton.disabled = true;
+      giveUpButton.disabled = true;
+      resetButton.disabled = true;
+
+      if (!already) void offerToPost(true);
+    },
+  });
+
+  board.build(today, {
+    moves: state.moves,
+    ply: legacyPly,
+    attempts: state.attempts,
+    hintedPositions: state.hintedPositions,
+    hintedPlies: puzzleMatches ? storedState?.hintedPlies : undefined,
+  });
+  // A reload can land during the reply pause, or on legacy authored-line
+  // progress. The board settles or migrates it immediately; settle storage too.
+  const restoredMoves = board.moves();
+  const restoredHints = board.hintHistory();
+  if (
+    state.moves.join(",") !== restoredMoves.join(",") ||
+    state.hintedPositions.join(",") !== restoredHints.join(",")
+  ) {
+    state.moves = restoredMoves;
+    state.hintedPositions = restoredHints;
+    persist();
+  }
+  board.freeze();
+
+  // A day already finished lays the answer back out and leaves it locked, so
+  // there is something to look at and nothing to gain from a second attempt.
+  if (already) {
+    doneLine.hidden = false;
+    if (already.gaveUp) {
+      doneLine.textContent = "You revealed today’s solution. A new puzzle arrives tomorrow.";
+      startButton.textContent = "See the solution";
+    } else {
+      const withTime = already.elapsed !== undefined ? ` and ${formatClock(already.elapsed)}` : "";
+      const withHints = hintText(already.hints);
+      doneLine.textContent =
+        `You finished today in ${moveText(already.score)}${withTime}` +
+        (withHints ? ` with ${withHints}` : "") +
+        ". A new puzzle arrives tomorrow.";
+      startButton.textContent = "See today's puzzle";
+    }
+  }
+
+  startButton.disabled = false;
+
+  // A started game resumes immediately. Its clock measures wall time, so
+  // leaving a gate over the restored position would only block play while time
+  // continued to pass.
+  if (!already && state.startedAt) {
+    gate.hidden = true;
+    ticking = true;
+    tick();
+    board.thaw();
+    hintButton.disabled = !board.canHint();
+    giveUpButton.disabled = false;
+    resetButton.disabled = false;
+  }
+
+  startButton.addEventListener("click", () => {
+    gate.hidden = true;
+    if (already) {
+      clock.textContent = already.elapsed !== undefined ? formatClock(already.elapsed) : "0:00";
+      movesOut.textContent = String(already.score);
+      board.reveal(Boolean(already.gaveUp));
+      return;
+    }
+    // If a first move already happened in a previous visit, the clock keeps
+    // counting real wall-clock time whether or not this tab was open for it.
+    if (state.startedAt) {
+      ticking = true;
+      tick();
+    }
+    board.thaw();
+    hintButton.disabled = !board.canHint();
+    giveUpButton.disabled = false;
+    resetButton.disabled = false;
+  });
+
+  // Puts the position back to the start of today's puzzle. Attempts and the
+  // clock are untouched - resetting the board is not the same as forgiving
+  // the attempts it took.
+  resetButton.addEventListener("click", () => {
+    if (already) return;
+    board.resetPosition();
+    state.moves = board.moves();
+    persist();
+    hintButton.disabled = !board.canHint();
+  });
+
+  hintButton.addEventListener("click", () => {
+    if (board.hint()) hintButton.disabled = true;
+  });
+
+  function showGiveUpConfirm(show: boolean) {
+    giveUpButton.hidden = show;
+    giveUpAsk.hidden = !show;
+    giveUpYes.hidden = !show;
+    giveUpNo.hidden = !show;
+  }
+
+  giveUpButton.addEventListener("click", () => showGiveUpConfirm(true));
+  giveUpNo.addEventListener("click", () => showGiveUpConfirm(false));
+  giveUpYes.addEventListener("click", () => {
+    if (already) return;
+    if (readDone(GAME, day)) {
+      location.reload();
+      return;
+    }
+    if (!board.giveUp()) return;
+    ticking = false;
+    const seconds = elapsed();
+    const done: Done = {
+      score: state.attempts,
+      hints: state.hints,
+      elapsed: seconds,
+      gaveUp: true,
+    };
+    writeDone(GAME, done, day);
+    state.moves = board.moves();
+    persist();
+    clock.textContent = formatClock(seconds);
+    hintButton.disabled = true;
+    resetButton.disabled = true;
+    showGiveUpConfirm(false);
+    giveUpButton.disabled = true;
+    giveUpButton.textContent = "Solution revealed";
+  });
+</script>

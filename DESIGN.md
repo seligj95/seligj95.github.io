@@ -337,6 +337,35 @@ tint before a shadow; use a shadow only when an element genuinely floats above t
   but deliberately stops short of `none`. This game is tap-only, so a scroll that begins on
   a picture should still scroll the page.
 
+### Chess (puzzle)
+- **Placement:** `/games/chess/`, in the puzzles section — find the forced mate, not the
+  best move. Unlike the other puzzles, boards are curated rather than generated: chess
+  positions do not lend themselves to a fairness-refining loop the way Queens' regions do,
+  so `src/data/chess-puzzles.ts` ships a fixed, hand-verified set of mate-in-1/2/3 lines
+  instead, each one replayed through chess.js in tests to prove the final position really
+  is checkmate.
+- **Board:** a DOM grid, not a canvas — each square is a real element carrying
+  `data-selected`, `data-legal`, `data-check` and `data-rejected` state, so focus styles,
+  keyboard navigation and screen-reader semantics come from ordinary HTML rather than a
+  redrawn scene. Pieces are Unicode glyphs colored from `var(--text)`, with white and black
+  told apart by their filled-vs-outline glyph shapes rather than by hue, so they stay
+  legible in every theme without a per-theme piece palette.
+- **Legality lives in chess.js:** the board never reimplements check, pins, castling or
+  mate detection. A tap or click selects a piece, highlights its legal destinations, and
+  playing one of them is the only way to move.
+- **What counts as an attempt:** any legal move off the puzzle's solution line gets a
+  `data-rejected` flash and is reverted — it counts against
+  the mover's attempt total exactly like a wrong guess would elsewhere, which is what lets
+  the daily rank by fewest player moves rather than fewest correct ones. The automated
+  reply after a correct move is scripted from the puzzle's solution, not calculated live;
+  the copy calls it "the defense" rather than claiming engine-proven best play.
+- **Keyboard:** arrow keys walk focus across the grid, Enter/Space selects a square or
+  plays a highlighted destination, Escape clears the current selection — the same
+  select-then-act shape the mouse uses, so neither input method is a second-class path.
+- **Difficulty:** offered as mate-in-1/2/3, matching the other puzzles' "size, not timers"
+  habit; the arcade cycles the set without an immediate repeat, and the daily fixes one
+  puzzle per day the same way Contexto fixes one word.
+
 ### Chain (arcade)
 - **Placement:** `/games/chain/`, the first entry in the arcade section — the games here
   can be lost, which is what separates them from the puzzles and the zen toys.

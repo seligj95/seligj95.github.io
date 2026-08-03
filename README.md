@@ -1,6 +1,6 @@
 # jordanselig.com
 
-Personal site by Jordan Selig — blog, talks, projects, an arcade of eleven
+Personal site by Jordan Selig — blog, talks, projects, an arcade of twelve
 browser games, and a daily puzzle that is the same for everyone. Built with
 [Astro](https://astro.build) and deployed to GitHub Pages at
 [jordanselig.com](https://jordanselig.com).
@@ -38,6 +38,10 @@ npm run dev        # API at localhost:8080, in-memory store
 - **Hosting:** GitHub Pages via GitHub Actions
 - **Daily scores API:** Hono on Node, Azure Table Storage, deployed to Azure
   Container Apps and scaled to zero between requests
+- **Chess legality:** [chess.js](https://github.com/jhlywa/chess.js), so the
+  board never has to reimplement check, pins or mate detection
+- **Chess defense:** [js-chess-engine](https://github.com/josefjadrny/js-chess-engine),
+  a deterministic browser-side opponent and hint evaluator
 
 ## Project structure
 
@@ -92,7 +96,7 @@ their own page shows the summary plus a banner pointing at the full article.
 
 ## Games
 
-Eleven games under `/games/`, all of them client-side only: no server, no
+Twelve games under `/games/`, all of them client-side only: no server, no
 accounts, no persistence beyond `localStorage` for best scores. Free play is the
 default everywhere — a fresh random board, unlimited goes, nothing recorded off
 your machine. `src/data/games.ts` is the single source of truth: it drives the
@@ -123,9 +127,13 @@ for everybody, one attempt, and an optional shared board. There are no accounts,
 no sign-in and no streaks — you type a name if you want your score listed, and
 that name is remembered on the device so the next day is one tap.
 
-Two games have a daily version today. **Queens** ranks by time, with 30 seconds
-added per hint. **Contexto** ranks by number of guesses and offers no hints at
-all.
+Three games have a daily version today. **Queens** ranks by time, with 30
+seconds added per hint. **Contexto** ranks by number of guesses and offers no
+hints at all. **Chess** ranks by legal player moves, with elapsed time as the
+tiebreaker. Every legal move stays played and a browser engine chooses Black's
+reply, so players can find checkmate outside the curated line. Its hint evaluates
+the current position and adds one move plus 30 seconds; giving up forfeits
+posting and reveals one known solution.
 
 A few decisions worth knowing before changing any of it:
 
@@ -147,8 +155,8 @@ A few decisions worth knowing before changing any of it:
 Adding a daily:
 
 1. Add an entry to `src/data/dailies.ts` (`slug`, `title`, `tagline`, `blurb`,
-   `ranking`, `scoring`). `scoring` is `time` or `guesses`; lower wins either
-   way.
+   `ranking`, `scoring`). `scoring` is `time`, `guesses` or `moves`; lower wins
+   every way.
 2. Create `src/pages/daily/<slug>.astro`. `src/lib/daily-progress.ts` stores
    what has been played and any in-progress state, and `DailyLeaderboard.astro`
    handles fetching, posting and rendering the board.
@@ -158,6 +166,19 @@ Adding a daily:
 
 The arcade entry, its `GameMark` and its page are all reused, so a daily costs
 roughly a registry line and a page.
+
+### Elapsed time as a tiebreaker
+
+`Score` and `Done` both carry an optional `elapsed?: number` — seconds spent,
+bounded to `1..86400`. It is omitted entirely for Queens and Contexto, whose
+behavior is unchanged. **Chess is the first game to require it**: the API
+rejects a `"moves"`-scored submission that omits `elapsed`, since move count
+alone leaves too many ties. Ordering everywhere — the in-memory dev store, the
+Azure Table Storage rows, and the leaderboard's own rendering — is score
+ascending, then elapsed ascending when present, then submission time. Rows
+written before this field existed have no `elapsed` and keep sorting by
+submission time among themselves, so old leaderboards read exactly as they
+did before.
 
 ### Contexto's word data
 
@@ -169,7 +190,7 @@ npm run contexto:words
 ```
 
 It range-requests just the 50-dimensional slice out of GloVe 6B — the full
-archive is 862MB, and the slice it reads is about 12MB — keeps the 20,000 most
+archive is 862MB, and the slice it reads is about 20MB — keeps the 30,000 most
 common usable words, folds plurals and other inflections onto their base word,
 and writes `public/contexto/vectors.bin` and `vocabulary.json`, together about
 930KB gzipped.
@@ -177,10 +198,24 @@ and writes `public/contexto/vectors.bin` and `vocabulary.json`, together about
 The vectors come from GloVe 6B (Pennington, Socher and Manning, 2014), which is
 released into the public domain under the PDDL. The output is committed, so the
 build never touches the network. Run it by hand only when the vocabulary should
-change. Ranking happens in the browser: 20,000
+change. Ranking happens in the browser: 30,000
 dot products, about 5ms, once per game. That is deliberate — a game is 50 to 200
 guesses, and a round trip per guess to a container that scales to zero would
 feel broken.
+
+### Chess's puzzle data
+
+Chess has no generator: `src/data/chess-puzzles.ts` is a hand-curated list of
+mate-in-1, mate-in-2 and mate-in-3 positions, each stored as a starting FEN
+plus its full solution line in UCI (`e2e4`, `e7e8q`, ...), alternating player
+move and authored reply. `tests/chess-puzzles.test.ts` replays every line
+through chess.js and asserts the final position is checkmate, so a broken or
+mistyped line fails the suite rather than silently shipping. During live play,
+js-chess-engine evaluates the actual position for Black's replies and hints;
+the curated line is retained as a guaranteed solution for Give up to reveal.
+The arcade cycles through the list at
+random without an immediate repeat; the daily picks one deterministically per
+day the same way Contexto steps through its word list.
 
 ## The scores API
 

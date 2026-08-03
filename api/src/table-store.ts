@@ -17,11 +17,24 @@ export function partition(game: string, day: string): string {
  * a fixed width means the leaderboard comes back already sorted and we never
  * page through a day just to find the top ten. Seconds and guess counts both
  * pad the same way. The suffix keeps two identical scores from colliding.
+ *
+ * A "moves" board also needs elapsed time as its tiebreaker, so the padded
+ * elapsed value sits between the score and the unique suffix - RowKey order
+ * is then score, then elapsed, then submission, which is exactly the ranking
+ * the leaderboard wants without any client-side re-sorting. Every other game
+ * never passes `elapsed`, so its rows keep the exact key shape they always
+ * had; each partition holds one game's rows, so the two shapes never need to
+ * sort against each other.
+ *
+ * Exported so `rowKey`'s ordering can be tested directly, without a real or
+ * mocked Table Storage account.
  */
-function rowKey(score: number): string {
+export function rowKey(score: number, elapsed?: number): string {
   const padded = String(score).padStart(6, "0");
   const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-  return `${padded}-${unique}`;
+  if (elapsed === undefined) return `${padded}-${unique}`;
+  const paddedElapsed = String(elapsed).padStart(6, "0");
+  return `${padded}-${paddedElapsed}-${unique}`;
 }
 
 export interface TableStoreOptions {
@@ -55,6 +68,8 @@ export function tableStore({ account, table = "scores" }: TableStoreOptions): St
         score: Number(row.score ?? row.seconds ?? 0),
         hints: Number(row.hints ?? 0),
         at: String(row.at ?? ""),
+        // Legacy rows, and every non-"moves" game, never wrote this column.
+        ...(row.elapsed !== undefined ? { elapsed: Number(row.elapsed) } : {}),
       });
     }
     return found;
@@ -64,7 +79,7 @@ export function tableStore({ account, table = "scores" }: TableStoreOptions): St
     async add(game, day, entry) {
       await client.createEntity({
         partitionKey: partition(game, day),
-        rowKey: rowKey(entry.score),
+        rowKey: rowKey(entry.score, entry.elapsed),
         name: entry.name,
         score: entry.score,
         // Written alongside for as long as anything might still read it. The
@@ -72,6 +87,9 @@ export function tableStore({ account, table = "scores" }: TableStoreOptions): St
         seconds: entry.score,
         hints: entry.hints,
         at: entry.at,
+        // Omitted entirely rather than written as null/undefined, so a game
+        // that never sends elapsed never gets the column at all.
+        ...(entry.elapsed !== undefined ? { elapsed: entry.elapsed } : {}),
       });
     },
     // Already in RowKey order, which is score order.
