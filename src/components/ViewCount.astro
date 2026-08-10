@@ -1,12 +1,27 @@
 ---
 interface Props {
   path: string;
+  externalUrl?: string;
 }
 
-const { path } = Astro.props;
+const { path, externalUrl } = Astro.props;
+let techCommunityMessageId: string | undefined;
+
+if (externalUrl) {
+  const url = new URL(externalUrl);
+  if (url.hostname.toLowerCase() === "techcommunity.microsoft.com") {
+    techCommunityMessageId = url.pathname.match(/\/(\d+)\/?$/)?.[1];
+  }
+}
 ---
 
-<span class="view-count" data-path={path} hidden>
+<span
+  class="view-count"
+  data-path={path}
+  data-tech-community-url={techCommunityMessageId ? externalUrl : undefined}
+  data-tech-community-id={techCommunityMessageId}
+  hidden
+>
   <svg
     width="14"
     height="14"
@@ -37,6 +52,8 @@ const { path } = Astro.props;
 </style>
 
 <script>
+  import { VIEW_API_BASE } from "../lib/api";
+
   const elements = document.querySelectorAll<HTMLElement>(".view-count");
 
   if (elements.length > 0) {
@@ -53,16 +70,25 @@ const { path } = Astro.props;
       if (sep) sep.style.display = "none";
 
       try {
-        const res = await fetch(
-          `https://jordanselig.goatcounter.com/counter/${encodeURIComponent(path)}.json`
-        );
+        const techCommunityUrl = el.dataset.techCommunityUrl;
+        const techCommunityId = el.dataset.techCommunityId;
+        const endpoint =
+          techCommunityUrl && techCommunityId
+            ? `${VIEW_API_BASE}/api/views/tech-community/${techCommunityId}?url=${encodeURIComponent(techCommunityUrl)}`
+            : `https://jordanselig.goatcounter.com/counter/${encodeURIComponent(path)}.json`;
+        const res = await fetch(endpoint, { signal: AbortSignal.timeout(20_000) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        // GoatCounter formats counts >= 1000 with a thousands separator
-        // (a U+202F narrow no-break space), e.g. "1 293". Strip any
-        // non-digit characters before parsing so large counts don't
-        // become NaN and fall back to 0.
-        const count = Number(String(data.count).replace(/[^0-9]/g, "")) || 0;
+        const data = (await res.json()) as { count?: unknown };
+        // GoatCounter may format large counts with narrow no-break spaces.
+        if (typeof data.count !== "number" && typeof data.count !== "string") {
+          throw new Error("Invalid view count");
+        }
+        const digits = String(data.count).replace(/[^0-9]/g, "");
+        if (!digits) throw new Error("Invalid view count");
+        const count = Number(digits);
+        if (!Number.isSafeInteger(count) || count < 0) {
+          throw new Error("Invalid view count");
+        }
         const countText = el.querySelector(".count-text");
         if (countText) {
           countText.textContent = `${count} ${count === 1 ? "view" : "views"}`;

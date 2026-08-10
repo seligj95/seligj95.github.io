@@ -5,8 +5,8 @@ browser games, and a daily puzzle that is the same for everyone. Built with
 [Astro](https://astro.build) and deployed to GitHub Pages at
 [jordanselig.com](https://jordanselig.com).
 
-The site is a static build. The single exception is the daily leaderboard, which
-posts to a small Node API in [`api/`](#the-scores-api) running on Azure Container
+The site is a static build. The daily leaderboard and live Tech Community view
+counts use a small Node API in [`api/`](#the-site-api) running on Azure Container
 Apps at `api.jordanselig.com`. Everything else — every game, every board, every
 guess — runs in the browser.
 
@@ -93,6 +93,8 @@ Optional frontmatter (see `src/content.config.ts` for the full schema):
 Posts published on another platform (Tech Community, dev.to) use `externalUrl`.
 They appear in the blog list and RSS feed linking straight to the original, and
 their own page shows the summary plus a banner pointing at the full article.
+Tech Community cross-posts show that article's live view count; native posts and
+other external platforms use GoatCounter.
 
 ## Games
 
@@ -217,7 +219,7 @@ The arcade cycles through the list at
 random without an immediate repeat; the daily picks one deterministically per
 day the same way Contexto steps through its word list.
 
-## The scores API
+## The site API
 
 `api/` is the only server-side code in the repo: a small Hono app holding the
 daily leaderboards. It is a standalone Node workspace with its own
@@ -230,9 +232,11 @@ GET  /api/daily/:game/:day/scores
 POST /api/daily/:game/:day/scores
 ```
 
-Running it locally needs nothing: with no storage account configured it falls
-back to an in-memory store. To see the daily leaderboard end to end, run both
-halves and point the site at the local API.
+`npm run dev` serves Tech Community view counts through a development-only
+middleware, so blog pages need no second process. The daily leaderboard still
+needs the API; with no storage account configured it falls back to an in-memory
+store. To see the leaderboard end to end, run both halves and point the site at
+the local API.
 
 ```bash
 cd api && PORT=8787 npm run dev

@@ -188,6 +188,21 @@ describe("Build output", () => {
     expect(existsSync(join(dist, "blog", "hello-world", "index.html"))).toBe(true);
   });
 
+  it("uses Tech Community view-count hooks for cross-posted articles", () => {
+    const crossPost = readFileSync(
+      join(dist, "blog", "ssh-diagnostics-python-appservice", "index.html"),
+      "utf8"
+    );
+    const nativePost = readFileSync(
+      join(dist, "blog", "hello-world", "index.html"),
+      "utf8"
+    );
+
+    expect(crossPost).toContain('data-tech-community-id="4520893"');
+    expect(crossPost).toContain("techcommunity.microsoft.com");
+    expect(nativePost).not.toContain("data-tech-community-id");
+  });
+
   it("generates the tags index page", () => {
     expect(existsSync(join(dist, "tags", "index.html"))).toBe(true);
   });

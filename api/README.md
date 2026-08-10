@@ -1,15 +1,16 @@
-# Daily scores API
+# Site API
 
-A small public JSON API behind the daily leaderboard at
-[jordanselig.com/daily](https://jordanselig.com/daily). No accounts, no
-sessions, no cookies — you finish a board, you optionally type a name, and your
-time joins that day's list.
+A small public JSON API behind the daily leaderboard and Tech Community view
+counts on [jordanselig.com](https://jordanselig.com). No accounts, no sessions,
+no cookies — you finish a board, you optionally type a name, and your time joins
+that day's list.
 
 ## Routes
 
 | | |
 | --- | --- |
 | `GET /api/health` | Liveness. Answers without touching storage. |
+| `GET /api/views/tech-community/:messageId?url=...` | Live view count for a validated Tech Community blog URL. |
 | `GET /api/daily/:game/:day/scores` | That day's leaderboard, fastest first. |
 | `POST /api/daily/:game/:day/scores` | Add a score. Body: `{ name, seconds, hints }`. |
 

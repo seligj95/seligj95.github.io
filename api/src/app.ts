@@ -2,6 +2,10 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Entry, Store } from "./store.ts";
 import { GAMES, checkSubmission, isDay, rateLimiter } from "./guards.ts";
+import {
+  createTechCommunityViewFetcher,
+  techCommunityViewResponse,
+} from "./tech-community.ts";
 
 /** Rows kept per game per day. Past this the day stops accepting writes. */
 export const DAY_CAP = 1000;
@@ -18,11 +22,15 @@ export interface AppOptions {
   origins: string[];
   /** Overridable so the tests do not have to sleep for an hour. */
   limiter?: (key: string) => boolean;
+  /** Overridable so tests never depend on Tech Community being available. */
+  techCommunityViews?: (url: URL) => Promise<number>;
 }
 
-export function createApp({ store, origins, limiter }: AppOptions) {
+export function createApp({ store, origins, limiter, techCommunityViews }: AppOptions) {
   const app = new Hono();
   const take = limiter ?? rateLimiter(PER_IP_LIMIT, HOUR);
+  const readTechCommunityViews =
+    techCommunityViews ?? createTechCommunityViewFetcher();
 
   app.use(
     "/api/*",
@@ -35,6 +43,15 @@ export function createApp({ store, origins, limiter }: AppOptions) {
   );
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+
+  app.get("/api/views/tech-community/:messageId", async (c) => {
+    const { messageId } = c.req.param();
+    return techCommunityViewResponse(
+      c.req.query("url") ?? "",
+      messageId,
+      readTechCommunityViews
+    );
+  });
 
   /**
    * Both score routes share the same path check, and both 404 rather than 400

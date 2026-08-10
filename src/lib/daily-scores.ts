@@ -5,6 +5,7 @@
  * that works entirely offline, so a failed request never blocks play and never
  * shows an error people can act on. It just quietly leaves the list out.
  */
+import { API_BASE } from "./api";
 
 /** What a board ranks by. Lower is better either way. */
 export type Scoring = "time" | "guesses" | "moves";
@@ -41,13 +42,6 @@ export interface Submitted extends Board {
   entry: Score;
   place: number;
 }
-
-/**
- * Where the API lives. Overridable at build time with PUBLIC_SCORES_API, which
- * is how a local API or a preview deploy gets picked up.
- */
-export const API_BASE: string =
-  import.meta.env.PUBLIC_SCORES_API ?? "https://api.jordanselig.com";
 
 /** Scaled to zero, so the first request of the day wakes the container. */
 const TIMEOUT_MS = 20000;

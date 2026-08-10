@@ -29,6 +29,65 @@ describe("health", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
   });
+
+  describe("Tech Community views", () => {
+    const article =
+      "https://techcommunity.microsoft.com/blog/appsonazureblog/example-post/4520893";
+
+    it("returns the article's view count", async () => {
+      let requested: URL | undefined;
+      const server = createApp({
+        store: memoryStore(),
+        origins: [ORIGIN],
+        techCommunityViews: async (url) => {
+          requested = url;
+          return 165;
+        },
+      });
+
+      const res = await server.fetch(
+        get(`/api/views/tech-community/4520893?url=${encodeURIComponent(article)}`)
+      );
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ count: 165 });
+      expect(requested?.toString()).toBe(article);
+      expect(res.headers.get("cache-control")).toContain("max-age=300");
+    });
+
+    it("rejects URLs outside Tech Community", async () => {
+      let called = false;
+      const server = createApp({
+        store: memoryStore(),
+        origins: [ORIGIN],
+        techCommunityViews: async () => {
+          called = true;
+          return 1;
+        },
+      });
+
+      const res = await server.fetch(
+        get(
+          `/api/views/tech-community/4520893?url=${encodeURIComponent("https://example.com/blog/post/4520893")}`
+        )
+      );
+
+      expect(res.status).toBe(400);
+      expect(called).toBe(false);
+    });
+
+    it("requires the route ID to match the article URL", async () => {
+      const server = createApp({
+        store: memoryStore(),
+        origins: [ORIGIN],
+        techCommunityViews: async () => 1,
+      });
+      const res = await server.fetch(
+        get(`/api/views/tech-community/999?url=${encodeURIComponent(article)}`)
+      );
+      expect(res.status).toBe(400);
+    });
+  });
 });
 
 describe("submitting a score", () => {
