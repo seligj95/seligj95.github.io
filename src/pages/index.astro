@@ -62,7 +62,10 @@ const formatDate = (date: Date) =>
               {formatDate(featured.data.pubDate)}
             </time>
             <span class="sep" aria-hidden="true">&middot;</span>
-            <ViewCount path={`${base}blog/${featured.id}/`} />
+            <ViewCount
+              path={`${base}blog/${featured.id}/`}
+              externalUrl={featured.data.externalUrl}
+            />
           </p>
         </div>
       </a>
@@ -103,7 +106,10 @@ const formatDate = (date: Date) =>
                     {formatDate(post.data.pubDate)}
                   </time>
                   <span class="sep" aria-hidden="true">&middot;</span>
-                  <ViewCount path={`${base}blog/${post.id}/`} />
+                  <ViewCount
+                    path={`${base}blog/${post.id}/`}
+                    externalUrl={post.data.externalUrl}
+                  />
                 </p>
               </div>
             </div>

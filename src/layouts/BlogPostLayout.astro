@@ -60,7 +60,7 @@ const readingTime = Math.max(1, Math.round(words / 225));
         <span class="sep" aria-hidden="true">&middot;</span>
         <span>{readingTime} min read</span>
         <span class="sep" aria-hidden="true">&middot;</span>
-        <ViewCount path={Astro.url.pathname} />
+        <ViewCount path={Astro.url.pathname} externalUrl={externalUrl} />
         {updatedDate && (
           <span class="updated">
             &middot; Updated <time datetime={updatedDate.toISOString()}>

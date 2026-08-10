@@ -55,7 +55,10 @@ const posts = allPosts.slice(0, POSTS_PER_PAGE);
                   day: "numeric",
                 })}
               </time>
-              <ViewCount path={`${import.meta.env.BASE_URL}blog/${post.id}/`} />
+              <ViewCount
+                path={`${import.meta.env.BASE_URL}blog/${post.id}/`}
+                externalUrl={post.data.externalUrl}
+              />
             </div>
           </a>
         </li>
