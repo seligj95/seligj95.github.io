@@ -148,6 +148,12 @@ In a GitHub Copilot app Quick Chat, ask:
 
 > Install the Git Hygiene canvas extension from https://gist.github.com/seligj95/87ea4914fb83e87f5d4f2e5b5c7de08e
 
+Once it is installed, ask Quick Chat:
+
+> Open the Git Hygiene canvas
+
+The canvas scans `~/workspace` by default. If your repositories live somewhere else, specify that workspace root when you ask Quick Chat to open or scan it.
+
 This is a community/personal extension, **not an official GitHub feature**. Inspect the gist before installing it, review what each action will do, and do not allow destructive operations until you understand which repository, branch, worktree, and remote they affect.
 
 The safest first use is an inventory. Scan. Read the categories. Open the questionable repositories yourself. Treat deletion as the final step, not the feature.
