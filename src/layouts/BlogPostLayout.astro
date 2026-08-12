@@ -22,7 +22,7 @@ const words = body.split(/\s+/).filter(Boolean).length;
 const readingTime = Math.max(1, Math.round(words / 225));
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} image={heroImage}>
   <!-- JSON-LD Structured Data for blog posts (Article schema) -->
   <script
     type="application/ld+json"
