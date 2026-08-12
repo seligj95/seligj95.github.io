@@ -1,5 +1,8 @@
 const TECH_COMMUNITY_HOST = "techcommunity.microsoft.com";
 const DEFAULT_API_BASE = "https://api.jordanselig.com";
+const SHOULD_PRELOAD =
+  process.env.PRELOAD_TECH_COMMUNITY_VIEWS === "true" ||
+  (process.env.GITHUB_ACTIONS === "true" && process.env.VITEST !== "true");
 
 type FetchPage = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -15,7 +18,7 @@ const pending = new Map<string, Promise<number | undefined>>();
 export async function preloadTechCommunityViews(
   externalUrl: string | undefined,
   {
-    enabled = process.env.PRELOAD_TECH_COMMUNITY_VIEWS === "true",
+    enabled = SHOULD_PRELOAD,
     apiBase = process.env.PUBLIC_SCORES_API ?? DEFAULT_API_BASE,
     fetchPage = fetch,
     warn = (message, error) => console.warn(message, error),

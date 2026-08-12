@@ -38,7 +38,7 @@ jobs:
         run: npm test
 
       - name: Build site
-        run: PRELOAD_TECH_COMMUNITY_VIEWS=true npm run build
+        run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
