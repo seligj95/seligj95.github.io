@@ -93,8 +93,10 @@ Optional frontmatter (see `src/content.config.ts` for the full schema):
 Posts published on another platform (Tech Community, dev.to) use `externalUrl`.
 They appear in the blog list and RSS feed linking straight to the original, and
 their own page shows the summary plus a banner pointing at the full article.
-Tech Community cross-posts show that article's live view count; native posts and
-other external platforms use GoatCounter.
+Tech Community cross-posts render a recent view count into the static build and
+refresh it in the browser; native posts and other external platforms use
+GoatCounter. If Tech Community or the site API is unavailable during deployment,
+the count stays client-only rather than failing the build.
 
 ## Games
 
