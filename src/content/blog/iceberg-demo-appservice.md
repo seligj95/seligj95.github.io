@@ -2,7 +2,6 @@
 title: "The Iceberg Demo: Why the Best Ones Look Boring"
 description: "A to-do list. An online store. On the surface our demos look almost too simple — underneath they run the newest platform features, MCP, and multi-agent AI. An App Service PM on why that gap is the whole point."
 pubDate: 2026-07-01
-featured: true
 tags: ["op-ed", "app-service", "ai", "agents", "mcp", "product-management"]
 heroImage: "/images/blog/2026/07/iceberg-demo-appservice/hero.png"
 ---
