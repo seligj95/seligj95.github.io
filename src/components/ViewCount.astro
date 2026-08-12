@@ -1,4 +1,6 @@
 ---
+import { preloadTechCommunityViews } from "../lib/tech-community-views";
+
 interface Props {
   path: string;
   externalUrl?: string;
@@ -13,6 +15,8 @@ if (externalUrl) {
     techCommunityMessageId = url.pathname.match(/\/(\d+)\/?$/)?.[1];
   }
 }
+
+const initialCount = await preloadTechCommunityViews(externalUrl);
 ---
 
 <span
@@ -20,7 +24,7 @@ if (externalUrl) {
   data-path={path}
   data-tech-community-url={techCommunityMessageId ? externalUrl : undefined}
   data-tech-community-id={techCommunityMessageId}
-  hidden
+  hidden={initialCount === undefined}
 >
   <svg
     width="14"
@@ -36,7 +40,9 @@ if (externalUrl) {
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
     <circle cx="12" cy="12" r="3" />
   </svg>
-  <span class="count-text"></span>
+  <span class="count-text">
+    {initialCount === undefined ? "" : `${initialCount} ${initialCount === 1 ? "view" : "views"}`}
+  </span>
 </span>
 
 <style>
@@ -61,13 +67,14 @@ if (externalUrl) {
       const path = el.dataset.path;
       if (!path) return;
 
-      // Keep the count and its separator hidden until a real count resolves,
-      // so no "— views" placeholder or wrong grammar ever flashes.
+      // A production build may have already rendered a recent count. Keep it
+      // visible while the live value refreshes in the background.
+      const hasInitialCount = !el.hidden;
       const prev = el.previousElementSibling;
       const sep = prev?.classList.contains("sep")
         ? (prev as HTMLElement)
         : null;
-      if (sep) sep.style.display = "none";
+      if (sep && !hasInitialCount) sep.style.display = "none";
 
       try {
         const techCommunityUrl = el.dataset.techCommunityUrl;
@@ -96,7 +103,7 @@ if (externalUrl) {
         el.hidden = false;
         if (sep) sep.style.display = "";
       } catch {
-        // Leave the count hidden and the separator collapsed.
+        // Preserve a build-time count; otherwise leave the count hidden.
       }
     });
 
