@@ -3,7 +3,8 @@ title: "Who Cleans Up After the Coding Agents? Vibe Coding Has a Garbage Collect
 description: "AI made it nearly free to start coding work. After cleaning up 96 local branches across 41 repositories, I think agentic development needs a safer lifecycle for finishing, archiving, and deleting it."
 pubDate: 2026-08-11
 tags: ["ai", "agents", "git", "productivity", "developer-tools", "op-ed"]
-draft: true
+draft: false
+featured: true
 heroImage: "/images/blog/2026/08/who-cleans-up-after-coding-agents/hero.png"
 ---
 
