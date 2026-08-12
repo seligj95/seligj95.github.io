@@ -74,5 +74,21 @@ describe("SEO meta tags", () => {
       const tw = doc.querySelector('meta[property="twitter:description"]');
       expect(tw).not.toBeNull();
     });
+
+  });
+
+  it("uses the coding agents hero image for social previews", () => {
+    const html = readFileSync(
+      join(dist, "blog", "who-cleans-up-after-coding-agents", "index.html"),
+      "utf-8"
+    );
+    const doc = parseHtml(html);
+    const heroUrl =
+      "https://jordanselig.com/images/blog/2026/08/who-cleans-up-after-coding-agents/hero.png";
+
+    expect(doc.querySelector('meta[property="og:image"]')?.getAttribute("content")).toBe(heroUrl);
+    expect(doc.querySelector('meta[property="twitter:image"]')?.getAttribute("content")).toBe(
+      heroUrl
+    );
   });
 });
