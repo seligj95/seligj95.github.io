@@ -171,6 +171,8 @@ Agentic coding needs garbage collection.
 
 But it cannot be the invisible kind. It has to understand pull requests and sessions, respect ownership boundaries, surface untracked state, separate local from remote, and leave a recovery trail.
 
+This is not *the* correct way to manage vibe coding, parallel sessions, branches, worktrees, and cleanup. It is simply the workflow I have picked up over time by using the tools and learning as I go. If you have better recommendations or practices, share them in the comments. And if you are dealing with the same clutter and lifecycle problem, I would especially like to hear how you manage it—or how you have overcome it.
+
 Make starting cheap.
 
 Make finishing obvious.
