@@ -176,8 +176,23 @@ describe("Build output", () => {
 
     const html = readFileSync(talksPage, "utf-8");
     const hooks = html.match(/class="youtube-view-count"/g) ?? [];
-    expect(hooks).toHaveLength(5);
+    expect(hooks).toHaveLength(6);
     expect(html).toContain('data-video-id="4NEquVnq36w"');
+    expect(html).toContain('data-video-id="CLgc7dPJwoY"');
+  });
+
+  it("lists the Managed Instance GA and Markdown for Agents standup as the newest talk", () => {
+    const html = readFileSync(join(dist, "talks", "index.html"), "utf8");
+
+    expect(html).toContain(
+      "Azure App Service Community Standup: Managed Instance GA and Markdown for Agents"
+    );
+    expect(html).toContain('href="https://www.youtube.com/watch?v=CLgc7dPJwoY"');
+    expect(html).toContain('src="https://img.youtube.com/vi/CLgc7dPJwoY/maxresdefault.jpg"');
+    expect(html).toContain('datetime="2026-09-10"');
+    expect(html.indexOf('data-video-id="CLgc7dPJwoY"')).toBeLessThan(
+      html.indexOf('data-video-id="4NEquVnq36w"')
+    );
   });
 
   it("generates the blog index page", () => {
