@@ -121,6 +121,10 @@ An assistant that prepares a reply because it knows how I usually respond is use
 
 An agent that notices a failed deployment and gathers evidence is helpful. An agent that changes production because it inferred my urgency needs a much clearer boundary.
 
+This isn't hypothetical anymore. Just the other day, I saw Anthropic's [Claude Ship](https://code.claude.com/docs/en/claude-ship)—a set of agents (Code Review, PR Steward, and Claude Approvals) that can take a pull request through review, fixes, and an approval decision. Combined with GitHub auto-merge or a merge queue and a policy that doesn't require a human sign-off, Claude can effectively carry work across the entire development workflow—from coding all the way through PR approval and merge—without a person stepping in.
+
+I'm hesitant, if I'm honest. I don't know if I'm ready to hand pull request reviews completely over to agents with no human intervention. At the same time, I'm excited to see where something like this takes us. It shows just how quickly the conversation is moving from "how do I phrase this prompt?" to "how much of the workflow am I willing to delegate?"
+
 Accuracy doesn't erase that distinction. Even an excellent guess about my intentions is still a guess about my intentions.
 
 And my intentions can change.
