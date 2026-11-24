@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="680" viewBox="0 0 960 680" fill="none">
+  <title>Hosting choices follow the application's nonnegotiable requirements</title>
+  <path fill="#F0ECF8" d="M0 0h960v680H0z"/>
+  <path d="M180 120v440M780 120v440" stroke="#947CB8" opacity=".2"/>
+  <rect x="200" y="245" width="170" height="190" rx="10" fill="#FFFFFF" stroke="#947CB8" stroke-width="2"/>
+  <path d="m225 280 7 7 12-15m-19 53 7 7 12-15m-19 53 7 7 12-15" stroke="#442679" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M260 280h85m-85 45h70m-70 45h85" stroke="#947CB8" stroke-width="3"/>
+  <path d="M370 340h110V230h110m-110 110v110h110" stroke="#442679" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="480" cy="340" r="9" fill="#442679"/>
+  <rect x="590" y="170" width="170" height="120" rx="10" fill="#E7DDF4" stroke="#947CB8" stroke-width="2"/>
+  <path d="M590 200h170" stroke="#947CB8" stroke-width="2"/>
+  <path d="m633 225-15 16 15 16m58-32 15 16-15 16" stroke="#442679" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="590" y="390" width="170" height="120" rx="10" fill="#FFFFFF" stroke="#947CB8" stroke-width="2"/>
+  <path d="M590 420h170m-145 26h120m-120 23h85" stroke="#947CB8" stroke-width="3"/>
+</svg>

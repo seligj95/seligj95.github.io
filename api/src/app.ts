@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Entry, Store } from "./store.ts";
 import { GAMES, checkSubmission, isDay, rateLimiter } from "./guards.ts";
+import { createBuilderBlogViewFetcher, builderBlogViewResponse } from "./builder-blog.ts";
 import {
   createTechCommunityViewFetcher,
   techCommunityViewResponse,
@@ -24,13 +25,15 @@ export interface AppOptions {
   limiter?: (key: string) => boolean;
   /** Overridable so tests never depend on Tech Community being available. */
   techCommunityViews?: (url: URL) => Promise<number>;
+  builderBlogViews?: (url: URL) => Promise<number>;
 }
 
-export function createApp({ store, origins, limiter, techCommunityViews }: AppOptions) {
+export function createApp({ store, origins, limiter, techCommunityViews, builderBlogViews }: AppOptions) {
   const app = new Hono();
   const take = limiter ?? rateLimiter(PER_IP_LIMIT, HOUR);
   const readTechCommunityViews =
     techCommunityViews ?? createTechCommunityViewFetcher();
+  const readBuilderBlogViews = builderBlogViews ?? createBuilderBlogViewFetcher();
 
   app.use(
     "/api/*",
@@ -43,6 +46,10 @@ export function createApp({ store, origins, limiter, techCommunityViews }: AppOp
   );
 
   app.get("/api/health", (c) => c.json({ ok: true }));
+
+  app.get("/api/views/builder-blog/:slug", (c) =>
+    builderBlogViewResponse(c.req.param("slug"), readBuilderBlogViews)
+  );
 
   app.get("/api/views/tech-community/:messageId", async (c) => {
     const { messageId } = c.req.param();

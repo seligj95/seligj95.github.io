@@ -1,6 +1,6 @@
 # Site API
 
-A small public JSON API behind the daily leaderboard and Tech Community view
+A small public JSON API behind the daily leaderboard and external article view
 counts on [jordanselig.com](https://jordanselig.com). No accounts, no sessions,
 no cookies — you finish a board, you optionally type a name, and your time joins
 that day's list.
@@ -11,11 +11,18 @@ that day's list.
 | --- | --- |
 | `GET /api/health` | Liveness. Answers without touching storage. |
 | `GET /api/views/tech-community/:messageId?url=...` | Live view count for a validated Tech Community blog URL. |
+| `GET /api/views/builder-blog/:slug` | Original App Service Builder Blog view count via a read-only upstream request. |
 | `GET /api/daily/:game/:day/scores` | That day's leaderboard, fastest first. |
 | `POST /api/daily/:game/:day/scores` | Add a score. Body: `{ name, seconds, hints }`. |
 
 `:day` is a calendar date (`2026-03-03`) and `:game` has to be a game that
 actually has a daily board. Anything else is a 404.
+
+External view counts are cached for five minutes, with concurrent reads shared.
+The Builder route accepts only bounded article slugs, calls a fixed upstream
+host and path, and rejects redirects. It normalizes the source's `{ views }`
+response to `{ count }` without recording a view. Source failures return 502,
+not a fabricated zero.
 
 ## Running it
 

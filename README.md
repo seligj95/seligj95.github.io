@@ -90,12 +90,17 @@ Optional frontmatter (see `src/content.config.ts` for the full schema):
 
 ### External posts
 
-Posts published on another platform (Tech Community, dev.to) use `externalUrl`.
+Posts published on another platform (Tech Community, App Service Builder Blog, dev.to) use `externalUrl`.
 They appear in the blog list and RSS feed linking straight to the original, and
 their own page shows the summary plus a banner pointing at the full article.
-Tech Community cross-posts render a recent view count into the static build and
-refresh it in the browser; native posts and other external platforms use
-GoatCounter. If Tech Community or the site API is unavailable during deployment,
+Tech Community and App Service Builder Blog cross-posts render a recent source
+view count into the static build and refresh it in the browser through the site
+API. Builder counts use read-only requests and never record a view on the source
+blog. Native posts and other external platforms use GoatCounter.
+`PRELOAD_EXTERNAL_VIEWS=true` enables preloading for a manual build; GitHub
+Actions builds enable it automatically. The older
+`PRELOAD_TECH_COMMUNITY_VIEWS` flag remains supported.
+If the source or the site API is unavailable during deployment,
 the count stays client-only rather than failing the build.
 
 ## Games
