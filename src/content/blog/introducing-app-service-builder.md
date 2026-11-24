@@ -2,7 +2,6 @@
 title: "Introducing Azure App Service Builder: From code to a running app"
 description: "App Service Builder is now in public preview: a code-first, agent-ready path from a GitHub repository or ZIP package to a running Azure app."
 pubDate: 2026-11-17
-featured: true
 tags: ["azure", "app-service", "builder", "developer-experience", "ai", "agents"]
 heroImage: "/images/blog/2026/11/introducing-app-service-builder/hero.svg"
 externalUrl: "https://builder.appservice.azure.com/blog/posts/introducing-app-service-builder.html"
