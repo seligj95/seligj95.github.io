@@ -11,6 +11,14 @@ If you've been by here lately, you've probably noticed it's been a little quiet.
 
 That's not because I ran out of things to say. It's because I've spent the last eight to ten months heads-down with my team at Microsoft building something new, and I finally get to talk about it: [Azure App Service Builder](https://builder.appservice.azure.com/).
 
+## My role
+
+I'm the lead product manager for Builder, and I've been working closely with our development team to build the features you've asked for and identify what you'll need to be successful with the service.
+
+I've been hands-on at the keyboard, too, helping build the docs and small features, including optimizations that make Builder easier for agents to use. Getting to use some of the latest AI tools along the way has made this a really fun way to work.
+
+I also just got back from Microsoft Ignite last week, where we announced Builder's public preview. The response was overwhelming in the best possible way, and I'm excited to see what we build next.
+
 ## What it is
 
 App Service Builder is a brand-new service, now in public preview. It's a code-first, agent-ready path from a GitHub repository or ZIP package to a running app on Azure.
