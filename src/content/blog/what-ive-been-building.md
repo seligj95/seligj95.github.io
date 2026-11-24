@@ -28,6 +28,12 @@ It's also a new option *within* App Service, not a replacement for anything you 
 
 A couple of honest caveats: the preview is meant for development and test workloads, it doesn't have a financially backed SLA, and custom domains aren't supported yet. We'd rather be upfront about that than have you find out the hard way.
 
+## Prefer to watch?
+
+I sat down with a Microsoft MVP on Power BI Tips' Agentic Thinking show to talk through the whole thing: what Builder is, why we built it, and how you actually use it. If you want a good overview in one sitting, start there: [Azure App Service Builder - 047 Agentic Thinking](https://www.youtube.com/watch?v=2yJvKFF3ems). You can find it alongside my other talks on the [talks page](/talks/).
+
+## Read more
+
 For the full rundown, read my summary of [the launch announcement](/blog/introducing-app-service-builder/), or go straight to the [original on the App Service Builder Blog](https://builder.appservice.azure.com/blog/posts/introducing-app-service-builder.html).
 
 ## Please try it, and please tell us what you think
