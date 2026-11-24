@@ -4,6 +4,7 @@ description: "It's been quiet here for a reason. For the last eight to ten month
 pubDate: 2026-11-24
 featured: true
 tags: ["azure", "app-service", "builder", "developer-experience", "ai", "agents"]
+heroImage: "/images/blog/2026/11/what-ive-been-building/hero.png"
 ---
 
 If you've been by here lately, you've probably noticed it's been a little quiet.
