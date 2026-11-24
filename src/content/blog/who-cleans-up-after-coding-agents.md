@@ -4,7 +4,6 @@ description: "AI made it nearly free to start coding work. After cleaning up 96 
 pubDate: 2026-08-12
 tags: ["ai", "agents", "git", "productivity", "developer-tools", "op-ed"]
 draft: false
-featured: true
 heroImage: "/images/blog/2026/08/who-cleans-up-after-coding-agents/hero.png"
 ---
 

@@ -47,6 +47,22 @@ function scriptsFor(page: string): string {
 }
 
 describe("Build output", () => {
+  it("publishes Builder summaries with original links, covers, and source-count hooks", () => {
+    const home = readFileSync(join(dist, "index.html"), "utf8");
+    expect(home).toContain('class="featured-card" href="/blog/introducing-app-service-builder/"');
+    expect(home).toContain('data-external-view-endpoint="/api/views/builder-blog/introducing-app-service-builder"');
+    for (const slug of [
+      "introducing-app-service-builder",
+      "hosting-this-blog-on-builder",
+      "is-builder-right-for-this-app",
+    ]) {
+      const page = readFileSync(join(dist, "blog", slug, "index.html"), "utf8");
+      expect(page).toContain(`href="https://builder.appservice.azure.com/blog/posts/${slug}.html"`);
+      expect(page).toContain(`data-external-view-endpoint="/api/views/builder-blog/${slug}"`);
+      expect(existsSync(join(dist, "images", "blog", "2026", "11", slug, "hero.svg"))).toBe(true);
+    }
+  });
+
   it("produces a dist/ directory", () => {
     expect(existsSync(dist)).toBe(true);
   });
@@ -176,12 +192,24 @@ describe("Build output", () => {
 
     const html = readFileSync(talksPage, "utf-8");
     const hooks = html.match(/class="youtube-view-count"/g) ?? [];
-    expect(hooks).toHaveLength(6);
+    expect(hooks).toHaveLength(7);
+    expect(html).toContain('data-video-id="2yJvKFF3ems"');
     expect(html).toContain('data-video-id="4NEquVnq36w"');
     expect(html).toContain('data-video-id="CLgc7dPJwoY"');
   });
 
-  it("lists the Managed Instance GA and Markdown for Agents standup as the newest talk", () => {
+  it("lists the Builder Agentic Thinking episode as the newest talk", () => {
+    const html = readFileSync(join(dist, "talks", "index.html"), "utf8");
+    expect(html).toContain("Azure App Service Builder - 047 Agentic Thinking");
+    expect(html).toContain('href="https://www.youtube.com/watch?v=2yJvKFF3ems"');
+    expect(html).toContain('src="https://img.youtube.com/vi/2yJvKFF3ems/maxresdefault.jpg"');
+    expect(html).toContain('datetime="2026-11-23"');
+    expect(html.indexOf('data-video-id="2yJvKFF3ems"')).toBeLessThan(
+      html.indexOf('data-video-id="CLgc7dPJwoY"')
+    );
+  });
+
+  it("keeps the Managed Instance GA and Markdown for Agents standup", () => {
     const html = readFileSync(join(dist, "talks", "index.html"), "utf8");
 
     expect(html).toContain(

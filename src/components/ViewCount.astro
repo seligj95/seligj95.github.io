@@ -1,5 +1,5 @@
 ---
-import { preloadTechCommunityViews } from "../lib/tech-community-views";
+import { externalViewEndpoint, preloadExternalViews } from "../lib/external-views";
 
 interface Props {
   path: string;
@@ -16,7 +16,8 @@ if (externalUrl) {
   }
 }
 
-const initialCount = await preloadTechCommunityViews(externalUrl);
+const externalEndpoint = externalViewEndpoint(externalUrl, "");
+const initialCount = await preloadExternalViews(externalUrl);
 ---
 
 <span
@@ -24,6 +25,7 @@ const initialCount = await preloadTechCommunityViews(externalUrl);
   data-path={path}
   data-tech-community-url={techCommunityMessageId ? externalUrl : undefined}
   data-tech-community-id={techCommunityMessageId}
+  data-external-view-endpoint={externalEndpoint}
   hidden={initialCount === undefined}
 >
   <svg
@@ -77,11 +79,9 @@ const initialCount = await preloadTechCommunityViews(externalUrl);
       if (sep && !hasInitialCount) sep.style.display = "none";
 
       try {
-        const techCommunityUrl = el.dataset.techCommunityUrl;
-        const techCommunityId = el.dataset.techCommunityId;
         const endpoint =
-          techCommunityUrl && techCommunityId
-            ? `${VIEW_API_BASE}/api/views/tech-community/${techCommunityId}?url=${encodeURIComponent(techCommunityUrl)}`
+          el.dataset.externalViewEndpoint
+            ? `${VIEW_API_BASE}${el.dataset.externalViewEndpoint}`
             : `https://jordanselig.goatcounter.com/counter/${encodeURIComponent(path)}.json`;
         const res = await fetch(endpoint, { signal: AbortSignal.timeout(20_000) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -102,7 +102,8 @@ const initialCount = await preloadTechCommunityViews(externalUrl);
         }
         el.hidden = false;
         if (sep) sep.style.display = "";
-      } catch {
+      } catch (error) {
+        console.warn("View count is unavailable.", error);
         // Preserve a build-time count; otherwise leave the count hidden.
       }
     });

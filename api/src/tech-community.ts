@@ -1,5 +1,6 @@
+import { createCachedViewFetcher } from "./view-counts.ts";
+
 const TECH_COMMUNITY_HOST = "techcommunity.microsoft.com";
-const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type JsonObject = Record<string, unknown>;
 type FetchPage = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -58,41 +59,11 @@ export function createTechCommunityViewFetcher(
   fetchPage: FetchPage = fetch,
   now: () => number = Date.now
 ): TechCommunityViewFetcher {
-  const cache = new Map<string, { count: number; expiresAt: number }>();
-  const pending = new Map<string, Promise<number>>();
-
-  return async (url: URL): Promise<number> => {
+  return createCachedViewFetcher(async (response, url) => {
     const messageId = url.pathname.match(/\/(\d+)\/?$/)?.[1];
     if (!messageId) throw new Error("Tech Community URL did not include a message ID.");
-
-    const key = url.toString();
-    const cached = cache.get(key);
-    if (cached && cached.expiresAt > now()) return cached.count;
-
-    const existing = pending.get(key);
-    if (existing) return existing;
-
-    const request = (async () => {
-      const response = await fetchPage(url, {
-        headers: { "User-Agent": "jordanselig.com view-count proxy" },
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) {
-        throw new Error(`Tech Community returned HTTP ${response.status}.`);
-      }
-
-      const count = parseTechCommunityViews(await response.text(), messageId);
-      cache.set(key, { count, expiresAt: now() + CACHE_TTL_MS });
-      return count;
-    })();
-
-    pending.set(key, request);
-    try {
-      return await request;
-    } finally {
-      pending.delete(key);
-    }
-  };
+    return parseTechCommunityViews(await response.text(), messageId);
+  }, fetchPage, now);
 }
 
 export async function techCommunityViewResponse(
