@@ -49,7 +49,12 @@ function scriptsFor(page: string): string {
 describe("Build output", () => {
   it("publishes Builder summaries with original links, covers, and source-count hooks", () => {
     const home = readFileSync(join(dist, "index.html"), "utf8");
-    expect(home).toContain('class="featured-card" href="/blog/introducing-app-service-builder/"');
+    expect(home).toContain('class="featured-card" href="/blog/what-ive-been-building/"');
+    const hero = "/images/blog/2026/11/what-ive-been-building/hero.png";
+    expect(home).toContain(`src="${hero}"`);
+    const featuredPage = readFileSync(join(dist, "blog", "what-ive-been-building", "index.html"), "utf8");
+    expect(featuredPage).toContain(hero);
+    expect(existsSync(join(dist, hero))).toBe(true);
     expect(home).toContain('data-external-view-endpoint="/api/views/builder-blog/introducing-app-service-builder"');
     for (const slug of [
       "introducing-app-service-builder",
