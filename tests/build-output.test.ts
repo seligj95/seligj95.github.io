@@ -50,6 +50,8 @@ describe("Build output", () => {
   it("publishes Builder summaries with original links, covers, and source-count hooks", () => {
     const home = readFileSync(join(dist, "index.html"), "utf8");
     expect(home).toContain('class="featured-card" href="/blog/what-ive-been-building/"');
+    const tags = readFileSync(join(dist, "tags", "index.html"), "utf8");
+    expect(tags).toContain('href="/blog/hosting-this-blog-on-builder/"');
     const hero = "/images/blog/2026/11/what-ive-been-building/hero.png";
     expect(home).toContain(`src="${hero}"`);
     const featuredPage = readFileSync(join(dist, "blog", "what-ive-been-building", "index.html"), "utf8");
