@@ -54,6 +54,12 @@ describe("RSS feed", () => {
     expect(rssContent).not.toContain("/personal-blog/blog/");
   });
 
+  it("links external posts to their original publication", () => {
+    expect(rssContent).toContain(
+      "<link>https://builder.appservice.azure.com/blog/posts/hosting-this-blog-on-builder.html</link>"
+    );
+  });
+
   it("includes a pubDate for items", () => {
     expect(rssContent).toContain("<pubDate>");
   });

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection } from "astro:content";
+import { blogPostPath } from "../../lib/blog-url";
 
 const posts = (await getCollection("blog"))
   .filter((post) => !post.data.draft)
@@ -13,7 +14,6 @@ const tags = [...new Set(posts.flatMap((post) => post.data.tags))]
   .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 const popularTags = tags.slice(0, 8);
 const moreTags = tags.slice(8);
-const baseUrl = import.meta.env.BASE_URL;
 ---
 
 <BaseLayout title="Tags — Jordan Selig" description="Browse posts by tag.">
@@ -87,7 +87,7 @@ const baseUrl = import.meta.env.BASE_URL;
           data-tags={JSON.stringify(post.data.tags)}
           data-search={`${post.data.title} ${post.data.description ?? ""} ${post.data.tags.join(" ")}`.toLowerCase()}
         >
-          <a href={`${baseUrl}blog/${post.id}/`}>
+          <a href={blogPostPath(post.id)}>
             <div class="post-info">
               <span class="title">{post.data.title}</span>
               {post.data.description && (
