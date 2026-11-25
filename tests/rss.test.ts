@@ -44,6 +44,16 @@ describe("RSS feed", () => {
     expect(rssContent).toContain("/blog/hello-world/");
   });
 
+  it("uses the published blog route for local posts", () => {
+    expect(rssContent).toContain(
+      "https://jordanselig.com/blog/we-finally-learned-to-prompt-now-what/"
+    );
+    expect(rssContent).toContain(
+      "https://jordanselig.com/blog/what-ive-been-building/"
+    );
+    expect(rssContent).not.toContain("/personal-blog/blog/");
+  });
+
   it("includes a pubDate for items", () => {
     expect(rssContent).toContain("<pubDate>");
   });
